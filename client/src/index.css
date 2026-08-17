@@ -1,0 +1,102 @@
+@import "@xyflow/react/dist/style.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Box node styling */
+.box-node {
+  @apply bg-white rounded-xl shadow-lg border-2;
+  width: 100%;
+  height: 100%;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.box-node.selected {
+  @apply shadow-2xl;
+}
+
+/* NodeResizer handle styling */
+.react-flow__resize-control.handle {
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 50%;
+  border: 2px solid #fff !important;
+  background: #64748b !important;
+}
+.react-flow__resize-control.line {
+  background: transparent !important;
+}
+
+/* React Flow background tweaks */
+.react-flow__node {
+  cursor: grab;
+}
+
+.react-flow__node:active {
+  cursor: grabbing;
+}
+
+/* Markdown output styling */
+.markdown-output h1 {
+  @apply text-lg font-bold mt-3 mb-2;
+}
+.markdown-output h2 {
+  @apply text-base font-bold mt-3 mb-1;
+}
+.markdown-output h3 {
+  @apply text-sm font-semibold mt-2 mb-1;
+}
+.markdown-output p {
+  @apply my-1.5 leading-relaxed;
+}
+.markdown-output ul {
+  @apply list-disc pl-5 my-1.5;
+}
+.markdown-output ol {
+  @apply list-decimal pl-5 my-1.5;
+}
+.markdown-output li {
+  @apply my-0.5;
+}
+.markdown-output strong {
+  @apply font-semibold;
+}
+.markdown-output code {
+  @apply bg-slate-100 px-1 py-0.5 rounded text-xs font-mono;
+}
+.markdown-output pre {
+  @apply bg-slate-800 text-slate-100 p-3 rounded-lg overflow-x-auto my-2 text-xs;
+}
+.markdown-output pre code {
+  @apply bg-transparent p-0 text-slate-100;
+}
+.markdown-output blockquote {
+  @apply border-l-4 border-slate-300 pl-3 italic text-slate-600 my-2;
+}
+.markdown-output a {
+  @apply text-blue-600 underline;
+}
+.markdown-output hr {
+  @apply my-3 border-slate-200;
+}
+.markdown-output table {
+  @apply w-full border-collapse my-2 text-xs;
+}
+.markdown-output th,
+.markdown-output td {
+  @apply border border-slate-300 px-2 py-1 text-left;
+}
+.markdown-output th {
+  @apply bg-slate-100 font-semibold;
+}

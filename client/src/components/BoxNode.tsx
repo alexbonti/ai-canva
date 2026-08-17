@@ -1,0 +1,545 @@
+import { memo, useState, useRef, useEffect } from "react";
+import { Handle, Position, NodeResizer, type NodeProps } from "@xyflow/react";
+import ReactMarkdown from "react-markdown";
+import { useBoardStore } from "../store/boardStore.js";
+import { BOX_TYPES } from "../types.js";
+import type { BoxType } from "../types.js";
+import { wrapCodeInHtml, downloadHtml, copyToClipboard } from "../lib/code.js";
+
+/**
+ * Reads an image File, resizes it to max 1024px, and returns a compressed
+ * JPEG data URL. Keeps localStorage and API payloads small.
+ */
+function resizeImage(file: File, maxSize = 1024): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > maxSize) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { reject(new Error("Canvas not supported")); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.onerror = () => reject(new Error("Could not load image"));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error("Could not read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function BoxNode({ id, data, selected, type }: NodeProps) {
+  const boxType = (data.boxType || type) as BoxType;
+  const meta = BOX_TYPES[boxType];
+  const boxData = useBoardStore((s) => s.boxData[id]);
+  const updateBoxData = useBoardStore((s) => s.updateBoxData);
+  const deleteBox = useBoardStore((s) => s.deleteBox);
+  const runBox = useBoardStore((s) => s.runBox);
+
+  const [showSettings, setShowSettings] = useState(false);
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [codeTab, setCodeTab] = useState<"code" | "preview">("preview");
+  const [copied, setCopied] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ALL hooks must be called before any early return (Rules of Hooks)
+  // Listen for "preview-ready" message from the iframe
+  useEffect(() => {
+    if (!boxData || boxType !== "code") return;
+    const handler = (e: MessageEvent) => {
+      if (e.data && e.data.type === "preview-ready") {
+        setPreviewLoading(false);
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [boxData, boxType]);
+
+  // Set loading when code is freshly generated, with timeout fallback
+  useEffect(() => {
+    if (boxData && boxType === "code" && boxData.code && boxData.status === "done") {
+      setPreviewLoading(true);
+      const timeout = setTimeout(() => setPreviewLoading(false), 8000);
+      return () => clearTimeout(timeout);
+    }
+  }, [boxData, boxType]);
+
+  if (!boxData) return null;
+
+  const isIdea = boxType === "idea";
+  const isImage = boxType === "image";
+  const isCartoon = boxType === "cartoon";
+  const isSlides = boxType === "slides";
+  const isCode = boxType === "code";
+  const isInputBox = isIdea || isImage;
+
+  const isRunning = boxData.status === "running";
+  const hasError = boxData.status === "error";
+  const hasTextOutput = boxData.output && boxData.output.trim().length > 0;
+  const hasImageOutput = boxData.outputImage && boxData.outputImage.length > 0;
+  const hasUploadedImage = boxData.imageData && boxData.imageData.length > 0;
+  const slides = boxData.slides || [];
+  const hasSlides = slides.length > 0;
+  const currentSlide = Math.min(slideIndex, slides.length - 1);
+  const slide = hasSlides ? slides[currentSlide] : null;
+
+  const handleImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await resizeImage(file);
+      updateBoxData(id, { imageData: dataUrl });
+    } catch (err) {
+      console.error("Image upload failed:", err);
+    }
+  };
+
+  const handleCopyCode = async () => {
+    if (!boxData.code) return;
+    const ok = await copyToClipboard(boxData.code);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleDownloadCode = () => {
+    if (!boxData.code) return;
+    const html = wrapCodeInHtml(boxData.code);
+    downloadHtml(html);
+  };
+
+  return (
+    <>
+      <NodeResizer minWidth={220} minHeight={160} isVisible={!!selected} />
+      <div
+        className={"box-node" + (selected ? " selected" : "")}
+        style={{ borderColor: meta.color }}
+      >
+      {/* Target handle (input) — AI boxes only */}
+      {!isInputBox && (
+        <Handle
+          type="target"
+          position={Position.Left}
+          style={{ background: meta.color, width: 10, height: 10 }}
+        />
+      )}
+
+      {/* Header */}
+      <div
+        className="flex items-center justify-between px-3 py-2 rounded-t-[10px]"
+        style={{ backgroundColor: meta.color + "20" }}
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-base">{meta.icon}</span>
+          <span className="font-semibold text-slate-700 text-sm">
+            {meta.label}
+          </span>
+        </div>
+        <button
+          onClick={() => deleteBox(id)}
+          className="text-slate-400 hover:text-red-500 transition text-sm w-5 h-5 flex items-center justify-center rounded hover:bg-red-50"
+          title="Delete box"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="px-3 py-2 flex-1 min-h-0 overflow-y-auto">
+        {/* Idea box — editable textarea */}
+        {isIdea && (
+          <textarea
+            className="w-full min-h-[100px] resize-y rounded-lg border border-slate-200 p-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-300"
+            placeholder="Write your idea here..."
+            value={boxData.content}
+            onChange={(e) =>
+              updateBoxData(id, { content: e.target.value, output: e.target.value })
+            }
+          />
+        )}
+
+        {/* Image upload box */}
+        {isImage && (
+          <div>
+            {hasUploadedImage ? (
+              <div>
+                <img
+                  src={boxData.imageData}
+                  alt="Uploaded"
+                  className="w-full rounded-lg border border-slate-200"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="mt-2 w-full text-xs py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition"
+                >
+                  📁 Change Image
+                </button>
+              </div>
+            ) : (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="cursor-pointer border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-emerald-400 hover:bg-emerald-50 transition"
+              >
+                <div className="text-3xl mb-2">🖼️</div>
+                <div className="text-sm text-slate-500 font-medium">
+                  Click to upload
+                </div>
+                <div className="text-xs text-slate-400 mt-1">
+                  PNG, JPG, WebP — max 1024px
+                </div>
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageUpload}
+            />
+          </div>
+        )}
+
+        {/* AI box output — cartoon (image) */}
+        {!isInputBox && isCartoon && (
+          <div className="min-h-[120px]">
+            {isRunning && (
+              <div className="flex flex-col items-center gap-2 text-slate-400 text-sm py-8 justify-center">
+                <span className="animate-spin text-2xl">🎨</span>
+                <span>Generating cartoon...</span>
+              </div>
+            )}
+            {hasError && !isRunning && (
+              <div className="text-red-500 text-sm p-2 bg-red-50 rounded-lg">
+                ⚠️ {boxData.error}
+              </div>
+            )}
+            {hasImageOutput && !isRunning && (
+              <div>
+                <img
+                  src={boxData.outputImage}
+                  alt="Generated cartoon profile"
+                  className="w-full rounded-lg border border-slate-200"
+                />
+                <a
+                  href={boxData.outputImage}
+                  download="cartoon-profile.jpg"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block mt-2 text-xs text-center text-slate-400 hover:text-slate-600"
+                >
+                  Open image ↗
+                </a>
+              </div>
+            )}
+            {!hasImageOutput && !isRunning && !hasError && (
+              <div className="text-slate-400 text-sm py-8 text-center">
+                No image yet. Connect an Image or Idea box and click <strong>Run</strong>.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* AI box output — text (research, summarize) */}
+        {!isInputBox && !isCartoon && !isSlides && !isCode && (
+          <div className="min-h-[80px]">
+            {isRunning && (
+              <div className="flex items-center gap-2 text-slate-400 text-sm py-4 justify-center">
+                <span className="animate-spin">⏳</span>
+                <span>Generating...</span>
+              </div>
+            )}
+            {hasError && !isRunning && (
+              <div className="text-red-500 text-sm p-2 bg-red-50 rounded-lg">
+                ⚠️ {boxData.error}
+              </div>
+            )}
+            {hasTextOutput && !isRunning && (
+              <div className="markdown-output text-slate-700 text-sm">
+                <ReactMarkdown>{boxData.output}</ReactMarkdown>
+              </div>
+            )}
+            {!hasTextOutput && !isRunning && !hasError && (
+              <div className="text-slate-400 text-sm py-4 text-center">
+                No output yet. Click <strong>Run</strong> to generate.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* AI box output — slides (pitch deck) */}
+        {!isInputBox && isSlides && (
+          <div className="min-h-[120px]">
+            {isRunning && (
+              <div className="flex flex-col items-center gap-2 text-slate-400 text-sm py-8 justify-center">
+                <span className="animate-spin text-2xl">📊</span>
+                <span>Creating slides...</span>
+              </div>
+            )}
+            {hasError && !isRunning && (
+              <div className="text-red-500 text-sm p-2 bg-red-50 rounded-lg">
+                ⚠️ {boxData.error}
+              </div>
+            )}
+            {hasSlides && !isRunning && slide && (
+              <div>
+                {/* Slide card */}
+                <div className="rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+                  {/* Title bar */}
+                  <div
+                    className="px-3 py-2 text-white font-bold text-sm"
+                    style={{ backgroundColor: meta.color }}
+                  >
+                    {currentSlide + 1}. {slide.title}
+                  </div>
+                  {/* Bullets */}
+                  <div className="p-3 bg-white">
+                    <ul className="space-y-1.5">
+                      {slide.bullets.map((bullet, i) => (
+                        <li
+                          key={i}
+                          className="text-xs text-slate-700 flex gap-1.5 leading-relaxed"
+                        >
+                          <span
+                            className="flex-shrink-0 w-1.5 h-1.5 rounded-full mt-1.5"
+                            style={{ backgroundColor: meta.color }}
+                          />
+                          <span>{bullet}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {/* Speaker notes */}
+                    {slide.notes && (
+                      <div className="mt-2 pt-2 border-t border-slate-100">
+                        <div className="text-xs text-slate-400 italic">
+                          📝 {slide.notes}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* Navigation */}
+                <div className="flex items-center justify-center gap-3 mt-2">
+                  <button
+                    onClick={() => setSlideIndex(Math.max(0, currentSlide - 1))}
+                    disabled={currentSlide === 0}
+                    className="w-7 h-7 rounded-lg border border-slate-200 text-slate-500 text-sm flex items-center justify-center hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                    title="Previous slide"
+                  >
+                    ◀
+                  </button>
+                  <span className="text-xs text-slate-500 font-medium tabular-nums">
+                    {currentSlide + 1} / {slides.length}
+                  </span>
+                  <button
+                    onClick={() => setSlideIndex(Math.min(slides.length - 1, currentSlide + 1))}
+                    disabled={currentSlide === slides.length - 1}
+                    className="w-7 h-7 rounded-lg border border-slate-200 text-slate-500 text-sm flex items-center justify-center hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                    title="Next slide"
+                  >
+                    ▶
+                  </button>
+                </div>
+              </div>
+            )}
+            {!hasSlides && !isRunning && !hasError && (
+              <div className="text-slate-400 text-sm py-8 text-center">
+                No slides yet. Connect a Research or Idea box and click <strong>Run</strong>.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* AI box output — code (React prototype) */}
+        {!isInputBox && isCode && (
+          <div className="flex flex-col h-full min-h-[150px]">
+            {isRunning && (
+              <div className="flex flex-col items-center gap-2 text-slate-400 text-sm py-8 justify-center">
+                <span className="animate-spin text-2xl">💻</span>
+                <span>Writing code...</span>
+              </div>
+            )}
+            {hasError && !isRunning && (
+              <div className="text-red-500 text-sm p-2 bg-red-50 rounded-lg">
+                ⚠️ {boxData.error}
+              </div>
+            )}
+            {boxData.code && !isRunning && (
+              <div className="flex flex-col h-full">
+                {/* Tab buttons */}
+                <div className="flex gap-1 mb-2">
+                  <button
+                    onClick={() => setCodeTab("code")}
+                    className={"px-3 py-1 rounded-lg text-xs font-medium transition " + (codeTab === "code" ? "bg-slate-700 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}
+                  >
+                    📝 Code
+                  </button>
+                  <button
+                    onClick={() => { setCodeTab("preview"); setPreviewLoading(true); }}
+                    className={"px-3 py-1 rounded-lg text-xs font-medium transition " + (codeTab === "preview" ? "bg-cyan-500 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}
+                  >
+                    👁 Preview
+                  </button>
+                </div>
+                {/* Code tab */}
+                {codeTab === "code" && (
+                  <pre className="flex-1 overflow-auto bg-slate-900 text-slate-100 p-3 rounded-lg text-xs font-mono leading-relaxed min-h-0">
+                    {boxData.code}
+                  </pre>
+                )}
+                {/* Preview tab */}
+                {codeTab === "preview" && (
+                  <div className="flex-1 min-h-0 relative rounded-lg overflow-hidden border border-slate-200 bg-white">
+                    {previewLoading && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400 text-sm bg-white z-10">
+                        <span className="animate-spin text-2xl">⚙️</span>
+                        <span>Loading preview...</span>
+                      </div>
+                    )}
+                    <iframe
+                      srcDoc={wrapCodeInHtml(boxData.code)}
+                      className="absolute inset-0 w-full h-full border-0"
+                      sandbox="allow-scripts allow-popups allow-forms allow-same-origin allow-modals"
+                      title="React Preview"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+            {!boxData.code && !isRunning && !hasError && (
+              <div className="flex flex-col gap-2">
+                <textarea
+                  placeholder="Describe what you want to build... (e.g. a counter app with increment/decrement buttons)"
+                  value={boxData.content}
+                  onChange={(e) => updateBoxData(id, { content: e.target.value })}
+                  className="w-full min-h-[80px] resize-y rounded-lg border border-slate-200 p-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-300"
+                />
+                <p className="text-xs text-slate-400">
+                  Type a description above and click Run, or connect a Research/PRD/Idea box.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Footer — AI boxes only */}
+      {!isInputBox && (
+        <div className="px-3 py-2 border-t border-slate-100 flex items-center gap-2">
+          <button
+            onClick={() => runBox(id)}
+            disabled={isRunning}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white transition disabled:opacity-50"
+            style={{ backgroundColor: meta.color }}
+          >
+            {isRunning ? "⏳ Running..." : "▶ Run"}
+          </button>
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className={"px-2.5 py-1.5 rounded-lg text-sm transition " + (showSettings ? "bg-slate-200 text-slate-700" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}
+            title="Prompt settings"
+          >
+            ⚙
+          </button>
+          {isCode && boxData.code && !isRunning && (
+            <>
+              <button
+                onClick={handleCopyCode}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap"
+                title="Copy code"
+              >
+                {copied ? "✅ Copied" : "📋 Copy"}
+              </button>
+              <button
+                onClick={handleDownloadCode}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap"
+                title="Download as HTML"
+              >
+                💾 Save
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Settings panel — collapsible */}
+      {!isInputBox && showSettings && (
+        <div className="px-3 py-3 border-t border-slate-100 bg-slate-50 space-y-2">
+          {/* System prompt — text AI boxes only (not cartoon) */}
+          {!isCartoon && (
+            <div>
+              <label className="text-xs font-medium text-slate-500 block mb-1">
+                System Prompt (role / behavior)
+              </label>
+              <textarea
+                className="w-full text-xs rounded-lg border border-slate-200 p-2 font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-300 min-h-[60px] resize-y"
+                value={boxData.systemPrompt}
+                onChange={(e) =>
+                  updateBoxData(id, { systemPrompt: e.target.value })
+                }
+              />
+            </div>
+          )}
+          <div>
+            <label className="text-xs font-medium text-slate-500 block mb-1">
+              {isCartoon ? "Prompt Template (text-to-image fallback)" : "Prompt Template"}
+            </label>
+            <textarea
+              className={"w-full text-xs rounded-lg border border-slate-200 p-2 font-mono text-slate-700 focus:outline-none focus:ring-2" + (isCartoon ? " focus:ring-pink-300" : " focus:ring-blue-300") + " min-h-[80px] resize-y"}
+              value={boxData.prompt}
+              onChange={(e) =>
+                updateBoxData(id, { prompt: e.target.value })
+              }
+            />
+            {isCartoon && (
+              <p className="text-xs text-slate-400 mt-1">
+                Used when input is text (no image connected). If an Image box is connected, image-to-image is used instead.
+              </p>
+            )}
+            {isSlides && (
+              <p className="text-xs text-slate-400 mt-1">
+                Defines the slide structure. Claude outputs JSON — the app parses it into visual slides.
+              </p>
+            )}
+            <p className="text-xs text-slate-400 mt-1">
+              Variables:{" "}
+              <code className="bg-slate-200 px-1 rounded">{"{{input_1}}"}</code>{" "}
+              <code className="bg-slate-200 px-1 rounded">{"{{input_2}}"}</code>{" "}
+              <code className="bg-slate-200 px-1 rounded">{"{{inputs}}"}</code>
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Source handle (output) — all boxes */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        style={{ background: meta.color, width: 10, height: 10 }}
+      />
+    </div>
+    </>
+  );
+}
+
+export default memo(BoxNode);
