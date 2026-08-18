@@ -250,6 +250,16 @@ export const useBoardStore = create<BoardState>()(
         if (!user || !state.currentBoardId) return;
         set({ saveStatus: "saving" });
         try {
+          // Strip imageData (base64 data URLs) from boxData before saving.
+          // Base64 images can be 100-200KB each and would exceed Firestore's
+          // 1MB document limit, causing the entire save (including outputImage
+          // URLs) to fail. imageData is kept in localStorage for local display.
+          const cleanBoxData = Object.fromEntries(
+            Object.entries(state.boxData).map(([id, data]) => [
+              id,
+              { ...data, imageData: undefined } as BoxData,
+            ])
+          );
           await saveBoard({
             id: state.currentBoardId,
             title: state.boardTitle,
@@ -257,7 +267,7 @@ export const useBoardStore = create<BoardState>()(
             ownerEmail: user.email || "",
             nodes: state.nodes,
             edges: state.edges,
-            boxData: state.boxData,
+            boxData: cleanBoxData,
             createdAt: Date.now(),
             updatedAt: Date.now(),
           });
