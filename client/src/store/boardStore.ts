@@ -320,9 +320,11 @@ export const useBoardStore = create<BoardState>()(
           );
           // Use updateBoardData (not saveBoard) so we do NOT overwrite
           // ownerId/ownerEmail/createdAt — collaborators can save without claiming ownership
+          // Only save board CONTENT — do NOT include collaborators.
+          // Collaborators are managed by shareBoard/unshareBoard (arrayUnion/arrayRemove).
+          // Including collaborators here could overwrite the real list and break access.
           await updateBoardData(state.currentBoardId, {
             title: state.boardTitle,
-            collaborators: state.collaborators,
             nodes: state.nodes,
             edges: state.edges,
             boxData: cleanBoxData,
