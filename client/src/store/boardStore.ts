@@ -310,11 +310,13 @@ export const useBoardStore = create<BoardState>()(
           // Base64 images can be 100-200KB each and would exceed Firestore's
           // 1MB document limit, causing the entire save (including outputImage
           // URLs) to fail. imageData is kept in localStorage for local display.
+          // Strip imageData (base64) from boxData — updateDoc rejects undefined values,
+          // so we delete the key entirely instead of setting it to undefined
           const cleanBoxData = Object.fromEntries(
-            Object.entries(state.boxData).map(([id, data]) => [
-              id,
-              { ...data, imageData: undefined } as BoxData,
-            ])
+            Object.entries(state.boxData).map(([id, data]) => {
+              const { imageData, ...rest } = data;
+              return [id, rest];
+            })
           );
           // Use updateBoardData (not saveBoard) so we do NOT overwrite
           // ownerId/ownerEmail/createdAt — collaborators can save without claiming ownership
