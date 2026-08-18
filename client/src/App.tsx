@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import Canvas from "./components/Canvas.js";
 import Toolbar from "./components/Toolbar.js";
+import Sidebar from "./components/Sidebar.js";
 import LandingPage from "./components/LandingPage.js";
 import { useBoardStore } from "./store/boardStore.js";
 import { useAuthStore } from "./store/authStore.js";
@@ -30,6 +31,7 @@ export default function App() {
   const clearBoard = useBoardStore((s) => s.clearBoard);
 
   const [showBoardList, setShowBoardList] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Initialize auth listener on mount
   useEffect(() => {
@@ -143,20 +145,16 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-1.5">
-          {(Object.keys(BOX_TYPES) as BoxType[]).map((type) => (
-            <button
-              key={type}
-              onClick={() => handleAddBox(type)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white transition hover:opacity-90"
-              style={{ backgroundColor: BOX_TYPES[type].color }}
-            >
-              <span>{BOX_TYPES[type].icon}</span>
-              <span>+ {BOX_TYPES[type].label}</span>
-            </button>
-          ))}
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className={"flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition " + (sidebarOpen ? "bg-slate-200 text-slate-700" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}
+            title="Toggle add-box panel"
+          >
+            {"+ Add " + (sidebarOpen ? "✕" : "☰")}
+          </button>
           <button
             onClick={handleClearBoard}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition ml-2"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition"
             title="Clear board"
           >
             🗑 Clear
@@ -223,6 +221,7 @@ export default function App() {
       <div className="flex-1 relative">
         <ReactFlowProvider>
           <Canvas />
+          <Sidebar open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
           <Toolbar />
         </ReactFlowProvider>
       </div>

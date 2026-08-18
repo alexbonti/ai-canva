@@ -18,7 +18,7 @@ export default function Toolbar() {
           </div>
           <ul className="text-xs text-slate-600 space-y-1.5">
             <li>
-              <strong>1.</strong> Add boxes using the buttons in the top bar.
+              <strong>1.</strong> Add boxes from the panel on the right (toggle with + Add in the top bar).
             </li>
             <li>
               <strong>2.</strong> Type your idea in an <span className="text-amber-600 font-semibold">💡 Idea Box</span>, or upload an image in an <span className="text-emerald-600 font-semibold">🖼️ Image Box</span>.
