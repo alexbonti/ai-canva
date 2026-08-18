@@ -15,6 +15,8 @@ import { BOX_TYPES } from "../types.js";
 import { generate, generateImage } from "../lib/api.js";
 import { fillPromptTemplate, getBoxOutput } from "../lib/prompts.js";
 import { extractCode } from "../lib/code.js";
+import { saveBoard, loadBoard, listBoards, deleteBoard, type BoardDoc } from "../lib/firestore.js";
+import { useAuthStore } from "./authStore.js";
 
 function makeId(): string {
   return `box-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -62,6 +64,15 @@ function parseSlidesResponse(text: string): Slide[] {
   );
 }
 
+// Debounced save to Firestore — triggers 1s after the last change
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleSave() {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    useBoardStore.getState().saveToFirestore();
+  }, 1000);
+}
+
 function defaultBoxData(type: BoxType): BoxData {
   const meta = BOX_TYPES[type];
   return {
@@ -80,6 +91,12 @@ interface BoardState {
   edges: Edge[];
   boxData: Record<string, BoxData>;
 
+  // Board management (Firestore)
+  currentBoardId: string | null;
+  boardTitle: string;
+  saveStatus: "idle" | "saving" | "saved" | "error";
+  boardList: BoardDoc[];
+
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
   onConnect: (connection: Connection) => void;
@@ -93,6 +110,15 @@ interface BoardState {
   runBox: (id: string) => Promise<void>;
 
   setBoxStatus: (id: string, status: BoxStatus, error?: string) => void;
+
+  // Board operations (Firestore)
+  createNewBoard: (title?: string) => Promise<void>;
+  loadBoardFromFirestore: (boardId: string) => Promise<void>;
+  saveToFirestore: () => Promise<void>;
+  setBoardTitle: (title: string) => void;
+  refreshBoardList: () => Promise<void>;
+  deleteCurrentBoard: () => Promise<void>;
+  clearBoard: () => void;
 }
 
 export const useBoardStore = create<BoardState>()(
@@ -101,13 +127,19 @@ export const useBoardStore = create<BoardState>()(
       nodes: [],
       edges: [],
       boxData: {},
+      currentBoardId: null,
+      boardTitle: "Untitled Board",
+      saveStatus: "idle",
+      boardList: [],
 
       onNodesChange: (changes) => {
         set({ nodes: applyNodeChanges(changes, get().nodes) });
+        scheduleSave();
       },
 
       onEdgesChange: (changes) => {
         set({ edges: applyEdgeChanges(changes, get().edges) });
+        scheduleSave();
       },
 
       onConnect: (connection) => {
@@ -117,6 +149,7 @@ export const useBoardStore = create<BoardState>()(
             get().edges
           ),
         });
+        scheduleSave();
       },
 
       addBox: (type, position) => {
@@ -141,6 +174,7 @@ export const useBoardStore = create<BoardState>()(
           },
         });
 
+        scheduleSave();
         return id;
       },
 
@@ -153,6 +187,7 @@ export const useBoardStore = create<BoardState>()(
             [id]: { ...current, ...patch },
           },
         });
+        scheduleSave();
       },
 
       deleteBox: (id) => {
@@ -165,10 +200,113 @@ export const useBoardStore = create<BoardState>()(
             Object.entries(get().boxData).filter(([k]) => k !== id)
           ),
         });
+        scheduleSave();
       },
 
       setBoxStatus: (id, status, error) => {
         get().updateBoxData(id, { status, error });
+      },
+
+      // --- Firestore board operations ---
+
+      createNewBoard: async (title) => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
+        const boardId = makeId();
+        const now = Date.now();
+        await saveBoard({
+          id: boardId,
+          title: title || "Untitled Board",
+          ownerId: user.uid,
+          ownerEmail: user.email || "",
+          nodes: [], edges: [], boxData: {},
+          createdAt: now, updatedAt: now,
+        });
+        set({
+          currentBoardId: boardId,
+          boardTitle: title || "Untitled Board",
+          nodes: [], edges: [], boxData: {},
+          saveStatus: "saved",
+        });
+        get().refreshBoardList();
+      },
+
+      loadBoardFromFirestore: async (boardId) => {
+        const board = await loadBoard(boardId);
+        if (!board) return;
+        set({
+          currentBoardId: board.id,
+          boardTitle: board.title,
+          nodes: board.nodes as Node[],
+          edges: board.edges as Edge[],
+          boxData: board.boxData as Record<string, BoxData>,
+          saveStatus: "saved",
+        });
+      },
+
+      saveToFirestore: async () => {
+        const state = get();
+        const user = useAuthStore.getState().user;
+        if (!user || !state.currentBoardId) return;
+        set({ saveStatus: "saving" });
+        try {
+          await saveBoard({
+            id: state.currentBoardId,
+            title: state.boardTitle,
+            ownerId: user.uid,
+            ownerEmail: user.email || "",
+            nodes: state.nodes,
+            edges: state.edges,
+            boxData: state.boxData,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          });
+          set({ saveStatus: "saved" });
+        } catch (err) {
+          console.error("Firestore save failed:", err);
+          set({ saveStatus: "error" });
+        }
+      },
+
+      setBoardTitle: (title) => {
+        set({ boardTitle: title });
+        scheduleSave();
+      },
+
+      refreshBoardList: async () => {
+        const user = useAuthStore.getState().user;
+        if (!user) return;
+        try {
+          const boards = await listBoards(user.uid);
+          set({ boardList: boards });
+        } catch (err) {
+          console.error("Failed to list boards:", err);
+        }
+      },
+
+      deleteCurrentBoard: async () => {
+        const state = get();
+        if (!state.currentBoardId) return;
+        try {
+          await deleteBoard(state.currentBoardId);
+          set({
+            currentBoardId: null,
+            boardTitle: "Untitled Board",
+            nodes: [], edges: [], boxData: {},
+            saveStatus: "idle",
+          });
+          get().refreshBoardList();
+        } catch (err) {
+          console.error("Failed to delete board:", err);
+        }
+      },
+
+      clearBoard: () => {
+        set({
+          nodes: [], edges: [], boxData: {},
+          currentBoardId: null,
+          boardTitle: "Untitled Board",
+        });
       },
 
       runBox: async (id) => {
@@ -290,6 +428,8 @@ export const useBoardStore = create<BoardState>()(
         nodes: state.nodes,
         edges: state.edges,
         boxData: state.boxData,
+        currentBoardId: state.currentBoardId,
+        boardTitle: state.boardTitle,
       }),
     }
   )

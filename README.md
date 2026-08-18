@@ -16,6 +16,17 @@ cp server/.env.example server/.env
 - Anthropic key: https://console.anthropic.com/
 - fal.ai key: https://fal.ai/dashboard/keys
 
+### 1b. Set up Firebase (for cloud storage + auth)
+
+1. Go to [Firebase Console](https://console.firebase.google.com) and create a project
+2. **Enable Authentication**: Console > Authentication > Sign-in method > Google > Enable
+3. **Enable Firestore**: Console > Firestore Database > Create database (start in production mode)
+4. **Set security rules**: Copy the rules from `firestore.rules` in this repo, paste into Console > Firestore > Rules > Publish
+5. **Add web app**: Console > Project Settings > Add app > Web > Register app > Copy the config
+6. **Update client config**: Replace the values in `client/src/lib/firebase.ts` with your config
+
+The security rules ensure users can only read/write/delete their **own** boards.
+
 ### 2. Install dependencies (first time only)
 
 ```bash
@@ -145,14 +156,18 @@ Idea Box ──▶ Research Box ──▶ PRD Box ──▶ Code Box
 
 ## Persistence
 
-The board (boxes, connections, content, prompts) auto-saves to browser localStorage. Refresh the page and your board is restored.
+- **When logged in**: Boards auto-save to Cloud Firestore (debounced, 1s after last change). localStorage serves as an offline cache. Boards are private per user.
+- **When not logged in**: Boards save to browser localStorage only.
+- **Board list**: When logged in, click "📋 Boards" in the header to see all your saved boards, create new ones, or switch between them.
 
 ## Tech Stack
 
 - **Canvas:** React Flow (@xyflow/react) — draggable nodes, connections, pan/zoom
 - **Frontend:** React 19 + Vite + TypeScript + Tailwind CSS + Zustand
 - **Backend:** Express + @anthropic-ai/sdk (Claude) + fal.ai REST API (image generation)
-- **Persistence:** localStorage (browser)
+- **Database:** Cloud Firestore (board storage, one document per board)
+- **Auth:** Firebase Authentication (Google sign-in)
+- **Persistence:** localStorage (offline cache) + Firestore (cloud source of truth)
 
 ## Roadmap (Phase 2+)
 
