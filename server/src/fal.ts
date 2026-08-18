@@ -4,7 +4,7 @@
  *
  * Two modes:
  * - image-to-image: uses fal-ai/cartoonify to transform an uploaded image into cartoon style
- * - text-to-image: uses fal-ai/flux-1/schnell as a fallback to generate from a text prompt
+ * - text-to-image: uses fal-ai/flux/schnell as a fallback to generate from a text prompt
  */
 
 const FAL_BASE = "https://fal.run";
@@ -71,6 +71,7 @@ async function callFalModel(
  * - If no imageUrl (text-to-image fallback): uses fal-ai/flux-1/schnell
  *   to generate a cartoon profile from the text prompt.
  */
+ */
 export async function generateCartoonImage(params: {
   prompt: string;
   imageUrl?: string;
@@ -85,7 +86,7 @@ export async function generateCartoonImage(params: {
     });
   } else {
     // Text-to-image: generate from prompt using Flux Schnell
-    return callFalModel("fal-ai/flux-1/schnell", {
+    return callFalModel("fal-ai/flux/schnell", {
       prompt: params.prompt,
       image_size: "square_hd",
       num_inference_steps: 4,

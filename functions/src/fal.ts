@@ -41,7 +41,7 @@ export async function generateCartoonImage(params: { prompt: string; imageUrl?: 
       enable_safety_checker: true,
     });
   } else {
-    return callFalModel("fal-ai/flux-1/schnell", {
+    return callFalModel("fal-ai/flux/schnell", {
       prompt: params.prompt,
       image_size: "square_hd",
       num_inference_steps: 4,
