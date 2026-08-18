@@ -62,6 +62,9 @@ export default function App() {
     if (!user || authLoading || initRef.current) return;
     initRef.current = true;
     const initBoard = async () => {
+      // Read currentBoardId directly from the store (not from React closure)
+      // to avoid stale closure issues with the persist middleware
+      const storedBoardId = useBoardStore.getState().currentBoardId;
       // Check URL param first (shared links)
       const params = new URLSearchParams(window.location.search);
       const urlBoardId = params.get("board");
@@ -70,8 +73,8 @@ export default function App() {
         return;
       }
       // Board from localStorage — reload from Firestore to set up subscription
-      if (currentBoardId) {
-        await loadBoardFromFirestore(currentBoardId);
+      if (storedBoardId) {
+        await loadBoardFromFirestore(storedBoardId);
         return;
       }
       // No board yet — auto-load most recent or create new
