@@ -305,6 +305,8 @@ export const useBoardStore = create<BoardState>()(
         if (!user || !state.currentBoardId) return;
         set({ saveStatus: "saving" });
         lastSaveTime = Date.now();
+        console.log("[save] email:", user.email, "| uid:", user.uid, "| boardId:", state.currentBoardId);
+        console.log("[save] collaborators in store:", state.collaborators);
         try {
           // Strip imageData (base64 data URLs) from boxData before saving.
           // Base64 images can be 100-200KB each and would exceed Firestore's
