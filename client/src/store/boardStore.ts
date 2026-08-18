@@ -15,7 +15,13 @@ import { BOX_TYPES } from "../types.js";
 import { generate, generateImage } from "../lib/api.js";
 import { fillPromptTemplate, getBoxOutput } from "../lib/prompts.js";
 import { extractCode } from "../lib/code.js";
-import { saveBoard, loadBoard, listBoards, deleteBoard, type BoardDoc } from "../lib/firestore.js";
+import {
+  saveBoard, loadBoard, listBoards, listSharedBoards, deleteBoard,
+  subscribeToBoard, subscribeToPresence, updatePresence, removePresence,
+  shareBoard as fsShareBoard, unshareBoard as fsUnshareBoard,
+  type BoardDoc,
+} from "../lib/firestore.js";
+import type { PresenceUser } from "../types.js";
 import { useAuthStore } from "./authStore.js";
 
 function makeId(): string {
@@ -73,6 +79,34 @@ function scheduleSave() {
   }, 1000);
 }
 
+// === Collaboration helpers ===
+
+const CURSOR_COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899", "#f43f5e", "#14b8a6"];
+
+function getInitials(email: string): string {
+  const name = email.split("@")[0];
+  const parts = name.split(/[._-]/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+function getColorForEmail(email: string): string {
+  let hash = 0;
+  for (let i = 0; i < email.length; i++) hash = email.charCodeAt(i) + ((hash << 5) - hash);
+  return CURSOR_COLORS[Math.abs(hash) % CURSOR_COLORS.length];
+}
+
+// Track last local save time to prevent onSnapshot echo
+let lastSaveTime = 0;
+
+// Throttle presence updates to max 1 write per 200ms
+let presenceTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingPresence: { x: number; y: number } | null = null;
+
+// Subscription cleanup functions
+let boardUnsub: (() => void) | null = null;
+let presenceUnsub: (() => void) | null = null;
+
 function defaultBoxData(type: BoxType): BoxData {
   const meta = BOX_TYPES[type];
   return {
@@ -96,6 +130,8 @@ interface BoardState {
   boardTitle: string;
   saveStatus: "idle" | "saving" | "saved" | "error";
   boardList: BoardDoc[];
+  collaborators: string[];
+  activeUsers: PresenceUser[];
 
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
@@ -119,6 +155,14 @@ interface BoardState {
   refreshBoardList: () => Promise<void>;
   deleteCurrentBoard: () => Promise<void>;
   clearBoard: () => void;
+
+  // Collaboration
+  subscribeToBoardUpdates: () => void;
+  unsubscribeFromBoard: () => void;
+  shareBoard: (emails: string[]) => Promise<void>;
+  unshareBoard: (email: string) => Promise<void>;
+  updateCursorPosition: (x: number, y: number) => void;
+  cleanupPresence: () => void;
 }
 
 export const useBoardStore = create<BoardState>()(
@@ -131,6 +175,8 @@ export const useBoardStore = create<BoardState>()(
       boardTitle: "Untitled Board",
       saveStatus: "idle",
       boardList: [],
+      collaborators: [],
+      activeUsers: [],
 
       onNodesChange: (changes) => {
         set({ nodes: applyNodeChanges(changes, get().nodes) });
@@ -219,12 +265,14 @@ export const useBoardStore = create<BoardState>()(
           title: title || "Untitled Board",
           ownerId: user.uid,
           ownerEmail: user.email || "",
+          collaborators: [],
           nodes: [], edges: [], boxData: {},
           createdAt: now, updatedAt: now,
         });
         set({
           currentBoardId: boardId,
           boardTitle: title || "Untitled Board",
+          collaborators: [],
           nodes: [], edges: [], boxData: {},
           saveStatus: "saved",
         });
@@ -232,16 +280,22 @@ export const useBoardStore = create<BoardState>()(
       },
 
       loadBoardFromFirestore: async (boardId) => {
+        // Unsubscribe from previous board if any
+        get().unsubscribeFromBoard();
         const board = await loadBoard(boardId);
         if (!board) return;
         set({
           currentBoardId: board.id,
           boardTitle: board.title,
+          collaborators: board.collaborators || [],
           nodes: board.nodes as Node[],
           edges: board.edges as Edge[],
           boxData: board.boxData as Record<string, BoxData>,
           saveStatus: "saved",
+          activeUsers: [],
         });
+        // Start real-time subscription + presence
+        get().subscribeToBoardUpdates();
       },
 
       saveToFirestore: async () => {
@@ -249,6 +303,7 @@ export const useBoardStore = create<BoardState>()(
         const user = useAuthStore.getState().user;
         if (!user || !state.currentBoardId) return;
         set({ saveStatus: "saving" });
+        lastSaveTime = Date.now();
         try {
           // Strip imageData (base64 data URLs) from boxData before saving.
           // Base64 images can be 100-200KB each and would exceed Firestore's
@@ -265,6 +320,7 @@ export const useBoardStore = create<BoardState>()(
             title: state.boardTitle,
             ownerId: user.uid,
             ownerEmail: user.email || "",
+            collaborators: state.collaborators,
             nodes: state.nodes,
             edges: state.edges,
             boxData: cleanBoxData,
@@ -287,8 +343,18 @@ export const useBoardStore = create<BoardState>()(
         const user = useAuthStore.getState().user;
         if (!user) return;
         try {
-          const boards = await listBoards(user.uid);
-          set({ boardList: boards });
+          const [owned, shared] = await Promise.all([
+            listBoards(user.uid),
+            user.email ? listSharedBoards(user.email) : Promise.resolve([]),
+          ]);
+          // Merge, deduplicate by id, sort by updatedAt desc
+          const seen = new Set<string>();
+          const all = [...owned, ...shared].filter((b) => {
+            if (seen.has(b.id)) return false;
+            seen.add(b.id);
+            return true;
+          });
+          set({ boardList: all.sort((a, b) => b.updatedAt - a.updatedAt) });
         } catch (err) {
           console.error("Failed to list boards:", err);
         }
@@ -312,11 +378,112 @@ export const useBoardStore = create<BoardState>()(
       },
 
       clearBoard: () => {
+        get().unsubscribeFromBoard();
         set({
           nodes: [], edges: [], boxData: {},
           currentBoardId: null,
           boardTitle: "Untitled Board",
+          collaborators: [],
+          activeUsers: [],
         });
+      },
+
+      // === Collaboration actions ===
+
+      subscribeToBoardUpdates: () => {
+        const state = get();
+        if (!state.currentBoardId) return;
+        const boardId = state.currentBoardId;
+
+        // Subscribe to board document changes (real-time sync)
+        boardUnsub = subscribeToBoard(boardId, (board) => {
+          // Skip echo — if we just saved locally, ignore the snapshot
+          if (Date.now() - lastSaveTime < 2000) return;
+          set({
+            nodes: board.nodes as Node[],
+            edges: board.edges as Edge[],
+            boxData: board.boxData as Record<string, BoxData>,
+            boardTitle: board.title,
+            collaborators: board.collaborators || [],
+          });
+        });
+
+        // Subscribe to presence (live cursors)
+        presenceUnsub = subscribeToPresence(boardId, (users) => {
+          set({ activeUsers: users });
+        });
+      },
+
+      unsubscribeFromBoard: () => {
+        if (boardUnsub) { boardUnsub(); boardUnsub = null; }
+        if (presenceUnsub) { presenceUnsub(); presenceUnsub = null; }
+        get().cleanupPresence();
+        set({ activeUsers: [] });
+      },
+
+      shareBoard: async (emails) => {
+        const state = get();
+        if (!state.currentBoardId) return;
+        const user = useAuthStore.getState().user;
+        if (!user || user.uid !== state.currentBoardId && state.collaborators === undefined) return;
+        // Only owner can share — check via board ownership
+        try {
+          await fsShareBoard(state.currentBoardId, emails);
+          set({ collaborators: [...get().collaborators, ...emails] });
+        } catch (err) {
+          console.error("Failed to share board:", err);
+        }
+      },
+
+      unshareBoard: async (email) => {
+        const state = get();
+        if (!state.currentBoardId) return;
+        try {
+          await fsUnshareBoard(state.currentBoardId, email);
+          set({ collaborators: get().collaborators.filter((e) => e !== email) });
+        } catch (err) {
+          console.error("Failed to unshare:", err);
+        }
+      },
+
+      updateCursorPosition: (x, y) => {
+        const state = get();
+        if (!state.currentBoardId) return;
+        const user = useAuthStore.getState().user;
+        if (!user) return;
+
+        pendingPresence = { x, y };
+        if (presenceTimer) return; // already scheduled
+
+        presenceTimer = setTimeout(async () => {
+          presenceTimer = null;
+          if (!pendingPresence) return;
+          const { x, y } = pendingPresence;
+          pendingPresence = null;
+          const boardId = get().currentBoardId;
+          if (!boardId) return;
+          try {
+            await updatePresence(boardId, user.uid, {
+              userId: user.uid,
+              email: user.email || "",
+              displayName: user.displayName || user.email || "",
+              initials: getInitials(user.email || user.uid),
+              color: getColorForEmail(user.email || user.uid),
+              cursorX: x,
+              cursorY: y,
+            });
+          } catch {
+            // ignore — presence is best-effort
+          }
+        }, 200);
+      },
+
+      cleanupPresence: () => {
+        const state = get();
+        const user = useAuthStore.getState().user;
+        if (!state.currentBoardId || !user) return;
+        if (presenceTimer) { clearTimeout(presenceTimer); presenceTimer = null; }
+        removePresence(state.currentBoardId, user.uid).catch(() => {});
       },
 
       runBox: async (id) => {

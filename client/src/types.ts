@@ -9,6 +9,17 @@ export interface Slide {
   notes?: string;
 }
 
+/** A user currently active on a board with their cursor position. */
+export interface PresenceUser {
+  userId: string;
+  email: string;
+  displayName: string;
+  initials: string;
+  color: string;
+  cursorX: number;
+  cursorY: number;
+}
+
 /** Data stored per-box, separate from React Flow's graph nodes. */
 export interface BoxData {
   content: string;

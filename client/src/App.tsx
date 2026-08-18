@@ -4,6 +4,7 @@ import Canvas from "./components/Canvas.js";
 import Toolbar from "./components/Toolbar.js";
 import Sidebar from "./components/Sidebar.js";
 import NewBoardModal from "./components/NewBoardModal.js";
+import ShareModal from "./components/ShareModal.js";
 import LandingPage from "./components/LandingPage.js";
 import { useBoardStore } from "./store/boardStore.js";
 import { useAuthStore } from "./store/authStore.js";
@@ -30,16 +31,37 @@ export default function App() {
   const refreshBoardList = useBoardStore((s) => s.refreshBoardList);
   const deleteCurrentBoard = useBoardStore((s) => s.deleteCurrentBoard);
   const clearBoard = useBoardStore((s) => s.clearBoard);
+  const activeUsers = useBoardStore((s) => s.activeUsers);
+  const unsubscribeFromBoard = useBoardStore((s) => s.unsubscribeFromBoard);
+  const cleanupPresence = useBoardStore((s) => s.cleanupPresence);
 
   const [showBoardList, setShowBoardList] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showNewBoardModal, setShowNewBoardModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Initialize auth listener on mount
   useEffect(() => {
     const unsubscribe = useAuthStore.getState().init();
     return unsubscribe;
   }, []);
+
+  // Cleanup presence on page close
+  useEffect(() => {
+    const handler = () => cleanupPresence();
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [cleanupPresence]);
+
+  // Handle ?board=<id> URL param for shared links
+  useEffect(() => {
+    if (!user || authLoading) return;
+    const params = new URLSearchParams(window.location.search);
+    const boardId = params.get("board");
+    if (boardId && boardId !== currentBoardId) {
+      loadBoardFromFirestore(boardId);
+    }
+  }, [user, authLoading, currentBoardId, loadBoardFromFirestore]);
 
   // When user logs in, load their most recent board or create one
   useEffect(() => {
@@ -82,6 +104,7 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    unsubscribeFromBoard();
     await signOutUser();
     setShowBoardList(false);
   };
@@ -148,6 +171,31 @@ export default function App() {
           )}
           {currentBoardId && (
             <span className={"text-xs " + saveColor}>{"💾 " + saveLabel}</span>
+          )}
+          {/* Share button + active users */}
+          {currentBoardId && (
+            <div className="flex items-center gap-1.5">
+              {activeUsers.length > 1 && (
+                <div className="flex items-center -space-x-1.5">
+                  {activeUsers.slice(0, 4).map((u) => (
+                    <div
+                      key={u.userId}
+                      className="w-6 h-6 rounded-full text-white text-xs font-bold flex items-center justify-center border-2 border-white"
+                      style={{ backgroundColor: u.color }}
+                      title={u.email}
+                    >
+                      {u.initials}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition"
+              >
+                {"👥 Share" + (activeUsers.length > 1 ? " (" + activeUsers.length + ")" : "")}
+              </button>
+            </div>
           )}
         </div>
 
@@ -239,6 +287,10 @@ export default function App() {
         open={showNewBoardModal}
         onClose={() => setShowNewBoardModal(false)}
         onCreate={handleCreateBoard}
+      />
+      <ShareModal
+        open={showShareModal}
+        onClose={() => setShowShareModal(false)}
       />
     </div>
   );

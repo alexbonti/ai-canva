@@ -1,18 +1,21 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import {
   ReactFlow,
   Background,
   BackgroundVariant,
   Controls,
   MiniMap,
+  useReactFlow,
   type Node,
   type Edge,
   type Connection,
   type NodeChange,
   type EdgeChange,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import { useBoardStore } from "../store/boardStore.js";
 import BoxNode from "./BoxNode.js";
+import Cursors from "./Cursors.js";
 
 const nodeTypes = {
   idea: BoxNode,
@@ -31,6 +34,26 @@ export default function Canvas() {
   const onNodesChange = useBoardStore((s) => s.onNodesChange);
   const onEdgesChange = useBoardStore((s) => s.onEdgesChange);
   const onConnect = useBoardStore((s) => s.onConnect);
+  const updateCursorPosition = useBoardStore((s) => s.updateCursorPosition);
+  const cleanupPresence = useBoardStore((s) => s.cleanupPresence);
+
+  const { screenToFlowPosition } = useReactFlow();
+
+  // Track mouse movement and update presence
+  const onMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      const pos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      if (pos) {
+        updateCursorPosition(pos.x, pos.y);
+      }
+    },
+    [screenToFlowPosition, updateCursorPosition]
+  );
+
+  // Cleanup presence on unmount
+  useEffect(() => {
+    return () => cleanupPresence();
+  }, [cleanupPresence]);
 
   return (
     <ReactFlow
@@ -40,6 +63,7 @@ export default function Canvas() {
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
+      onMouseMove={onMouseMove}
       fitView
       fitViewOptions={{ padding: 0.3 }}
       defaultEdgeOptions={{
@@ -50,6 +74,7 @@ export default function Canvas() {
     >
       <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} />
       <Controls />
+      <Cursors />
       <MiniMap
         pannable
         zoomable

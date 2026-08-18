@@ -2,12 +2,25 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Boards: users can only access their own boards
+    // Boards: owner or collaborator can read/update
     match /boards/{boardId} {
-      allow read: if request.auth != null && request.auth.uid == resource.data.ownerId;
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.ownerId ||
+        (request.auth.token.email != null && request.auth.token.email in resource.data.collaborators)
+      );
+      allow update: if request.auth != null && (
+        request.auth.uid == resource.data.ownerId ||
+        (request.auth.token.email != null && request.auth.token.email in resource.data.collaborators)
+      );
       allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
-      allow update: if request.auth != null && request.auth.uid == resource.data.ownerId;
       allow delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
+
+      // Presence sub-collection — any authed user can read, only own doc can be written
+      match /presence/{userId} {
+        allow read: if request.auth != null;
+        allow create, update: if request.auth != null && request.auth.uid == userId;
+        allow delete: if request.auth != null && request.auth.uid == userId;
+      }
     }
   }
 }
