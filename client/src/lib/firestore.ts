@@ -8,7 +8,6 @@ import {
   deleteDoc,
   query,
   where,
-  orderBy,
   limit,
 } from "firebase/firestore";
 
@@ -69,11 +68,10 @@ export async function listBoards(userId: string): Promise<BoardDoc[]> {
   const q = query(
     collection(db, BOARDS_COLLECTION),
     where("ownerId", "==", userId),
-    orderBy("updatedAt", "desc"),
     limit(50)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => {
+  const boards = snap.docs.map((d) => {
     const data = d.data();
     return {
       id: d.id,
@@ -87,6 +85,8 @@ export async function listBoards(userId: string): Promise<BoardDoc[]> {
       updatedAt: data.updatedAt || Date.now(),
     };
   });
+  // Sort client-side by updatedAt desc (avoids needing a composite index)
+  return boards.sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 /** Deletes a board by ID. */

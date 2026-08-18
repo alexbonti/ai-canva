@@ -169,7 +169,10 @@ export default function App() {
           <div className="flex items-center gap-1.5 ml-2">
             <div className="relative">
               <button
-                onClick={() => setShowBoardList(!showBoardList)}
+                onClick={() => {
+                  if (!showBoardList) refreshBoardList();
+                  setShowBoardList(!showBoardList);
+                }}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition"
               >
                 {"📋 Boards (" + boardList.length + ") ▾"}
