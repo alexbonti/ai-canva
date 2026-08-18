@@ -330,13 +330,16 @@ export const useBoardStore = create<BoardState>()(
           // Only save board CONTENT — do NOT include collaborators.
           // Collaborators are managed by shareBoard/unshareBoard (arrayUnion/arrayRemove).
           // Including collaborators here could overwrite the real list and break access.
+          const saveTimestamp = Date.now();
           await updateBoardData(state.currentBoardId, {
             title: state.boardTitle,
             nodes: state.nodes,
             edges: state.edges,
             boxData: cleanBoxData,
-            updatedAt: Date.now(),
+            updatedAt: saveTimestamp,
           });
+          lastSavedUpdatedAt = saveTimestamp;
+          console.log("[save] SUCCESS | updatedAt:", saveTimestamp, "| user:", user.email);
           set({ saveStatus: "saved" });
         } catch (err) {
           console.error("Firestore save failed:", err);
@@ -412,7 +415,7 @@ export const useBoardStore = create<BoardState>()(
           // If they match, this is our own save echoing back — skip it.
           // If they differ, it's another user's update — apply it.
           const isEcho = board.updatedAt === lastSavedUpdatedAt;
-          console.log("[sync] onSnapshot | updatedAt:", board.updatedAt, "| lastSavedUpdatedAt:", lastSavedUpdatedAt, "| echo?", isEcho);
+          console.log("[sync] onSnapshot | board.updatedAt:", board.updatedAt, "| myLastSaved:", lastSavedUpdatedAt, "| isEcho:", isEcho, "| me:", useAuthStore.getState().user?.email);
           if (isEcho) return;
           console.log("[sync] Applying remote update | nodes:", board.nodes?.length, "| edges:", board.edges?.length);
           set({
