@@ -3,6 +3,7 @@ import { ReactFlowProvider } from "@xyflow/react";
 import Canvas from "./components/Canvas.js";
 import Toolbar from "./components/Toolbar.js";
 import Sidebar from "./components/Sidebar.js";
+import NewBoardModal from "./components/NewBoardModal.js";
 import LandingPage from "./components/LandingPage.js";
 import { useBoardStore } from "./store/boardStore.js";
 import { useAuthStore } from "./store/authStore.js";
@@ -32,6 +33,7 @@ export default function App() {
 
   const [showBoardList, setShowBoardList] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showNewBoardModal, setShowNewBoardModal] = useState(false);
 
   // Initialize auth listener on mount
   useEffect(() => {
@@ -84,9 +86,14 @@ export default function App() {
     setShowBoardList(false);
   };
 
-  const handleNewBoard = async () => {
-    await createNewBoard("Untitled Board");
+  const handleNewBoard = () => {
     setShowBoardList(false);
+    setShowNewBoardModal(true);
+  };
+
+  const handleCreateBoard = async (name: string) => {
+    await createNewBoard(name);
+    setShowNewBoardModal(false);
   };
 
   const handleLoadBoard = async (boardId: string) => {
@@ -225,6 +232,11 @@ export default function App() {
           <Toolbar />
         </ReactFlowProvider>
       </div>
+      <NewBoardModal
+        open={showNewBoardModal}
+        onClose={() => setShowNewBoardModal(false)}
+        onCreate={handleCreateBoard}
+      />
     </div>
   );
 }
