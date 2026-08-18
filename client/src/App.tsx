@@ -53,20 +53,28 @@ export default function App() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [cleanupPresence]);
 
-  // Handle ?board=<id> URL param for shared links
+  // When user logs in, load the right board and set up real-time subscription.
+  // ALWAYS calls loadBoardFromFirestore (which sets up onSnapshot) — even when
+  // currentBoardId is already set from localStorage. Without this, the board
+  // loads from localStorage but has no real-time listener.
+  const initRef = useRef(false);
   useEffect(() => {
-    if (!user || authLoading) return;
-    const params = new URLSearchParams(window.location.search);
-    const boardId = params.get("board");
-    if (boardId && boardId !== currentBoardId) {
-      loadBoardFromFirestore(boardId);
-    }
-  }, [user, authLoading, currentBoardId, loadBoardFromFirestore]);
-
-  // When user logs in, load their most recent board or create one
-  useEffect(() => {
-    if (!user || authLoading || currentBoardId) return;
+    if (!user || authLoading || initRef.current) return;
+    initRef.current = true;
     const initBoard = async () => {
+      // Check URL param first (shared links)
+      const params = new URLSearchParams(window.location.search);
+      const urlBoardId = params.get("board");
+      if (urlBoardId) {
+        await loadBoardFromFirestore(urlBoardId);
+        return;
+      }
+      // Board from localStorage — reload from Firestore to set up subscription
+      if (currentBoardId) {
+        await loadBoardFromFirestore(currentBoardId);
+        return;
+      }
+      // No board yet — auto-load most recent or create new
       await refreshBoardList();
       const boards = useBoardStore.getState().boardList;
       if (boards.length > 0) {
@@ -76,7 +84,8 @@ export default function App() {
       }
     };
     initBoard();
-  }, [user, authLoading, currentBoardId, refreshBoardList, loadBoardFromFirestore, createNewBoard]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, authLoading]);
 
   // Seed a starter board on first load (localStorage mode only, when not logged in)
   useEffect(() => {
