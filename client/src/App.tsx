@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import Canvas from "./components/Canvas.js";
 import Toolbar from "./components/Toolbar.js";
+import LandingPage from "./components/LandingPage.js";
 import { useBoardStore } from "./store/boardStore.js";
 import { useAuthStore } from "./store/authStore.js";
 import { signInWithGoogle, signOutUser } from "./lib/auth.js";
@@ -36,12 +37,20 @@ export default function App() {
     return unsubscribe;
   }, []);
 
-  // When user logs in, refresh board list
+  // When user logs in, load their most recent board or create one
   useEffect(() => {
-    if (user) {
-      refreshBoardList();
-    }
-  }, [user, refreshBoardList]);
+    if (!user || authLoading || currentBoardId) return;
+    const initBoard = async () => {
+      await refreshBoardList();
+      const boards = useBoardStore.getState().boardList;
+      if (boards.length > 0) {
+        await loadBoardFromFirestore(boards[0].id);
+      } else {
+        await createNewBoard("My First Board");
+      }
+    };
+    initBoard();
+  }, [user, authLoading, currentBoardId, refreshBoardList, loadBoardFromFirestore, createNewBoard]);
 
   // Seed a starter board on first load (localStorage mode only, when not logged in)
   useEffect(() => {
@@ -68,10 +77,6 @@ export default function App() {
     clearBoard();
   };
 
-  const handleLogin = async () => {
-    try { await signInWithGoogle(); } catch (e) { console.error(e); }
-  };
-
   const handleLogout = async () => {
     await signOutUser();
     setShowBoardList(false);
@@ -92,18 +97,36 @@ export default function App() {
     await deleteCurrentBoard();
   };
 
-  const saveLabel = saveStatus === "saving" ? "💾 Saving..." : saveStatus === "saved" ? "✅ Saved" : saveStatus === "error" ? "❌ Save failed" : "💾 Idle";
-  const saveColor = saveStatus === "saving" ? "text-blue-500" : saveStatus === "saved" ? "text-green-500" : saveStatus === "error" ? "text-red-500" : "text-slate-400";
+  const saveLabel = saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Saved" : saveStatus === "error" ? "Save failed" : "Idle";
+  const saveColor = saveStatus === "saving" ? "text-blue-400" : saveStatus === "saved" ? "text-green-400" : saveStatus === "error" ? "text-red-400" : "text-slate-400";
 
+  // === Render ===
+
+  // Loading state
+  if (authLoading) {
+    return (
+      <div className="h-full w-full flex items-center justify-center bg-slate-900">
+        <div className="flex flex-col items-center gap-3">
+          <span className="text-4xl animate-spin">🎨</span>
+          <span className="text-sm text-slate-400">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Not logged in — show landing page
+  if (!user) {
+    return <LandingPage />;
+  }
+
+  // Logged in — show the app
   return (
     <div className="flex flex-col h-full w-full">
-      {/* Top bar */}
       <header className="flex items-center justify-between px-4 py-2 bg-white border-b border-slate-200 shadow-sm z-20">
         <div className="flex items-center gap-3">
           <span className="text-xl">🎨</span>
           <h1 className="text-lg font-bold text-slate-800">AI Canva</h1>
-          {/* Board title (editable when logged in) */}
-          {user && currentBoardId ? (
+          {currentBoardId ? (
             <input
               type="text"
               value={boardTitle}
@@ -112,16 +135,14 @@ export default function App() {
               placeholder="Board title..."
             />
           ) : (
-            <span className="text-xs text-slate-400">Visual AI pipeline builder</span>
+            <span className="text-xs text-slate-400">Loading board...</span>
           )}
-          {/* Save status */}
-          {user && currentBoardId && (
-            <span className={"text-xs " + saveColor}>{saveLabel}</span>
+          {currentBoardId && (
+            <span className={"text-xs " + saveColor}>{"💾 " + saveLabel}</span>
           )}
         </div>
 
         <div className="flex items-center gap-1.5">
-          {/* Box type buttons */}
           {(Object.keys(BOX_TYPES) as BoxType[]).map((type) => (
             <button
               key={type}
@@ -140,82 +161,65 @@ export default function App() {
           >
             🗑 Clear
           </button>
-          {/* Auth section */}
-          {authLoading ? (
-            <span className="text-xs text-slate-400 ml-2">Loading...</span>
-          ) : user ? (
-            <div className="flex items-center gap-1.5 ml-2">
-              {/* Board list dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowBoardList(!showBoardList)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition"
-                >
-                  📋 Boards ({boardList.length}) ▾
-                </button>
-                {showBoardList && (
-                  <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-slate-200 w-72 max-h-96 overflow-y-auto z-30">
-                    <button
-                      onClick={handleNewBoard}
-                      className="w-full text-left px-4 py-2.5 text-sm font-medium text-blue-600 hover:bg-blue-50 border-b border-slate-100"
+          <div className="flex items-center gap-1.5 ml-2">
+            <div className="relative">
+              <button
+                onClick={() => setShowBoardList(!showBoardList)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition"
+              >
+                {"📋 Boards (" + boardList.length + ") ▾"}
+              </button>
+              {showBoardList && (
+                <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-slate-200 w-72 max-h-96 overflow-y-auto z-30">
+                  <button
+                    onClick={handleNewBoard}
+                    className="w-full text-left px-4 py-2.5 text-sm font-medium text-blue-600 hover:bg-blue-50 border-b border-slate-100"
+                  >
+                    ➕ New Board
+                  </button>
+                  {boardList.length === 0 && (
+                    <div className="px-4 py-3 text-xs text-slate-400">No boards yet.</div>
+                  )}
+                  {boardList.map((b) => (
+                    <div
+                      key={b.id}
+                      className={"flex items-center justify-between px-4 py-2.5 text-sm hover:bg-slate-50 cursor-pointer border-b border-slate-50 " + (b.id === currentBoardId ? "bg-blue-50" : "")}
+                      onClick={() => handleLoadBoard(b.id)}
                     >
-                      ➕ New Board
-                    </button>
-                    {boardList.length === 0 && (
-                      <div className="px-4 py-3 text-xs text-slate-400">No boards yet. Create one!</div>
-                    )}
-                    {boardList.map((b) => (
-                      <div
-                        key={b.id}
-                        className={"flex items-center justify-between px-4 py-2.5 text-sm hover:bg-slate-50 cursor-pointer border-b border-slate-50 " + (b.id === currentBoardId ? "bg-blue-50" : "")}
-                        onClick={() => handleLoadBoard(b.id)}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-slate-700 truncate">{b.title}</div>
-                          <div className="text-xs text-slate-400">{new Date(b.updatedAt).toLocaleDateString()} · {Array.isArray(b.nodes) ? b.nodes.length : 0} boxes</div>
-                        </div>
-                        {b.id === currentBoardId && <span className="text-blue-500 text-xs">current</span>}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-slate-700 truncate">{b.title}</div>
+                        <div className="text-xs text-slate-400">{new Date(b.updatedAt).toLocaleDateString() + " · " + (Array.isArray(b.nodes) ? b.nodes.length : 0) + " boxes"}</div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {/* Delete current board */}
-              {currentBoardId && (
-                <button
-                  onClick={handleDeleteBoard}
-                  className="px-2 py-1.5 rounded-lg text-sm text-slate-500 bg-slate-100 hover:bg-red-50 hover:text-red-500 transition"
-                  title="Delete current board from cloud"
-                >
-                  🗑
-                </button>
+                      {b.id === currentBoardId && <span className="text-blue-500 text-xs">current</span>}
+                    </div>
+                  ))}
+                </div>
               )}
-              {/* User info + logout */}
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100">
-                <img src={user.photoURL || ""} alt="" className="w-6 h-6 rounded-full" />
-                <span className="text-xs text-slate-600 max-w-[120px] truncate">{user.email}</span>
-                <button
-                  onClick={handleLogout}
-                  className="text-xs text-slate-400 hover:text-red-500 ml-1"
-                  title="Sign out"
-                >
-                  ⏻
-                </button>
-              </div>
             </div>
-          ) : (
-            <button
-              onClick={handleLogin}
-              className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium text-white bg-slate-700 hover:bg-slate-600 transition ml-2"
-            >
-              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-4 h-4" />
-              Sign in with Google
-            </button>
-          )}
+            {currentBoardId && (
+              <button
+                onClick={handleDeleteBoard}
+                className="px-2 py-1.5 rounded-lg text-sm text-slate-500 bg-slate-100 hover:bg-red-50 hover:text-red-500 transition"
+                title="Delete current board"
+              >
+                🗑
+              </button>
+            )}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100">
+              <img src={user.photoURL || ""} alt="" className="w-6 h-6 rounded-full" />
+              <span className="text-xs text-slate-600 max-w-[120px] truncate">{user.email}</span>
+              <button
+                onClick={handleLogout}
+                className="text-xs text-slate-400 hover:text-red-500 ml-1"
+                title="Sign out"
+              >
+                ⏻
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
-      {/* Canvas */}
       <div className="flex-1 relative">
         <ReactFlowProvider>
           <Canvas />
