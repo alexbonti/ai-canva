@@ -5,15 +5,13 @@ import path from "path";
 import { execSync } from "child_process";
 
 /**
- * Reads the server's actual port from the .server-port file.
- * The server writes this file at startup once it finds an available port.
- * We poll for up to ~10 seconds in case the client starts before the server.
+ * Reads the server port from .server-port file.
+ * Only called during dev (vite serve), not during build.
  */
 function getServerPort(): number {
   const portFile = path.resolve(__dirname, "..", ".server-port");
   const maxAttempts = 100;
   const fallbackPort = 3001;
-
   for (let i = 0; i < maxAttempts; i++) {
     try {
       if (fs.existsSync(portFile)) {
@@ -21,29 +19,20 @@ function getServerPort(): number {
         const port = parseInt(raw, 10);
         if (!isNaN(port) && port > 0) return port;
       }
-    } catch {
-      // ignore read errors and keep polling
-    }
-    // Synchronous 100ms delay (config is evaluated synchronously)
+    } catch {}
     execSync("sleep 0.1");
   }
-
-  console.warn(
-    `[vite] Could not detect server port after ${maxAttempts} attempts — falling back to ${fallbackPort}`
-  );
+  console.warn(`[vite] Could not detect server port — falling back to ${fallbackPort}`);
   return fallbackPort;
 }
 
-const serverPort = getServerPort();
-
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [react()],
   server: {
     port: 5173,
-    // If 5173 is in use, auto-increment to the next available port
     strictPort: false,
-    proxy: {
-      "/api": `http://localhost:${serverPort}`,
-    },
+    ...(command === "serve"
+      ? { proxy: { "/api": `http://localhost:${getServerPort()}` } }
+      : {}),
   },
-});
+}));
