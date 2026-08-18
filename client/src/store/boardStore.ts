@@ -285,6 +285,7 @@ export const useBoardStore = create<BoardState>()(
         get().unsubscribeFromBoard();
         const board = await loadBoard(boardId);
         if (!board) return;
+        console.log("[load] Board collaborators from Firestore:", board.collaborators);
         set({
           currentBoardId: board.id,
           boardTitle: board.title,
@@ -308,16 +309,18 @@ export const useBoardStore = create<BoardState>()(
         console.log("[save] email:", user.email, "| uid:", user.uid, "| boardId:", state.currentBoardId);
         console.log("[save] collaborators in store:", state.collaborators);
         try {
-          // Strip imageData (base64 data URLs) from boxData before saving.
-          // Base64 images can be 100-200KB each and would exceed Firestore's
-          // 1MB document limit, causing the entire save (including outputImage
-          // URLs) to fail. imageData is kept in localStorage for local display.
-          // Strip imageData (base64) from boxData — updateDoc rejects undefined values,
-          // so we delete the key entirely instead of setting it to undefined
+          // Strip undefined values and base64 imageData from boxData.
+          // updateDoc rejects undefined values, so we must remove them entirely.
+          // imageData (base64) is also removed to stay under Firestore's 1MB limit.
           const cleanBoxData = Object.fromEntries(
             Object.entries(state.boxData).map(([id, data]) => {
-              const { imageData, ...rest } = data;
-              return [id, rest];
+              const cleaned: Record<string, unknown> = {};
+              for (const [key, value] of Object.entries(data)) {
+                if (value !== undefined && key !== "imageData") {
+                  cleaned[key] = value;
+                }
+              }
+              return [id, cleaned];
             })
           );
           // Use updateBoardData (not saveBoard) so we do NOT overwrite
