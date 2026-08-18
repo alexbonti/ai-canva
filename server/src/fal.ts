@@ -33,7 +33,7 @@ function extractImageUrl(result: any): string {
 
 /**
  * Generates a cartoon profile picture.
- * - If imageUrl is provided: uploads to fal storage, then uses fal-ai/cartoonify (image-to-image)
+ * - If imageUrl is provided: uploads to fal storage, then uses fal-ai/qwen-image-edit (image-to-image)
  * - If no imageUrl: uses fal-ai/flux/schnell (text-to-image fallback)
  */
 export async function generateCartoonImage(params: {
@@ -50,11 +50,12 @@ export async function generateCartoonImage(params: {
   }
 
   if (imageUrl) {
-    const result = await fal.subscribe("fal-ai/cartoonify", {
+    const result = await fal.subscribe("fal-ai/qwen-image-edit", {
       input: {
+        prompt: params.prompt,
         image_url: imageUrl,
-        num_inference_steps: 28,
-        guidance_scale: 3.5,
+        num_inference_steps: 30,
+        guidance_scale: 4,
         enable_safety_checker: true,
       },
     });

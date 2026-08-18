@@ -33,8 +33,8 @@ export async function generateCartoonImage(params: { prompt: string; imageUrl?: 
     imageUrl = await uploadImageToFal(imageUrl);
   }
   if (imageUrl) {
-    const result = await fal.subscribe("fal-ai/cartoonify", {
-      input: { image_url: imageUrl, num_inference_steps: 28, guidance_scale: 3.5, enable_safety_checker: true },
+    const result = await fal.subscribe("fal-ai/qwen-image-edit", {
+      input: { prompt: params.prompt, image_url: imageUrl, num_inference_steps: 30, guidance_scale: 4, enable_safety_checker: true },
     });
     return extractImageUrl(result);
   } else {
