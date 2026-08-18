@@ -406,8 +406,14 @@ export const useBoardStore = create<BoardState>()(
 
         // Subscribe to board document changes (real-time sync)
         boardUnsub = subscribeToBoard(boardId, (board) => {
+          const timeSinceSave = Date.now() - lastSaveTime;
+          console.log("[sync] onSnapshot fired | timeSinceSave:", timeSinceSave, "ms | echo?", timeSinceSave < 2000);
           // Skip echo — if we just saved locally, ignore the snapshot
-          if (Date.now() - lastSaveTime < 2000) return;
+          if (timeSinceSave < 2000) {
+            console.log("[sync] Skipping (echo prevention)");
+            return;
+          }
+          console.log("[sync] Applying remote update | nodes:", board.nodes?.length, "| edges:", board.edges?.length);
           set({
             nodes: board.nodes as Node[],
             edges: board.edges as Edge[],
