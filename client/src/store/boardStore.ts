@@ -99,6 +99,7 @@ function getColorForEmail(email: string): string {
 
 // Track last local save time to prevent onSnapshot echo
 let lastSaveTime = 0;
+let lastSavedUpdatedAt = 0;
 
 // Throttle presence updates to max 1 write per 200ms
 let presenceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -306,6 +307,7 @@ export const useBoardStore = create<BoardState>()(
         if (!user || !state.currentBoardId) return;
         set({ saveStatus: "saving" });
         lastSaveTime = Date.now();
+        lastSavedUpdatedAt = Date.now();
         console.log("[save] email:", user.email, "| uid:", user.uid, "| boardId:", state.currentBoardId);
         console.log("[save] collaborators in store:", state.collaborators);
         try {
@@ -406,13 +408,12 @@ export const useBoardStore = create<BoardState>()(
 
         // Subscribe to board document changes (real-time sync)
         boardUnsub = subscribeToBoard(boardId, (board) => {
-          const timeSinceSave = Date.now() - lastSaveTime;
-          console.log("[sync] onSnapshot fired | timeSinceSave:", timeSinceSave, "ms | echo?", timeSinceSave < 2000);
-          // Skip echo — if we just saved locally, ignore the snapshot
-          if (timeSinceSave < 2000) {
-            console.log("[sync] Skipping (echo prevention)");
-            return;
-          }
+          // Echo prevention: compare the snapshot's updatedAt with our last saved updatedAt.
+          // If they match, this is our own save echoing back — skip it.
+          // If they differ, it's another user's update — apply it.
+          const isEcho = board.updatedAt === lastSavedUpdatedAt;
+          console.log("[sync] onSnapshot | updatedAt:", board.updatedAt, "| lastSavedUpdatedAt:", lastSavedUpdatedAt, "| echo?", isEcho);
+          if (isEcho) return;
           console.log("[sync] Applying remote update | nodes:", board.nodes?.length, "| edges:", board.edges?.length);
           set({
             nodes: board.nodes as Node[],
