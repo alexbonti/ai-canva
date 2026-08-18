@@ -105,6 +105,25 @@ export async function deleteBoard(boardId: string): Promise<void> {
   await deleteDoc(ref);
 }
 
+/** Updates only mutable board fields (nodes, edges, boxData, title, updatedAt).
+ * Does NOT overwrite ownerId, ownerEmail, or createdAt.
+ * This allows collaborators to save changes without claiming ownership.
+ */
+export async function updateBoardData(
+  boardId: string,
+  data: {
+    title?: string;
+    collaborators?: string[];
+    nodes?: unknown[];
+    edges?: unknown[];
+    boxData?: Record<string, unknown>;
+    updatedAt: number;
+  }
+): Promise<void> {
+  const ref = doc(db, BOARDS_COLLECTION, boardId);
+  await updateDoc(ref, data as Record<string, unknown>);
+}
+
 // === Real-time subscription ===
 
 /** Subscribes to real-time board updates. Returns an unsubscribe function. */
@@ -113,11 +132,15 @@ export function subscribeToBoard(
   callback: (board: BoardDoc) => void
 ): () => void {
   const ref = doc(db, BOARDS_COLLECTION, boardId);
-  return onSnapshot(ref, (snap) => {
-    if (snap.exists()) {
-      callback(parseBoard(snap.id, snap.data() as Record<string, any>));
-    }
-  });
+  return onSnapshot(
+    ref,
+    (snap) => {
+      if (snap.exists()) {
+        callback(parseBoard(snap.id, snap.data() as Record<string, any>));
+      }
+    },
+    (err) => console.error("[firestore] Board subscription error:", err.message)
+  );
 }
 
 // === Presence (live cursors) ===
@@ -128,7 +151,9 @@ export function subscribeToPresence(
   callback: (users: PresenceUser[]) => void
 ): () => void {
   const colRef = collection(db, BOARDS_COLLECTION, boardId, "presence");
-  return onSnapshot(colRef, (snap) => {
+  return onSnapshot(
+    colRef,
+    (snap) => {
     const now = Date.now();
     const users: PresenceUser[] = [];
     snap.docs.forEach((d) => {
@@ -147,7 +172,9 @@ export function subscribeToPresence(
       }
     });
     callback(users);
-  });
+    },
+    (err) => console.error("[firestore] Presence subscription error:", err.message)
+  );
 }
 
 /** Updates the current user's presence (cursor position + heartbeat). */

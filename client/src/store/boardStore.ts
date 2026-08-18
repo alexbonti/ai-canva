@@ -19,6 +19,7 @@ import {
   saveBoard, loadBoard, listBoards, listSharedBoards, deleteBoard,
   subscribeToBoard, subscribeToPresence, updatePresence, removePresence,
   shareBoard as fsShareBoard, unshareBoard as fsUnshareBoard,
+  updateBoardData,
   type BoardDoc,
 } from "../lib/firestore.js";
 import type { PresenceUser } from "../types.js";
@@ -315,16 +316,14 @@ export const useBoardStore = create<BoardState>()(
               { ...data, imageData: undefined } as BoxData,
             ])
           );
-          await saveBoard({
-            id: state.currentBoardId,
+          // Use updateBoardData (not saveBoard) so we do NOT overwrite
+          // ownerId/ownerEmail/createdAt — collaborators can save without claiming ownership
+          await updateBoardData(state.currentBoardId, {
             title: state.boardTitle,
-            ownerId: user.uid,
-            ownerEmail: user.email || "",
             collaborators: state.collaborators,
             nodes: state.nodes,
             edges: state.edges,
             boxData: cleanBoxData,
-            createdAt: Date.now(),
             updatedAt: Date.now(),
           });
           set({ saveStatus: "saved" });
@@ -394,6 +393,7 @@ export const useBoardStore = create<BoardState>()(
         const state = get();
         if (!state.currentBoardId) return;
         const boardId = state.currentBoardId;
+        console.log("[store] Subscribing to board updates:", boardId);
 
         // Subscribe to board document changes (real-time sync)
         boardUnsub = subscribeToBoard(boardId, (board) => {
