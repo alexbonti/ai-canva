@@ -5,6 +5,7 @@ import { useBoardStore } from "../store/boardStore.js";
 import { BOX_TYPES } from "../types.js";
 import type { BoxType } from "../types.js";
 import { wrapCodeInHtml, downloadHtml, copyToClipboard } from "../lib/code.js";
+import { uploadImageToStorage } from "../lib/storage.js";
 
 /**
  * Reads an image File, resizes it to max 1024px, and returns a compressed
@@ -108,7 +109,15 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
     if (!file) return;
     try {
       const dataUrl = await resizeImage(file);
-      updateBoxData(id, { imageData: dataUrl });
+      // Upload to Firebase Storage so other users can see it via Firestore sync
+      const boardId = useBoardStore.getState().currentBoardId;
+      if (boardId) {
+        const imageUrl = await uploadImageToStorage(boardId, id, dataUrl);
+        updateBoxData(id, { imageData: imageUrl });
+      } else {
+        // Fallback: store base64 locally (no board loaded)
+        updateBoxData(id, { imageData: dataUrl });
+      }
     } catch (err) {
       console.error("Image upload failed:", err);
     }

@@ -316,9 +316,10 @@ export const useBoardStore = create<BoardState>()(
             Object.entries(state.boxData).map(([id, data]) => {
               const cleaned: Record<string, unknown> = {};
               for (const [key, value] of Object.entries(data)) {
-                if (value !== undefined && key !== "imageData") {
-                  cleaned[key] = value;
-                }
+                if (value === undefined) continue;
+                // Strip base64 imageData (too large for Firestore) but keep URLs
+                if (key === "imageData" && typeof value === "string" && value.startsWith("data:")) continue;
+                cleaned[key] = value;
               }
               return [id, cleaned];
             })
