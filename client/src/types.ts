@@ -1,4 +1,4 @@
-export type BoxType = "idea" | "research" | "summarize" | "image" | "cartoon" | "slides" | "code" | "prd" | "devplan";
+export type BoxType = "idea" | "research" | "summarize" | "image" | "cartoon" | "slides" | "code" | "prd" | "devplan" | "ui";
 
 export type BoxStatus = "idle" | "running" | "done" | "error";
 
@@ -178,5 +178,19 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "You are a pragmatic developer. Create SHORT, simple development plans for React prototypes. Use React hooks and inline styles. Keep everything minimal — this is a prototype, not production. Be concise.",
     defaultWidth: 360,
     defaultHeight: 380,
+  },
+  ui: {
+    label: "UI Design",
+    icon: "✨",
+    color: "#c026d3",
+    description: "Generate beautiful, production-quality React UIs with Tailwind CSS. Like Claude Artifacts or Google Stitch.",
+    hasAI: true,
+    category: "worker",
+    defaultPrompt:
+      "Design a beautiful React UI for the following. Use Tailwind CSS classes for ALL styling (no inline styles). Make it look like a real polished product.\n\nDesign requirements:\n- Modern, clean design with attention to detail\n- Good spacing, typography, and color harmony\n- Use gradients, shadows, rounded corners, and smooth transitions\n- Hover states on interactive elements\n- Include at least one gradient or glassmorphism effect\n- Make it responsive\n- Use small mock data (3-5 items)\n\nOutput ONLY JavaScript/JSX code. Use React hooks (React.useState, React.useEffect). Define a component called App. End with ReactDOM.createRoot(document.getElementById('root')).render(<App />).\n\nDescription:\n{{inputs}}",
+    defaultSystemPrompt:
+      "You are an expert UI designer and React developer. You create beautiful, modern, production-quality user interfaces using Tailwind CSS classes. Focus on visual polish: gradients, shadows, rounded corners, good typography, proper spacing, and smooth transitions. Make it look like a real product — not a demo. Output ONLY JavaScript/JSX code. Use the React.* API. Define App component. End with ReactDOM.createRoot(document.getElementById('root')).render(<App />).",
+    defaultWidth: 440,
+    defaultHeight: 420,
   },
 };

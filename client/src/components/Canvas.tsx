@@ -27,6 +27,7 @@ const nodeTypes = {
   code: BoxNode,
   prd: BoxNode,
   devplan: BoxNode,
+  ui: BoxNode,
 };
 
 export default function Canvas() {
@@ -90,6 +91,7 @@ export default function Canvas() {
             code: "#22d3ee",
             prd: "#818cf8",
             devplan: "#14b8a6",
+            ui: "#c026d3",
           };
           return colors[node.type || ""] || "#94a3b8";
         }}

@@ -4,7 +4,7 @@ import ReactMarkdown from "react-markdown";
 import { useBoardStore } from "../store/boardStore.js";
 import { BOX_TYPES } from "../types.js";
 import type { BoxType } from "../types.js";
-import { wrapCodeInHtml, downloadHtml, copyToClipboard } from "../lib/code.js";
+import { wrapCodeInHtml, wrapUIInHtml, downloadHtml, copyToClipboard } from "../lib/code.js";
 import { uploadImageToStorage } from "../lib/storage.js";
 
 /**
@@ -122,7 +122,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isImage = boxType === "image";
   const isCartoon = boxType === "cartoon";
   const isSlides = boxType === "slides";
-  const isCode = boxType === "code";
+  const isCode = boxType === "code" || boxType === "ui";
   const isInputBox = isIdea || isImage;
 
   const isRunning = boxData.status === "running";
@@ -488,7 +488,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                       </div>
                     )}
                     <iframe
-                      srcDoc={wrapCodeInHtml(boxData.code)}
+                      srcDoc={(boxType === "ui" ? wrapUIInHtml : wrapCodeInHtml)(boxData.code)}
                       className="absolute inset-0 w-full h-full border-0"
                       sandbox="allow-scripts allow-popups allow-forms allow-same-origin allow-modals"
                       title="React Preview"

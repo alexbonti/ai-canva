@@ -607,7 +607,7 @@ export const useBoardStore = create<BoardState>()(
                 status: "done",
                 error: undefined,
               });
-            } else if (boxType === "code") {
+            } else if (boxType === "code" || boxType === "ui") {
               // Extract component code from Claude's response
               const code = extractCode(result.content);
               // Validate: the code must contain a render call to actually work
