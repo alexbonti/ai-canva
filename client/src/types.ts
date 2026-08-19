@@ -1,4 +1,4 @@
-export type BoxType = "idea" | "research" | "summarize" | "image" | "cartoon" | "slides" | "code" | "prd";
+export type BoxType = "idea" | "research" | "summarize" | "image" | "cartoon" | "slides" | "code" | "prd" | "devplan";
 
 export type BoxStatus = "idle" | "running" | "done" | "error";
 
@@ -162,6 +162,20 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Create a Product Requirements Document (PRD) based on the following research and ideas. Structure it with these sections:\n\n## Product Overview\nBrief description of what we are building and why.\n\n## Problem Statement\nWhat pain point does this solve? Who has this problem?\n\n## Target Users\nWho are the primary users? What are their needs?\n\n## Core Features\nList the key features with priority (P0 = must have, P1 = should have, P2 = nice to have).\n\n## User Stories\nWrite 3-5 user stories in the format: As a [user], I want to [action] so that [benefit].\n\n## UI/UX Guidelines\nKey screens, layout considerations, and design principles.\n\n## Technical Requirements\nTechnology stack recommendations, key constraints, and dependencies.\n\n## Success Metrics\nHow will we measure if this product is successful?\n\nResearch & Ideas:\n{{inputs}}",
     defaultSystemPrompt:
       "You are a product manager. You create clear, structured Product Requirements Documents (PRDs) from research and ideas. Format as Markdown with clear headings, bullet points, and numbered lists. Be specific and actionable — this PRD will be used by developers to build a prototype.",
+    defaultWidth: 360,
+    defaultHeight: 380,
+  },
+  devplan: {
+    label: "Dev Plan",
+    icon: "🗺️",
+    color: "#14b8a6",
+    description: "Transform a PRD into a detailed development plan with components, state, and implementation steps for the Code box.",
+    hasAI: true,
+    category: "worker",
+    defaultPrompt:
+      "Create a detailed AI Development Plan from the following PRD. Break down the product into specific React components and implementation steps.\n\n## Component Architecture\nList all React components needed, their responsibilities, and parent-child relationships.\n\n## State Management\nDefine all state variables, where they live, and how they flow between components. Use React hooks (useState, useEffect).\n\n## Key Functions\nList the main functions with their signatures and what they do.\n\n## Data Flow\nDescribe how data moves through the app — from user input to display.\n\n## Implementation Order\nNumber the steps in the order they should be built (most fundamental first).\n\n## Styling Approach\nDescribe the visual design, color scheme, and layout approach using inline styles.\n\nKeep it specific and actionable — this plan will be used by a code generator to build a working React prototype. Use small mock data (3-5 items max).\n\nPRD:\n{{inputs}}",
+    defaultSystemPrompt:
+      "You are a senior software architect. You create detailed, actionable development plans from Product Requirements Documents. Focus on React with hooks and inline styles. Be specific about component names, state variables, and function signatures. The plan must be detailed enough for a code generator to implement without ambiguity.",
     defaultWidth: 360,
     defaultHeight: 380,
   },
