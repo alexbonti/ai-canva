@@ -20,6 +20,12 @@ export interface PresenceUser {
   cursorY: number;
 }
 
+/** A connected upstream input with its box name and output. */
+export interface NamedInput {
+  name: string;
+  output: string;
+}
+
 /** Data stored per-box, separate from React Flow's graph nodes. */
 export interface BoxData {
   content: string;

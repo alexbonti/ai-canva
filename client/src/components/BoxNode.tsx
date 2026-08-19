@@ -53,13 +53,46 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const updateBoxData = useBoardStore((s) => s.updateBoxData);
   const deleteBox = useBoardStore((s) => s.deleteBox);
   const runBox = useBoardStore((s) => s.runBox);
+  const edges = useBoardStore((s) => s.edges);
+  const allNodes = useBoardStore((s) => s.nodes);
+  const setBoxName = useBoardStore((s) => s.setBoxName);
 
   const [showSettings, setShowSettings] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
   const [codeTab, setCodeTab] = useState<"code" | "preview">("preview");
   const [copied, setCopied] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const promptRef = useRef<HTMLTextAreaElement>(null);
+
+  // Find connected upstream box names for the settings panel
+  const connectedInputs = edges
+    .filter((e) => e.target === id)
+    .map((e) => {
+      const sourceNode = allNodes.find((n) => n.id === e.source);
+      return {
+        name: (sourceNode?.data?.title as string) || "Unnamed",
+        id: e.source,
+      };
+    });
+
+  // Insert a variable into the prompt at cursor position
+  const insertVariable = (varName: string) => {
+    const textarea = promptRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentPrompt = boxData.prompt;
+    const newPrompt = currentPrompt.slice(0, start) + "{{" + varName + "}}" + currentPrompt.slice(end);
+    updateBoxData(id, { prompt: newPrompt });
+    // Restore cursor position after the inserted text
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + varName.length + 4, start + varName.length + 4);
+    }, 0);
+  };
 
   // ALL hooks must be called before any early return (Rules of Hooks)
   // Listen for "preview-ready" message from the iframe
@@ -159,11 +192,40 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         className="flex items-center justify-between px-3 py-2 rounded-t-[10px]"
         style={{ backgroundColor: meta.color + "20" }}
       >
-        <div className="flex items-center gap-2">
-          <span className="text-base">{meta.icon}</span>
-          <span className="font-semibold text-slate-700 text-sm">
-            {meta.label}
-          </span>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <span className="text-base flex-shrink-0">{meta.icon}</span>
+          {isEditingName ? (
+            <input
+              autoFocus
+              type="text"
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              onBlur={() => {
+                setBoxName(id, nameDraft.trim() || meta.label + " Box");
+                setIsEditingName(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setBoxName(id, nameDraft.trim() || meta.label + " Box");
+                  setIsEditingName(false);
+                }
+                if (e.key === "Escape") setIsEditingName(false);
+              }}
+              className="font-semibold text-slate-700 text-sm bg-white rounded px-1 py-0.5 border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-400 flex-1 min-w-0"
+            />
+          ) : (
+            <span
+              onClick={() => {
+                setNameDraft(data.title as string || meta.label + " Box");
+                setIsEditingName(true);
+              }}
+              className="font-semibold text-slate-700 text-sm truncate cursor-text hover:bg-white/40 rounded px-1 py-0.5 transition"
+              title="Click to rename"
+            >
+              {(data.title as string) || meta.label + " Box"}
+            </span>
+          )}
+          <span className="text-xs text-slate-400 flex-shrink-0">{meta.label}</span>
         </div>
         <button
           onClick={() => deleteBox(id)}
@@ -514,6 +576,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
               {isCartoon ? "Prompt Template (text-to-image fallback)" : "Prompt Template"}
             </label>
             <textarea
+              ref={promptRef}
               className={"w-full text-xs rounded-lg border border-slate-200 p-2 font-mono text-slate-700 focus:outline-none focus:ring-2" + (isCartoon ? " focus:ring-pink-300" : " focus:ring-blue-300") + " min-h-[80px] resize-y"}
               value={boxData.prompt}
               onChange={(e) =>
@@ -530,12 +593,35 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 Defines the slide structure. Claude outputs JSON — the app parses it into visual slides.
               </p>
             )}
-            <p className="text-xs text-slate-400 mt-1">
-              Variables:{" "}
-              <code className="bg-slate-200 px-1 rounded">{"{{input_1}}"}</code>{" "}
-              <code className="bg-slate-200 px-1 rounded">{"{{input_2}}"}</code>{" "}
-              <code className="bg-slate-200 px-1 rounded">{"{{inputs}}"}</code>
-            </p>
+            <div className="mt-2">
+              <p className="text-xs font-medium text-slate-500 mb-1">Available inputs (click to insert):</p>
+              {connectedInputs.length === 0 ? (
+                <p className="text-xs text-slate-400">No boxes connected. Connect an input box to reference it by name.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1">
+                  {connectedInputs.map((inp) => (
+                    <button
+                      key={inp.id}
+                      onClick={() => insertVariable(inp.name)}
+                      className="text-xs px-2 py-1 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 transition font-mono"
+                      title={"Insert {{" + inp.name + "}} into prompt"}
+                    >
+                      {"{{" + inp.name + "}}"}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => insertVariable("inputs")}
+                    className="text-xs px-2 py-1 rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 transition font-mono"
+                    title="Insert {{inputs}} — all inputs combined"
+                  >
+                    {"{{inputs}}"}
+                  </button>
+                </div>
+              )}
+              <p className="text-xs text-slate-400 mt-1">
+                Also supports: <code className="bg-slate-200 px-1 rounded">{"{{input_1}}"}</code> (positional)
+              </p>
+            </div>
           </div>
         </div>
       )}

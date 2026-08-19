@@ -10,7 +10,7 @@ import {
   type EdgeChange,
   type Connection,
 } from "@xyflow/react";
-import type { BoxData, BoxType, BoxStatus, Slide } from "../types.js";
+import type { BoxData, BoxType, BoxStatus, Slide, NamedInput } from "../types.js";
 import { BOX_TYPES } from "../types.js";
 import { generate, generateImage } from "../lib/api.js";
 import { fillPromptTemplate, getBoxOutput } from "../lib/prompts.js";
@@ -144,6 +144,7 @@ interface BoardState {
     position?: { x: number; y: number }
   ) => string;
   updateBoxData: (id: string, patch: Partial<BoxData>) => void;
+  setBoxName: (id: string, name: string) => void;
   deleteBox: (id: string) => void;
   runBox: (id: string) => Promise<void>;
 
@@ -234,6 +235,15 @@ export const useBoardStore = create<BoardState>()(
             ...get().boxData,
             [id]: { ...current, ...patch },
           },
+        });
+        scheduleSave();
+      },
+
+      setBoxName: (id, name) => {
+        set({
+          nodes: get().nodes.map((n) =>
+            n.id === id ? { ...n, data: { ...n.data, title: name } } : n
+          ),
         });
         scheduleSave();
       },
@@ -519,27 +529,36 @@ export const useBoardStore = create<BoardState>()(
 
         // Separate image inputs from text inputs
         let inputImage: string | undefined;
-        const textInputs: string[] = [];
+        const namedInputs: NamedInput[] = [];
 
         for (const edge of incomingEdges) {
           const sourceData = state.boxData[edge.source];
+          const sourceNode = state.nodes.find((n) => n.id === edge.source);
           if (sourceData) {
             // Check for image data (from Image Upload boxes)
             if (sourceData.imageData) {
               if (!inputImage) inputImage = sourceData.imageData;
             }
-            // Gather text output
+            // Gather text output with the source box name
             const textOutput = getBoxOutput(
               sourceData.output,
               sourceData.content
             );
-            if (textOutput) textInputs.push(textOutput);
+            if (textOutput) {
+              namedInputs.push({
+                name: (sourceNode?.data?.title as string) || "Unnamed",
+                output: textOutput,
+              });
+            }
           }
         }
 
         // Also include this box's own content (lets AI boxes work standalone)
         if (data.content && data.content.trim()) {
-          textInputs.push(data.content.trim());
+          namedInputs.push({
+            name: (node.data?.title as string) || "This Box",
+            output: data.content.trim(),
+          });
         }
 
         // Set running state
@@ -549,8 +568,8 @@ export const useBoardStore = create<BoardState>()(
           if (boxType === "cartoon") {
             // Image generation via fal.ai
             let prompt = data.prompt;
-            if (textInputs.length > 0) {
-              prompt = fillPromptTemplate(data.prompt, textInputs);
+            if (namedInputs.length > 0) {
+              prompt = fillPromptTemplate(data.prompt, namedInputs);
             }
 
             const result = await generateImage({
@@ -569,7 +588,7 @@ export const useBoardStore = create<BoardState>()(
             // Text generation via Claude (research, summarize, slides)
             const filledPrompt = fillPromptTemplate(
               data.prompt,
-              textInputs
+              namedInputs
             );
 
             const result = await generate({
