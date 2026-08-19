@@ -173,9 +173,9 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     hasAI: true,
     category: "worker",
     defaultPrompt:
-      "Create a detailed AI Development Plan from the following PRD. Break down the product into specific React components and implementation steps.\n\n## Component Architecture\nList all React components needed, their responsibilities, and parent-child relationships.\n\n## State Management\nDefine all state variables, where they live, and how they flow between components. Use React hooks (useState, useEffect).\n\n## Key Functions\nList the main functions with their signatures and what they do.\n\n## Data Flow\nDescribe how data moves through the app — from user input to display.\n\n## Implementation Order\nNumber the steps in the order they should be built (most fundamental first).\n\n## Styling Approach\nDescribe the visual design, color scheme, and layout approach using inline styles.\n\nKeep it specific and actionable — this plan will be used by a code generator to build a working React prototype. Use small mock data (3-5 items max).\n\nPRD:\n{{inputs}}",
+      "Create a simple development plan for a React prototype based on this PRD. Keep it short and practical.\n\nList:\n1. Components to build (names + 1-line purpose)\n2. State variables (names + types)\n3. Key functions (names + what they do)\n4. Build order (3-5 steps)\n\nThis is for a simple prototype. Use small mock data. Do NOT over-engineer.\n\nPRD:\n{{inputs}}",
     defaultSystemPrompt:
-      "You are a senior software architect. You create detailed, actionable development plans from Product Requirements Documents. Focus on React with hooks and inline styles. Be specific about component names, state variables, and function signatures. The plan must be detailed enough for a code generator to implement without ambiguity.",
+      "You are a pragmatic developer. Create SHORT, simple development plans for React prototypes. Use React hooks and inline styles. Keep everything minimal — this is a prototype, not production. Be concise.",
     defaultWidth: 360,
     defaultHeight: 380,
   },
