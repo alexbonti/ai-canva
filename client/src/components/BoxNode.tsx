@@ -122,7 +122,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isImage = boxType === "image";
   const isCartoon = boxType === "cartoon";
   const isSlides = boxType === "slides";
-  const isCode = boxType === "code" || boxType === "ui";
+  const isCode = boxType === "code" || boxType === "ui" || boxType === "stitch";
+  const isStitch = boxType === "stitch";
   const isInputBox = isIdea || isImage;
 
   const isRunning = boxData.status === "running";
@@ -488,7 +489,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                       </div>
                     )}
                     <iframe
-                      srcDoc={(boxType === "ui" ? wrapUIInHtml : wrapCodeInHtml)(boxData.code)}
+                      srcDoc={isStitch ? (boxData.code || "") : (boxType === "ui" ? wrapUIInHtml : wrapCodeInHtml)(boxData.code || "")}
                       className="absolute inset-0 w-full h-full border-0"
                       sandbox="allow-scripts allow-popups allow-forms allow-same-origin allow-modals"
                       title="React Preview"

@@ -62,6 +62,30 @@ export async function generateImage(
   return res.json();
 }
 
+export interface StitchResponse {
+  html: string;
+  imageUrl: string;
+  error?: string;
+}
+
+/**
+ * Calls Google Stitch to generate a UI screen from a prompt.
+ */
+export async function generateStitchUI(
+  prompt: string
+): Promise<StitchResponse> {
+  const res = await fetch(`${API_BASE}/stitch-generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Request failed" }));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function checkHealth(): Promise<{
   status: string;
   anthropicKey: string;

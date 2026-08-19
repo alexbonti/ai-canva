@@ -1,4 +1,4 @@
-export type BoxType = "idea" | "research" | "summarize" | "image" | "cartoon" | "slides" | "code" | "prd" | "devplan" | "ui";
+export type BoxType = "idea" | "research" | "summarize" | "image" | "cartoon" | "slides" | "code" | "prd" | "devplan" | "ui" | "stitch";
 
 export type BoxStatus = "idle" | "running" | "done" | "error";
 
@@ -190,6 +190,19 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Design a beautiful React UI for the following. Use Tailwind CSS classes for ALL styling (no inline styles). Make it look like a real polished product.\n\nDesign requirements:\n- Modern, clean design with attention to detail\n- Good spacing, typography, and color harmony\n- Use gradients, shadows, rounded corners, and smooth transitions\n- Hover states on interactive elements\n- Include at least one gradient or glassmorphism effect\n- Make it responsive\n- Use small mock data (3-5 items)\n\nOutput ONLY JavaScript/JSX code. Use React hooks (React.useState, React.useEffect). Define a component called App. End with ReactDOM.createRoot(document.getElementById('root')).render(<App />).\n\nDescription:\n{{inputs}}",
     defaultSystemPrompt:
       "You are an expert UI designer and React developer. You create beautiful, modern, production-quality user interfaces using Tailwind CSS classes. Focus on visual polish: gradients, shadows, rounded corners, good typography, proper spacing, and smooth transitions. Make it look like a real product — not a demo. Output ONLY JavaScript/JSX code. Use the React.* API. Define App component. End with ReactDOM.createRoot(document.getElementById('root')).render(<App />).",
+    defaultWidth: 440,
+    defaultHeight: 420,
+  },
+  stitch: {
+    label: "Stitch UI",
+    icon: "🧵",
+    color: "#0ea5e9",
+    description: "Generate beautiful UI screens using Google Stitch. Returns production-quality HTML directly.",
+    hasAI: true,
+    category: "worker",
+    defaultPrompt:
+      "Generate a beautiful, modern UI screen for the following. Make it polished and production-ready with good spacing, typography, and visual design.\n\nDescription:\n{{inputs}}",
+    defaultSystemPrompt: "",
     defaultWidth: 440,
     defaultHeight: 420,
   },

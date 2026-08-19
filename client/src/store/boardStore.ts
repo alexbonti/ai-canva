@@ -12,7 +12,7 @@ import {
 } from "@xyflow/react";
 import type { BoxData, BoxType, BoxStatus, Slide, NamedInput } from "../types.js";
 import { BOX_TYPES } from "../types.js";
-import { generate, generateImage } from "../lib/api.js";
+import { generate, generateImage, generateStitchUI } from "../lib/api.js";
 import { fillPromptTemplate, getBoxOutput } from "../lib/prompts.js";
 import { extractCode } from "../lib/code.js";
 import {
@@ -581,6 +581,20 @@ export const useBoardStore = create<BoardState>()(
 
             get().updateBoxData(id, {
               outputImage: result.imageUrl,
+              status: "done",
+              error: undefined,
+            });
+          } else if (boxType === "stitch") {
+            // UI generation via Google Stitch
+            let prompt = data.prompt;
+            if (namedInputs.length > 0) {
+              prompt = fillPromptTemplate(data.prompt, namedInputs);
+            }
+            const result = await generateStitchUI(prompt);
+            if (result.error) throw new Error(result.error);
+            get().updateBoxData(id, {
+              output: result.html,
+              code: result.html,
               status: "done",
               error: undefined,
             });

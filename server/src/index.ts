@@ -6,6 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { generateContent } from "./claude.js";
 import { generateCartoonImage } from "./fal.js";
+import { generateStitchUI } from "./stitch.js";
 import { findPort } from "./findPort.js";
 
 dotenv.config();
@@ -89,6 +90,27 @@ app.post("/api/generate-image", async (req, res) => {
 });
 
 /**
+ * POST /api/stitch-generate
+ * Body: { prompt: string }
+ * Returns: { html: string, imageUrl: string }
+ *
+ * Generates a UI screen using Google Stitch.
+ */
+app.post("/api/stitch-generate", async (req, res) => {
+  try {
+    const { prompt } = req.body as { prompt?: string };
+    if (!prompt || typeof prompt !== "string") {
+      return res.status(400).json({ error: "prompt is required" });
+    }
+    const result = await generateStitchUI(prompt);
+    res.json(result);
+  } catch (err: any) {
+    console.error("[/api/stitch-generate] Error:", err.message);
+    res.status(500).json({ error: err.message || "Failed to generate UI" });
+  }
+});
+
+/**
  * GET /api/health — simple health check
  */
 app.get("/api/health", (_req, res) => {
@@ -96,6 +118,7 @@ app.get("/api/health", (_req, res) => {
     status: "ok",
     anthropicKey: process.env.ANTHROPIC_API_KEY ? "configured" : "missing",
     falKey: process.env.FAL_KEY ? "configured" : "missing",
+    stitchKey: process.env.STITCH_API_KEY ? "configured" : "missing",
   });
 });
 
