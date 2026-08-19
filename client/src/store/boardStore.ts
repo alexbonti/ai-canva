@@ -282,8 +282,6 @@ export const useBoardStore = create<BoardState>()(
       },
 
       loadBoardFromFirestore: async (boardId) => {
-        // Unsubscribe from previous board if any
-        get().unsubscribeFromBoard();
         const board = await loadBoard(boardId);
         if (!board) return;
         console.log("[load] Board collaborators from Firestore:", board.collaborators);
@@ -297,8 +295,8 @@ export const useBoardStore = create<BoardState>()(
           saveStatus: "saved",
           activeUsers: [],
         });
-        // Start real-time subscription + presence
-        get().subscribeToBoardUpdates();
+        // Subscription is handled automatically by the useEffect in App.tsx
+        // that watches currentBoardId — no need to manually subscribe here
       },
 
       saveToFirestore: async () => {

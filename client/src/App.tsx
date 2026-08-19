@@ -34,6 +34,7 @@ export default function App() {
   const activeUsers = useBoardStore((s) => s.activeUsers);
   const unsubscribeFromBoard = useBoardStore((s) => s.unsubscribeFromBoard);
   const cleanupPresence = useBoardStore((s) => s.cleanupPresence);
+  const subscribeToBoardUpdates = useBoardStore((s) => s.subscribeToBoardUpdates);
 
   const [showBoardList, setShowBoardList] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -89,6 +90,15 @@ export default function App() {
     initBoard();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading]);
+
+  // Auto-subscribe to board updates whenever currentBoardId changes.
+  // This is the SINGLE source of truth for subscription management —
+  // works for loadBoard, createNewBoard, and any other board switch.
+  useEffect(() => {
+    if (!user || !currentBoardId) return;
+    subscribeToBoardUpdates();
+    return () => unsubscribeFromBoard();
+  }, [currentBoardId, user, subscribeToBoardUpdates, unsubscribeFromBoard]);
 
   // Seed a starter board on first load (localStorage mode only, when not logged in)
   useEffect(() => {
