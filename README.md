@@ -32,6 +32,9 @@ Course materials for using AI Canva as a teaching/learning project. A complete s
 | [Group Brief — UX for Telstra Health](docs/course/04_ux_health_group_brief.md) | Group project: turn AI Canva into a UX design support tool for healthcare |
 | [How to Build a Box](docs/course/05_how_to_build_a_box.md) | Step-by-step: add a new box + branching/code-management rules for beginners |
 
+> Each guide also ships as a print-friendly **HTML handout** (`docs/course/*.html`) — open in any
+> browser and use *Print → Save as PDF* for a clean handout.
+
 > **Teaching with this project?** Point students at the [What is AI Canva?](docs/course/01_what_is_ai_canva.md)
 > guide first, then the [How to Build a Box](docs/course/05_how_to_build_a_box.md) walkthrough and the
 > relevant project brief (individual or group).
