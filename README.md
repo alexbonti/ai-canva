@@ -26,6 +26,7 @@ Course materials for using AI Canva as a teaching/learning project. A complete s
 
 | Guide | What it covers |
 |-------|----------------|
+| [Intro Message for Students](docs/course/00_intro_message.md) | Kick-off message to post to your class |
 | [What is AI Canva?](docs/course/01_what_is_ai_canva.md) | Beginner's intro: the big idea, box types, how it works, architecture |
 | [Student Brief — One Box per Student](docs/course/02_student_brief_one_box.md) | Individual assignment: each student designs & builds one box |
 | [Group Brief — Cybersecurity & Compliance](docs/course/03_cyber_group_brief.md) | Group project: turn AI Canva into a security/compliance support tool |
