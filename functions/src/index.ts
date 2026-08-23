@@ -1,7 +1,7 @@
 import { onRequest } from "firebase-functions/v2/https";
 import express from "express";
 import cors from "cors";
-import { generateContent } from "./claude.js";
+import { generateContent } from "./ollama.js";
 import { generateCartoonImage } from "./fal.js";
 import { generateStitchUI } from "./stitch.js";
 
@@ -54,7 +54,7 @@ app.post("/api/stitch-generate", async (req, res) => {
 app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
-    anthropicKey: process.env.ANTHROPIC_API_KEY ? "configured" : "missing",
+    ollamaKey: process.env.OLLAMA_API_KEY ? "configured" : "missing",
     falKey: process.env.FAL_KEY ? "configured" : "missing",
     stitchKey: process.env.STITCH_API_KEY ? "configured" : "missing",
   });

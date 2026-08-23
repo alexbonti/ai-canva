@@ -30,7 +30,7 @@ function makeId(): string {
 }
 
 /**
- * Parses Claude's text response into a Slide[] array.
+ * Parses the LLM's text response into a Slide[] array.
  * Handles JSON wrapped in markdown code blocks and extra text.
  */
 function parseSlidesResponse(text: string): Slide[] {
@@ -599,7 +599,7 @@ export const useBoardStore = create<BoardState>()(
               error: undefined,
             });
           } else {
-            // Text generation via Claude (research, summarize, slides)
+            // Text generation via the Ollama backend (research, summarize, slides)
             const filledPrompt = fillPromptTemplate(
               data.prompt,
               namedInputs
@@ -613,7 +613,7 @@ export const useBoardStore = create<BoardState>()(
             if (result.error) throw new Error(result.error);
 
             if (boxType === "slides") {
-              // Parse Claude's JSON output into a slide deck
+              // Parse the LLM's JSON output into a slide deck
               const slides = parseSlidesResponse(result.content);
               get().updateBoxData(id, {
                 output: result.content,
@@ -622,7 +622,7 @@ export const useBoardStore = create<BoardState>()(
                 error: undefined,
               });
             } else if (boxType === "code" || boxType === "ui") {
-              // Extract component code from Claude's response
+              // Extract component code from the LLM's response
               const code = extractCode(result.content);
               // Validate: the code must contain a render call to actually work
               if (!code.includes("ReactDOM.createRoot") && !code.includes("ReactDOM.render")) {

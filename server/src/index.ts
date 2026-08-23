@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { generateContent } from "./claude.js";
+import { generateContent } from "./ollama.js";
 import { generateCartoonImage } from "./fal.js";
 import { generateStitchUI } from "./stitch.js";
 import { findPort } from "./findPort.js";
@@ -116,7 +116,7 @@ app.post("/api/stitch-generate", async (req, res) => {
 app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
-    anthropicKey: process.env.ANTHROPIC_API_KEY ? "configured" : "missing",
+    ollamaKey: process.env.OLLAMA_API_KEY ? "configured" : "missing",
     falKey: process.env.FAL_KEY ? "configured" : "missing",
     stitchKey: process.env.STITCH_API_KEY ? "configured" : "missing",
   });
@@ -136,9 +136,9 @@ findPort(PREFERRED_PORT).then((actualPort) => {
     }
     console.log(`[server] Running on http://localhost:${actualPort}`);
 
-    if (!process.env.ANTHROPIC_API_KEY) {
+    if (!process.env.OLLAMA_API_KEY) {
       console.warn(
-        "[server] ANTHROPIC_API_KEY not set — AI generation will fail. Add it to server/.env"
+        "[server] OLLAMA_API_KEY not set — AI generation will fail. Add it to server/.env"
       );
     }
   });

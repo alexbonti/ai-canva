@@ -32,7 +32,7 @@ export function wrapCodeInHtml(code: string): string {
 /**
  * Wraps generated React code in HTML with Tailwind CSS + Google Fonts.
  * Used by the UI Design box for beautiful, production-quality previews.
- * Claude generates Tailwind class-based JSX instead of inline styles.
+ * The model generates Tailwind class-based JSX instead of inline styles.
  */
 export function wrapUIInHtml(code: string): string {
   return [
@@ -64,7 +64,7 @@ export function wrapUIInHtml(code: string): string {
 }
 
 /**
- * Strips markdown code block wrappers if Claude wrapped the output.
+ * Strips markdown code block wrappers if the LLM wrapped the output.
  */
 export function extractCode(raw: string): string {
   let code = raw.trim();

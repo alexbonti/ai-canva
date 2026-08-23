@@ -591,7 +591,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             )}
             {isSlides && (
               <p className="text-xs text-slate-400 mt-1">
-                Defines the slide structure. Claude outputs JSON — the app parses it into visual slides.
+                Defines the slide structure. The model outputs JSON — the app parses it into visual slides.
               </p>
             )}
             <div className="mt-2">

@@ -97,7 +97,7 @@ export default function LandingPage() {
         <div className="fade-in fade-in-delay-4 flex items-center gap-3 mt-8 text-xs text-slate-500">
           <span className="flex items-center gap-1">📦 8 Box Types</span>
           <span>·</span>
-          <span className="flex items-center gap-1">🤖 Claude AI</span>
+          <span className="flex items-center gap-1">🤖 Ollama AI</span>
           <span>·</span>
           <span className="flex items-center gap-1">🎨 fal.ai</span>
           <span>·</span>

@@ -1,206 +1,196 @@
 # AI Canva
 
-A collaborative AI-powered whiteboard where you build visual pipelines of AI steps. Place boxes on a canvas, connect them, and run AI prompts that flow content from box to box.
+> Build AI pipelines visually. Place boxes on a canvas, connect them, and run AI prompts that flow content from box to box.
 
-## Quick Start
+A collaborative, AI-powered whiteboard where you compose visual pipelines of AI "boxes". Drop an **Idea** box, connect it to a **Research** box, run an AI model, then chain the output into a **PRD**, **Slides**, **Code**, **UI Design**, or **Stitch UI** box. Watch your ideas flow from research to a working prototype — without leaving the canvas.
 
-### 1. Add your API keys
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+---
+
+## 📚 Documentation
+
+| Guide | What it covers |
+|-------|----------------|
+| [Project Overview](docs/OVERVIEW.md) | What AI Canva is, how it works, and what you can learn from it |
+| [Onboarding & Environment Setup](docs/ONBOARDING.md) | Get from a clean machine to a running app, step by step |
+| [Architecture](docs/ARCHITECTURE.md) | Deep dive into the client, backend, and Firebase layers |
+| [Box Types](docs/BOX_TYPES.md) | Every box and how to add a new one |
+| [API](docs/API.md) | The backend endpoints and environment variables |
+| [Deployment](docs/DEPLOYMENT.md) | Ship it to Firebase Hosting + Functions |
+| [Open-Source Readiness](docs/OSS_READINESS.md) | Pre-launch security and project checks |
+
+> **Teaching with this project?** Point students at the [Overview](docs/OVERVIEW.md) and
+> [Onboarding](docs/ONBOARDING.md) guides.
+
+---
+
+## ✨ Features
+
+- **Visual pipelines** — drag boxes onto a canvas and connect them; content flows box to box.
+- **11 box types** — Idea, Image, Research, Summarize, PRD, Dev Plan, Cartoon Profile, Slides, Code, UI Design, and Stitch UI.
+- **AI-powered** — Ollama (LLM) for text, fal.ai for image generation, Google Stitch for production-quality UI screens.
+- **Real-time collaboration** — share boards by email, live cursors with names/colors, and live multi-user editing via Firestore.
+- **Cloud persistence** — boards auto-save to Firestore (with localStorage as an offline cache). Sign in with Google to use the app; your boards are stored per user.
+- **Editable prompt templates** — reference connected inputs by name (`{{Box Name}}`, `{{input_1}}`, `{{inputs}}`) right in the settings panel.
+- **Live code previews** — Code and UI boxes render generated React components in an iframe with copy/save.
+
+## 📦 Box Types
+
+| Box | Icon | Type | Description |
+|-----|------|------|-------------|
+| **Idea** | 💡 | Input | Free-text input. No AI — just write your idea. The seed of most pipelines. |
+| **Image** | 🖼️ | Input | Upload an image (auto-resized to ≤1024px). Becomes input for downstream boxes. |
+| **Research** | 🔍 | Worker | Runs an AI prompt over connected inputs and returns research findings. |
+| **Summarize** | 📋 | Worker | Combines multiple upstream inputs into a concise AI summary. |
+| **PRD** | 📄 | Worker | Generates a Product Requirements Document (features, user stories, specs) — ideal input for the Code box. |
+| **Dev Plan** | 🗺️ | Worker | Transforms a PRD into a short, practical development plan (components, state, functions, build order). |
+| **Cartoon Profile** | 🎨 | Worker | Generates a cartoon avatar via fal.ai — image-to-image from an Image box, or text-to-image from an Idea box. |
+| **Slides** | 📊 | Worker | Generates a visual pitch deck with prev/next navigation. |
+| **Code** | 💻 | Worker | Generates a React prototype with a live preview, copy, and download. |
+| **UI Design** | ✨ | Worker | Generates production-quality React UIs with Tailwind CSS + Google Fonts. |
+| **Stitch UI** | 🧵 | Worker | Generates UI screens using Google Stitch; returns polished HTML directly. |
+
+> A "custom" box category is reserved on the sidebar for future box types.
+
+---
+
+## 🚀 Quick Start (local development)
+
+### 1. Clone and install
+
+```bash
+git clone <your-repo-url> ai-canva
+cd ai-canva
+npm install                 # root tooling (concurrently)
+npm run install:all         # installs server/ + client/ deps
+```
+
+### 2. Configure API keys
 
 ```bash
 cp server/.env.example server/.env
-# Edit server/.env and replace the placeholders with your real keys:
-# ANTHROPIC_API_KEY=sk-ant-your-real-key-here
-# FAL_KEY=your-fal-key-here
+# Edit server/.env and fill in real keys:
+#   OLLAMA_API_KEY=your-ollama-api-key              # https://ollama.com/settings/keys
+#   FAL_KEY=your-fal-key-here                      # https://fal.ai/dashboard/keys
+#   STITCH_API_KEY=your-stitch-key-here            # https://stitch.withgoogle.com
 ```
 
-- Anthropic key: https://console.anthropic.com/
-- fal.ai key: https://fal.ai/dashboard/keys
+The server works without Firebase for local experimentation. It only needs the AI keys above
+(`OLLAMA_API_KEY` is required for text boxes; `FAL_KEY` for Cartoon boxes; `STITCH_API_KEY` for
+Stitch UI boxes). By default it calls **Ollama Cloud** at `https://ollama.com` — set `OLLAMA_MODEL`
+in `server/.env` to choose a model (see `server/.env.example`).
 
-### 1b. Set up Firebase (for cloud storage + auth)
-
-1. Go to [Firebase Console](https://console.firebase.google.com) and create a project
-2. **Enable Authentication**: Console > Authentication > Sign-in method > Google > Enable
-3. **Enable Firestore**: Console > Firestore Database > Create database (start in production mode)
-4. **Set security rules**: Copy the rules from `firestore.rules` in this repo, paste into Console > Firestore > Rules > Publish
-5. **Add web app**: Console > Project Settings > Add app > Web > Register app > Copy the config
-6. **Update client config**: Replace the values in `client/src/lib/firebase.ts` with your config
-
-The security rules ensure users can only read/write/delete their **own** boards.
-
-### 2. Install dependencies (first time only)
-
-```bash
-npm install              # root (concurrently)
-cd server && npm install # server deps
-cd client && npm install # client deps
-```
-
-Or from root: `npm run install:all`
-
-### 3. Run the app
+### 3. Run
 
 ```bash
 npm run dev
 ```
 
-This starts both servers:
-- **Client (Vite):** http://localhost:5173 — open this in your browser
-- **Server (Express):** http://localhost:3001 — API proxy for Claude
+- **Client (Vite):** http://localhost:5173
+- **Server (Express):** http://localhost:3001 (or the next available port)
 
-### Automatic Port Detection
+Both processes detect if their default port is in use and switch to the next free one. The client reads the server's actual port from `.server-port` so its `/api` proxy always works.
 
-Both the server and client automatically detect if their default port is in use and switch to the next available one:
+> **Optional:** To use accounts, cloud save, real-time collaboration, and image uploads, set up Firebase (see [Deployment](docs/DEPLOYMENT.md)) and put your project's config into `client/src/lib/firebase.ts`.
 
-- **Server** (default `3001`): If port 3001 is occupied, it increments until it finds a free port (3002, 3003, ...). The actual port is written to `.server-port` in the project root.
-- **Client** (default `5173`): Vite's `strictPort: false` makes it auto-increment if 5173 is taken (5174, 5175, ...).
-- **Proxy coordination**: The client reads `.server-port` at startup (polling for up to 10 seconds) so its `/api` proxy always points to the server's actual port — even if the server had to switch.
+---
 
-You'll see a warning in the console if a port was switched, e.g.:
-```
-[server] Port 3001 was in use — switched to 3003
-```
+## 🎨 Using the app
 
-You can override the server's preferred port via the `PORT` environment variable in `server/.env`.
+1. Click **+ Add** in the top bar to open the box panel (or use the collapsed tab on the right).
+2. Click a box type to add it. Type your idea in an **Idea** box, or upload an image in an **Image** box.
+3. **Connect** boxes: drag from a box's right edge (`●`) to another box's left edge (`●`).
+4. Click **▶ Run** on any AI box to generate its output.
+5. Click **⚙** to edit a box's prompt template, system prompt, and inputs.
+6. **Resize** any box: click it, then drag the corner/edge handles.
+7. Click a box's title to **rename** it.
 
-## How It Works
+### Prompt template variables
 
-### Box Types
+AI boxes use prompt templates that fill in values from connected upstream boxes:
 
-| Box | Icon | Description |
-|-----|------|-------------|
-| **Idea** | 💡 | Free-text input. No AI — just write your idea. This is the seed. |
-| **Research** | 🔍 | Takes input from connected boxes, runs a customizable Claude prompt, outputs research findings. |
-| **Summarize** | 📋 | Combines multiple upstream inputs into a concise AI-generated summary. |
-| **Image** | 🖼️ | Upload an image. The image becomes input for downstream boxes. No AI. |
-| **Cartoon Profile** | 🎨 | Generate cartoon profile pictures via fal.ai. Connect an Image box for image-to-image, or an Idea box for text-to-image fallback. |
-| **Slides** | 📊 | Generate a visual pitch deck from research. Takes input from connected boxes, outputs navigable slides with prev/next. |
-| **Code** | 💻 | Generate a React prototype from research. Live preview in an iframe, with Code/Preview tabs, copy, and download. |
-| **PRD** | 📄 | Generate a Product Requirements Document from research. Structures findings into features, user stories, and specs — ideal input for the Code box. |
+| Variable | Meaning |
+|----------|---------|
+| `{{Box Name}}` | The output of a connected box, matched by that box's **name** (case-insensitive). |
+| `{{input_1}}`, `{{input_2}}` | Positional references to the Nth connected input. |
+| `{{input}}` | Alias for the first input. |
+| `{{inputs}}` | All connected inputs, concatenated and labeled by box name. |
 
-### Building a Pipeline
+In the settings panel you can click a connected box's name (or `{{inputs}}`) to insert the variable at the cursor.
 
-1. Click **+ Idea**, **+ Research**, **+ PRD**, **+ Summarize**, **+ Image**, **+ Cartoon Profile**, **+ Slides**, or **+ Code** in the top bar to add a box
-2. Write your idea in an Idea Box, or upload an image in an Image Box
-3. Drag from a box right edge (●) to another box left edge (●) to connect them
-4. Click **▶ Run** on any AI box (Research, Summarize, Cartoon, Slides, Code) to generate output
-5. Click **⚙** on any AI box to edit its prompt template
-6. **Resize boxes**: Click a box, then drag the corner/edge handles to resize it
+### Example pipelines
 
-### Prompt Templates
+**Research → summary**
 
-AI boxes use prompt templates with variables that get filled from connected inputs:
-
-- `{{input_1}}` — first upstream box output
-- `{{input_2}}` — second upstream box output
-- `{{input}}` — alias for `{{input_1}}`
-- `{{inputs}}` — all inputs concatenated with labels
-
-Each AI box also has a **System Prompt** that sets Claude role/behavior.
-
-### Example Pipelines
-
-**Text research pipeline:**
 ```
 Idea Box ──▶ Research Box ──▶ Summarize Box
              Research Box 2 ──┘
 ```
 
-1. Write an idea in the Idea Box
-2. Connect it to a Research Box and click Run — Claude researches the topic
-3. Connect multiple Research Boxes to a Summarize Box and click Run — Claude synthesizes them
+**Full product flow (recommended for code generation)**
 
-**Cartoon profile pipeline (image-to-image):**
 ```
-Image Box ──▶ Cartoon Profile Box
+Idea Box ──▶ Research Box ──▶ PRD Box ──▶ Dev Plan ──▶ Code Box
 ```
 
-1. Upload a photo in the Image Box
-2. Connect it to a Cartoon Profile Box and click Run — fal.ai cartoonifies the photo
+**Pitch deck**
 
-**Cartoon profile pipeline (text-to-image fallback):**
-```
-Idea Box ──▶ Cartoon Profile Box
-```
-
-1. Describe a character in the Idea Box
-2. Connect it to a Cartoon Profile Box and click Run — fal.ai generates a cartoon from text
-
-**Pitch deck pipeline:**
 ```
 Idea Box ──▶ Research Box ──▶ Slides Box
 ```
 
-1. Write an idea and connect it to a Research Box — Claude researches the topic
-2. Connect the Research Box to a Slides Box and click Run — Claude generates a visual pitch deck
-3. Navigate slides with ◀ ▶ buttons
+**Cartoon avatar** — connect an **Image** box for image-to-image, or an **Idea** box for text-to-image.
 
-**React prototype pipeline:**
-```
-Idea Box ──▶ Research Box ──▶ Code Box
-```
+---
 
-1. Write an idea and connect it to a Research Box
-2. Connect the Research Box to a Code Box and click Run — Claude generates a React component
-3. Switch between Code and Preview tabs to see the source and live result
-4. Click Copy to copy the code, or Save to download a self-contained HTML file
+## 👥 Collaboration
 
-**Full product pipeline (recommended for code generation):**
-```
-Idea Box ──▶ Research Box ──▶ PRD Box ──▶ Code Box
-```
+When signed in with Google, your boards live in Firestore.
 
-1. Write an idea and connect it to a Research Box — Claude researches the topic
-2. Connect the Research Box to a PRD Box and click Run — Claude generates a structured Product Requirements Document
-3. Connect the PRD Box to a Code Box and click Run — Claude generates a React prototype from the specific requirements
-4. The PRD gives the Code box much better input than raw research alone
+- **Boards** — open **📋 Boards** in the header to list, switch, create, or delete boards.
+- **Share** — click **👥 Share** to get a share link, or add collaborators by email.
+- **Live cursors** — active collaborators appear as colored avatars in the header; their cursors show on the canvas in real time.
+- **Open a shared board** — visit `your-app/?board=<boardId>`.
+- **Persistence** — boards auto-save to Firestore (debounced ~1s after changes). When not signed in, boards save only to localStorage.
 
-## Persistence
+---
 
-- **When logged in**: Boards auto-save to Cloud Firestore (debounced, 1s after last change). localStorage serves as an offline cache. Boards are private per user.
-- **When not logged in**: Boards save to browser localStorage only.
-- **Board list**: When logged in, click "📋 Boards" in the header to see all your saved boards, create new ones, or switch between them.
-
-## Tech Stack
-
-- **Canvas:** React Flow (@xyflow/react) — draggable nodes, connections, pan/zoom
-- **Frontend:** React 19 + Vite + TypeScript + Tailwind CSS + Zustand
-- **Backend:** Express + @anthropic-ai/sdk (Claude) + fal.ai REST API (image generation)
-- **Database:** Cloud Firestore (board storage, one document per board)
-- **Auth:** Firebase Authentication (Google sign-in)
-- **Persistence:** localStorage (offline cache) + Firestore (cloud source of truth)
-
-## Roadmap (Phase 2+)
-
-- Real-time multi-user collaboration (Yjs CRDT + WebSocket)
-- Additional box types: Mind Map, Outline, Critique, Decision, Tasks, Slides, Code, Image
-- Auto-run mode (boxes regenerate when inputs change)
-- Streaming output (token-by-token)
-- Server-side board persistence (database)
-- Export board as image / JSON
-
-## Project Structure
+## 🗂️ Project structure
 
 ```
 ai-canva/
 ├── client/                 # Vite React app
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── Canvas.tsx        # React Flow canvas
-│   │   │   ├── BoxNode.tsx       # Unified box node (all types)
-│   │   │   └── Toolbar.tsx       # Help overlay
-│   │   ├── store/
-│   │   │   └── boardStore.ts     # Zustand store (state + localStorage + run logic)
-│   │   ├── lib/
-│   │   │   ├── api.ts            # Backend API client
-│   │   │   └── prompts.ts        # Prompt template filling
-│   │   ├── types.ts              # Box types, metadata, interfaces
-│   │   ├── App.tsx               # Main app layout
-│   │   └── main.tsx              # Entry point
-│   └── package.json
-├── server/                 # Express API
-│   ├── src/
-│   │   ├── index.ts              # Express app + /api/generate
-│   │   └── claude.ts             # Anthropic SDK wrapper
-│   └── package.json
-└── package.json            # Workspace root
+│   └── src/
+│       ├── components/      # Canvas, BoxNode, Sidebar, Toolbar, modals, LandingPage
+│       ├── store/            # Zustand stores (board + auth)
+│       ├── lib/              # API client, prompts, firebase/firestore/storage, code helpers
+│       ├── types.ts          # Box types + metadata
+│       ├── App.tsx           # Shell / layout
+│       └── main.tsx          # Entry point
+├── server/                   # Express API (local dev backend)
+│   └── src/                  # index.ts, ollama.ts, fal.ts, stitch.ts, findPort.ts
+├── functions/                # Firebase Cloud Functions (production backend)
+│   └── src/                  # Mirrors the server API
+├── firestore.rules           # Firestore security rules
+├── storage.rules             # Storage security rules
+└── firebase.json             # Firebase hosting/functions/firestore/storage config
 ```
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for a deep dive, [docs/API.md](docs/API.md) for the backend endpoints, and [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) to deploy to Firebase.
+
+---
+
+## 🔐 Security rules
+
+The repo ships a `firestore.rules` and `storage.rules` intended to keep each user's boards private. **Note:** the current `firestore.rules` contain a permissive placeholder (any signed-in user can read/update any board) — see [docs/OSS_READINESS.md](docs/OSS_READINESS.md) for the recommended fix before deploying publicly.
+
+---
+
+## 🤝 Contributing
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) and our [Code of Conduct](CODE_OF_CONDUCT.md). Found a security issue? Report it per [SECURITY.md](SECURITY.md).
+
+## 📜 License
+
+Released under the [MIT License](LICENSE).

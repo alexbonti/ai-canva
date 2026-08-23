@@ -11,7 +11,7 @@ export interface GenerateResponse {
 }
 
 /**
- * Calls the backend to generate text content via Claude.
+ * Calls the backend to generate text content via the Ollama backend.
  */
 export async function generate(
   req: GenerateRequest
@@ -88,7 +88,7 @@ export async function generateStitchUI(
 
 export async function checkHealth(): Promise<{
   status: string;
-  anthropicKey: string;
+  ollamaKey: string;
   falKey: string;
 }> {
   const res = await fetch(`${API_BASE}/health`);

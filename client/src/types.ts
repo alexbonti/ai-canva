@@ -183,7 +183,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     label: "UI Design",
     icon: "✨",
     color: "#c026d3",
-    description: "Generate beautiful, production-quality React UIs with Tailwind CSS. Like Claude Artifacts or Google Stitch.",
+    description: "Generate beautiful, production-quality React UIs with Tailwind CSS.",
     hasAI: true,
     category: "worker",
     defaultPrompt:
