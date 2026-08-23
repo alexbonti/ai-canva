@@ -20,8 +20,21 @@ A collaborative, AI-powered whiteboard where you compose visual pipelines of AI 
 | [Deployment](docs/DEPLOYMENT.md) | Ship it to Firebase Hosting + Functions |
 | [Open-Source Readiness](docs/OSS_READINESS.md) | Pre-launch security and project checks |
 
-> **Teaching with this project?** Point students at the [Overview](docs/OVERVIEW.md) and
-> [Onboarding](docs/ONBOARDING.md) guides.
+### 📘 Course guides
+
+Course materials for using AI Canva as a teaching/learning project. A complete set of briefs and how-to guides that build on the same codebase:
+
+| Guide | What it covers |
+|-------|----------------|
+| [What is AI Canva?](docs/course/01_what_is_ai_canva.md) | Beginner's intro: the big idea, box types, how it works, architecture |
+| [Student Brief — One Box per Student](docs/course/02_student_brief_one_box.md) | Individual assignment: each student designs & builds one box |
+| [Group Brief — Cybersecurity & Compliance](docs/course/03_cyber_group_brief.md) | Group project: turn AI Canva into a security/compliance support tool |
+| [Group Brief — UX for Telstra Health](docs/course/04_ux_health_group_brief.md) | Group project: turn AI Canva into a UX design support tool for healthcare |
+| [How to Build a Box](docs/course/05_how_to_build_a_box.md) | Step-by-step: add a new box + branching/code-management rules for beginners |
+
+> **Teaching with this project?** Point students at the [What is AI Canva?](docs/course/01_what_is_ai_canva.md)
+> guide first, then the [How to Build a Box](docs/course/05_how_to_build_a_box.md) walkthrough and the
+> relevant project brief (individual or group).
 
 ---
 
