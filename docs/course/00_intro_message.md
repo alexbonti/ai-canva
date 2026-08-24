@@ -16,8 +16,11 @@ Over the next **3 sprints (8 weeks)**, you'll be working on **AI Canva** — a r
 
 1. 📖 **What is AI Canva?** — read `docs/course/01_what_is_ai_canva.md` first to understand the tool
 2. 📋 **Your project brief** — read the one assigned to you:
-   - Individual: `docs/course/02_student_brief_one_box.md`
-   - Or your group brief: `docs/course/03_cyber_group_brief.md` / `04_ux_health_group_brief.md`
+   - **Individual:** `docs/course/02_student_brief_one_box.md`
+   - **Cybersecurity & Compliance:** `docs/course/03_cyber_group_brief.md`
+   - **UX for Telstra Health:** `docs/course/04_ux_health_group_brief.md`
+   - **Telstra Innovation Lab:** `docs/course/06_telstra_innovation_brief.md`
+   - **NBN Collaboration:** `docs/course/07_nbn_collab_brief.md`
 3. 🛠️ **How to build a box** — `docs/course/05_how_to_build_a_box.md` walks you through your first box step-by-step, including the git/branching rules
 
 > 💡 Each guide also has a print-friendly **HTML version** in the same folder.
