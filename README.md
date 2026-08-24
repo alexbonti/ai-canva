@@ -32,6 +32,8 @@ Course materials for using AI Canva as a teaching/learning project. A complete s
 | [Group Brief — Cybersecurity & Compliance](docs/course/03_cyber_group_brief.md) | Group project: turn AI Canva into a security/compliance support tool |
 | [Group Brief — UX for Telstra Health](docs/course/04_ux_health_group_brief.md) | Group project: turn AI Canva into a UX design support tool for healthcare |
 | [How to Build a Box](docs/course/05_how_to_build_a_box.md) | Step-by-step: add a new box + branching/code-management rules for beginners |
+| [Group Brief — Telstra Innovation Lab](docs/course/06_telstra_innovation_brief.md) | Group project: turn AI Canva into an innovation accelerator (market research, rapid prototyping) |
+| [Group Brief — NBN Collaboration](docs/course/07_nbn_collab_brief.md) | Group project: help non-technical roles (UX/BA/product/content) collaborate faster |
 
 > Each guide also ships as a print-friendly **HTML handout** (`docs/course/*.html`) — open in any
 > browser and use *Print → Save as PDF* for a clean handout.
