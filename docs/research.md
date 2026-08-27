@@ -99,9 +99,237 @@ If the input is too vague, do not guess. Mark the affected area as insufficient 
 
 ## User flow / BA notes - Rayan
 
-- Target user:
-- Inputs passed between boxes:
-- Expected outputs:
+### Research Question
+
+Can an LLM reliably turn Azure architecture and security evidence into an explainable NIST CSF 2.0 gap analysis, or does framework mapping create false assurance?
+
+### Assumptions
+
+- The primary user is an IT or cybersecurity professional working for, or supporting, a small organisation.
+- The user understands common Azure and cybersecurity terminology.
+- The assessment covers one Microsoft Entra tenant and nominated Azure subscriptions or workloads.
+- The user defines the assessment scope before the NIST Gap Checker runs.
+- The user provides a natural-language description and may paste or upload relevant evidence.
+- The MVP does not connect directly to the organisation's Azure environment or independently verify live configurations.
+- User statements may be incomplete, outdated or unsupported and must not automatically be treated as verified evidence.
+- Unknown information is not treated as evidence that a security practice is implemented or absent.
+- The Requirements Elicitor uses a simplified SQUARE-informed process to gather and structure Azure security requirements.
+- The CIA triad classifies which security objectives each requirement supports: confidentiality, integrity and/or availability.
+- OWASP ASVS 5.0.0 references are included only when an Azure-hosted web application or API is explicitly within scope.
+- ASVS references support application-security requirements but do not establish ASVS compliance.
+- NIST CSF 2.0 is the primary framework for the gap analysis.
+- Microsoft cloud security benchmark (MCSB) v2 is used as supporting Azure-specific implementation guidance and for framework mapping.
+- A mapping between an Azure security practice and a NIST outcome does not by itself prove that the NIST outcome is fully achieved.
+- The NIST Gap Checker runs only after the Requirements Elicitor marks the profile as complete.
+- The Security Advisor prioritises gaps identified by the NIST Gap Checker and does not perform a separate assessment.
+- The Security Advisor produces one consistent plan with a technical view and a plain-language stakeholder view.
+- The user reviews all AI-generated findings and recommendations before acting on them.
+- The workflow provides decision support and does not constitute a formal audit, certification, penetration test or legal opinion.
+
+### User Scenario
+
+A small organisation operates one or more business-critical workloads in Microsoft Azure. Its IT or cybersecurity professional wants to improve the organisation's Azure security posture but does not know which weaknesses should be addressed first. The professional understands the organisation's Azure environment and can describe its tenant, subscriptions, workloads, identities, data, security practices and business constraints. They may also provide evidence such as architecture diagrams, resource inventories, Azure Policy information, Microsoft Defender for Cloud recommendations, role assignments, logging configurations and backup records.
+
+The Requirements Elicitor uses a simplified SQUARE-informed process to convert this information into a structured Azure security profile. It identifies missing evidence, asks targeted clarification questions and produces testable Azure security requirements. Each requirement is classified using the principles of the CIA triad. If an Azure-hosted web application or API is explicitly within scope, the box may attach verified OWASP ASVS 5.0.0 references to applicable application-security requirements.
+
+Once the profile is complete, the NIST Gap Checker compares the supported current state of the in-scope Azure environment with applicable target outcomes from NIST CSF 2.0. It uses MCSB v2 as supporting Azure-specific guidance, identifies evidence-based gaps and reports areas that cannot be assessed.
+
+The Security Advisor prioritises the identified gaps and produces a practical Azure security improvement plan. The same plan is presented as a technical view for the IT or cybersecurity professional and a plain-language view that can be shared with managers and other non-technical stakeholders.
+
+The user's goal is to move from an unstructured description and collection of Azure security evidence to a prioritised, explainable and traceable Azure security improvement plan.
+
+### Scope
+
+#### In Scope
+
+- One Microsoft Entra tenant.
+- Azure subscriptions or workloads explicitly nominated by the user.
+- Azure resource inventory and ownership.
+- Microsoft Entra identities, authentication, privileged access and Azure role-based access control.
+- Azure network security and exposure.
+- Data storage, encryption and key management.
+- Azure Policy and configuration governance.
+- Logging, monitoring and alerting.
+- Microsoft Defender for Cloud findings supplied by the user.
+- Backup, recovery and Azure-related incident readiness.
+- Azure-hosted web applications or APIs only when explicitly included.
+
+#### Out of Scope
+
+- AWS, Google Cloud and on-premises environments.
+- Microsoft 365, except where Microsoft Entra configuration directly affects access to Azure.
+- Source-code review and software composition analysis.
+- Penetration testing, vulnerability scanning and malware analysis.
+- Live access to, or automated modification of, the Azure environment.
+- Automatic remediation.
+- Formal NIST, MCSB, ASVS or regulatory compliance certification.
+- Cybersecurity matters unrelated to the defined Azure scope.
+
+### Box Flow
+#### 1. Requirements Elicitor
+
+**Receives:**
+
+- A natural-language technical and business description of the Azure environment.
+- The Microsoft Entra tenant and Azure subscriptions or workloads included in the assessment.
+- Azure architecture and resource inventory information.
+- Data types, classifications, storage locations and data flows.
+- Microsoft Entra authentication, privileged access and Azure role-assignment practices.
+- Network architecture, public exposure and segmentation information.
+- Azure Policy, configuration governance and resource-management practices.
+- Logging, monitoring, alerting and Microsoft Defender for Cloud information.
+- Backup, recovery and Azure-related incident-response practices.
+- Existing security requirements and known weaknesses.
+- Business objectives, risk tolerance, budget, staffing and technical constraints.
+- Relevant legal, regulatory and contractual obligations reported by the user.
+- Evidence supplied by the user, such as diagrams, reports, configuration extracts or test results.
+- Answers to clarification questions from an earlier run.
+- Confirmation, rejection or correction of earlier assumptions.
+
+**Returns:**
+
+If essential information is missing or ambiguous, the box returns: 
+
+- A status of `clarification_required`.
+- A partial Azure security profile based only on available information.
+- Targeted technical clarification questions, including why each answer is needed.
+- Essential information or evidence that is still missing.
+- Assumptions requiring confirmation.
+- Suggested evidence sources, system owners or Azure specialists who could resolve each important unknown.
+
+After sufficient information has been collected, the box returns:
+
+- A status of `complete`.
+- The Microsoft Entra tenant and Azure subscriptions or workloads included in scope.
+- Organisation context and business objectives relevant to Azure.
+- An inventory of in-scope Azure workloads, resources, services, data, owners and workload criticality.
+- Current identity, access, network, data-protection, governance, monitoring, backup and incident-response practices.
+- Testable Azure security requirements, each with a unique `REQ-*` identifier and its stated or derived source.
+- CIA classifications for each requirement.
+- Verified OWASP ASVS 5.0.0 references where an Azure-hosted web application or API is explicitly in scope.
+- Risk tolerance, if known.
+- Business, budget, staffing and technical constraints.
+- Reported legal, regulatory and contractual obligations.
+- Evidence references and a confidence label for important statements.
+- Remaining unknowns and the evidence needed to resolve them.
+- Confirmed, rejected and unresolved assumptions.
+- An empty list of essential clarification questions.
+
+The Requirements Elicitor uses SQUARE as an elicitation method, CIA as a security-objective classification and ASVS as a conditional source of application-security requirements. It must not assess NIST alignment, claim ASVS compliance or recommend remediation actions.
+
+
+The Requirements Elicitor must not invent missing information, assess NIST alignment or recommend security controls.
+The NIST Gap Checker should receive the completed structured profile only after the Requirements Elicitor indicates that elicitation is complete.
+
+#### 2. NIST Gap Checker
+
+**Receives:**
+
+The structured profile returned by the Requirements Elicitor, including:
+
+- A status of complete.
+- The defined Microsoft Entra tenant, Azure subscription and workload scope.
+- The structured Azure resource, workload, data, ownership and criticality profile.
+- Current Azure security practices and supplied evidence.
+- Testable security requirements with their `REQ-*` identifiers, sources and CIA classifications.
+- Applicable ASVS references retained for traceability.
+- Business objectives, obligations, risk tolerance and constraints.
+- Evidence sources, confidence labels, unknowns and confirmed assumptions.
+
+**Returns:**
+
+An Azure-focused gap-analysis report mapped to NIST CSF 2.0 containing:
+
+- Each identified gap with a unique `GAP-*` identifier.
+- Relevant NIST CSF 2.0 Functions, Categories and Subcategory IDs.
+- An explanation of why each NIST outcome applies to the defined Azure scope.
+- The organisation's supported current state for each applicable outcome.
+- The applicable target state based on the organisation's requirements and context.
+- The evidence references supporting each gap.
+- Gap severity, severity rationale and finding confidence.
+- Azure-specific references from MCSB v2 where relevant.
+- Links from each gap to the related `REQ-*` identifiers.
+- Retained ASVS references where applicable.
+- Conflicting or potentially outdated evidence.
+- Areas that cannot be assessed because of insufficient evidence.
+- The information required to complete any unassessed area.
+- Overall assessment limitations.
+- A warning that framework mappings do not establish compliance.
+
+The NIST Gap Checker identifies and explains gaps. It must not produce the final remediation plan, treat a Microsoft recommendation as automatic proof of a  NIST outcome or treat missing information as evidence of implementation or non-implementation.
+
+#### 3. Security Advisor
+
+**Receives:**
+
+From the Requirements Elicitor:
+
+- The completed structured Azure security profile.
+- The defined Microsoft Entra tenant, Azure subscription and workload scope.
+- The inventory of in-scope Azure resources, services, data and owners.
+- Azure workload criticality and relevant business objectives.
+- Security requirements and their `REQ-*` identifiers.
+- CIA classifications for each security requirement.
+- Applicable ASVS references for Azure-hosted web applications or APIs, when included in scope.
+- Risk tolerance, budget, staffing and technical constraints.
+- Reported legal, regulatory and contractual obligations.
+- Evidence sources and confidence labels attached to the organisation profile.
+- Remaining profile unknowns and confirmed assumptions.
+
+From the NIST Gap Checker:
+
+- The completed NIST CSF 2.0 gap-analysis report.
+- Each gap and its `GAP-*` identifier.
+- Relevant NIST CSF 2.0 Function, Category and Subcategory IDs.
+- The supported current state and applicable target state for each finding.
+- Evidence used to support each gap.
+- Gap severity, severity rationale and finding confidence.
+- MCSB v2 references retained as Azure-specific supporting guidance.
+- Links from each gap back to the relevant `REQ-*` identifiers.
+- Conflicting or potentially outdated evidence.
+- Areas that could not be assessed and the information needed to assess them.
+- Overall assessment limitations and the warning that framework mappings do not establish compliance.
+
+**Returns:**
+
+1. Technical View
+
+For IT/Cyber Security professionals who are familiar with cyber-security terminology.
+- Recommended Azure remediation actions, each with a unique `REC-*` identifier.
+- The related `REQ-*` identifier or identifiers.
+- The `GAP-*` identifier or identifiers addressed by each recommendation.
+- Relevant NIST CSF 2.0, MCSB v2 and conditional ASVS references.
+- Affected tenants, subscriptions, workloads or Azure services where known.
+- Priority, suggested timeframe and priority rationale.
+- Expected security benefit and affected CIA objectives.
+- Azure implementation considerations.
+- Estimated effort or complexity.
+- Dependencies, constraints and possible service-cost implications.
+- Suggested technical owner where supported by the profile.
+- Validation steps and success criteria.
+- Residual risk and matters requiring specialist review.
+
+2. Non-Technical View
+
+For managers and other non-technical stakeholders who need to understand the business impact, priorities and required decisions without requiring specialist cybersecurity knowledge.
+
+- The same `REC-*` identifier used by the corresponding technical recommendation.
+- The same related `REQ-*` identifier or identifiers.
+- The same `GAP-*` identifier or identifiers addressed by the recommendation.
+- A concise summary of the most important Azure security weaknesses.
+- Why each weakness matters to the organisation.
+- Possible business consequences if it is not addressed.
+- Priority and understandable suggested timeframe.
+- Clear next actions.
+- Expected business benefit.
+- Budget, resource or management decisions required.
+- Important unknowns and who should resolve them.
+- Matters requiring help from an Azure, cybersecurity, legal or compliance specialist.
+- Brief explanations of unavoidable technical terminology.
+
+Both views must use matching `REQ-*`, `REC-*` identifiers, `GAP-*` identifiers, priorities and timeframes. The plain-language view must not change the technical meaning, hide uncertainty or exaggerate confidence.
+
+The Security Advisor uses the NIST gap report as the primary basis for its recommendations. It may use MCSB v2 for Azure-specific implementation guidance, CIA classifications to explain impact and verified ASVS references for application-specific actions. It must not introduce unsupported gaps, silently change gap severity or perform a separate framework assessment.
 
 ## Team decisions / questions
 
