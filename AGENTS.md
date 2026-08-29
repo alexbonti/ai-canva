@@ -180,6 +180,18 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   because WebContainers throws `path should be a path.relative()'d string, but got "/"` on leading-slash
   keys, which made StackBlitz open blank (code never imported). Sandpack's `toSandpackFiles` still uses
   leading slashes (`/App.js`) — keep the two transforms' path conventions separate.
+  **Sandpack stability contract:** `SandpackPreview.tsx` must stay `React.memo`-ized with
+  `useMemo`-derived `files`/`options` (keyed on the code string) plus `key={code}` on
+  `SandpackProvider`. BoxNode's parents re-render on every store update (presence/cursor snapshots
+  ~5/s while the mouse moves, board snapshot echoes, token badges); recreating `files`/`options`
+  objects per render made Sandpack restart its bundler in an endless loop under dev StrictMode
+  ("preview forever loading", box unstable). Conversely, under StrictMode Sandpack's in-place
+  update-on-files-change is broken (after the double effect mount, later updates never reach the
+  live sandbox and the preview goes stale), hence `key={code}` remounts the sandbox only when the
+  code actually changed. Keep both: the memo for stability, the key for update correctness.
+  `CodeModal` additionally debounces the code it feeds the preview (~400ms) so typing doesn't
+  re-bundle per keystroke. The preview-loading overlay in BoxNode only applies to the iframe-based
+  ui/stitch previews (they post "preview-ready"); Sandpack shows its own loading state.
 - **Code box: generated code MUST end up with a default export.** The box's system prompt makes the
   model "define a component called App" but never ask for an `export`. If the generated `App.js`
   has no default export, the Sandpack/StackBlitz entry's `import App from "./App"` resolves to

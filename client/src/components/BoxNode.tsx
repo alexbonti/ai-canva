@@ -123,14 +123,18 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
     return () => window.removeEventListener("message", handler);
   }, [boxData, boxType]);
 
-  // Set loading when code is freshly generated, with timeout fallback
+  // Show the loading overlay for iframe-based previews (ui/stitch) when their
+  // code changes, with a timeout fallback in case the iframe's "preview-ready"
+  // message is lost. Keyed on the code string — boxData object identity changes
+  // on every store patch (presence, tokens, snapshots) and must not re-trigger
+  // this. The Sandpack preview (boxType "code") shows its own loading state.
   useEffect(() => {
-    if (boxData && boxType === "code" && boxData.code && boxData.status === "done") {
-      setPreviewLoading(true);
-      const timeout = setTimeout(() => setPreviewLoading(false), 8000);
-      return () => clearTimeout(timeout);
-    }
-  }, [boxData, boxType]);
+    if ((boxType !== "ui" && boxType !== "stitch") || !boxData?.code || boxData.status !== "done") return;
+    setPreviewLoading(true);
+    const timeout = setTimeout(() => setPreviewLoading(false), 8000);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boxData?.code, boxType]);
 
   if (!boxData) return null;
 

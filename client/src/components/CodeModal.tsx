@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import CodeEditor from "./CodeEditor.js";
 import { wrapCodeInHtml, wrapUIInHtml } from "../lib/code.js";
@@ -25,8 +25,18 @@ interface CodeModalProps {
 export default function CodeModal({ onClose, boxType, code, onChange, title }: CodeModalProps) {
   const [previewLoading, setPreviewLoading] = useState(true);
 
+  // Debounce the code fed to the preview: every keystroke changes `code`, and
+  // rebuilding the Sandpack project (or the iframe srcDoc) per keystroke
+  // restarts the bundler constantly — the preview never settles. The editor
+  // stays live; the preview trails by ~400ms.
+  const [previewCode, setPreviewCode] = useState(code);
+  useEffect(() => {
+    const t = setTimeout(() => setPreviewCode(code), 400);
+    return () => clearTimeout(t);
+  }, [code]);
+
   const isStitch = boxType === "stitch";
-  const srcDoc = isStitch ? code : (boxType === "ui" ? wrapUIInHtml : wrapCodeInHtml)(code);
+  const srcDoc = isStitch ? previewCode : (boxType === "ui" ? wrapUIInHtml : wrapCodeInHtml)(previewCode);
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-950/95 backdrop-blur-sm">
@@ -71,7 +81,7 @@ export default function CodeModal({ onClose, boxType, code, onChange, title }: C
                   </div>
                 }
               >
-                <SandpackPreview code={code} height="100%" />
+                <SandpackPreview code={previewCode} height="100%" />
               </Suspense>
             ) : (
               <>
