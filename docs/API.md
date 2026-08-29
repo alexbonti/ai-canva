@@ -107,7 +107,12 @@ Generates a cartoon profile image with fal.ai. Used by the **Cartoon Profile** b
 
 ### `POST /api/stitch-generate`
 
-Generates a UI screen with Google Stitch. Used by the **Stitch UI** box.
+Starts an asynchronous Google Stitch UI-generation job. Used by the **Stitch UI** box.
+
+Stitch generation is slow (40s+), which previously exceeded the ~60s timeout Firebase Hosting
+applies when rewriting `/api/**` to the Cloud Function. To avoid that, this endpoint does **not**
+block on generation — it creates a job, kicks off the work asynchronously, and returns a `jobId`
+immediately. The client polls [`GET /api/stitch-status/:jobId`](#get-apistitch-statusjobid).
 
 **Request body**
 
@@ -119,15 +124,40 @@ Generates a UI screen with Google Stitch. Used by the **Stitch UI** box.
 
 ```json
 {
-  "html": "string",
-  "imageUrl": "string"
+  "jobId": "string",
+  "status": "queued"
 }
 ```
 
 **Errors**
 
 | `400` | `prompt` missing or not a string |
-| `500` | Stitch call failed (e.g. missing `STITCH_API_KEY`) |
+| `500` | Failed to start the job (e.g. missing `STITCH_API_KEY`) |
+
+### `GET /api/stitch-status/:jobId`
+
+Returns the state of an asynchronous Stitch job. The client polls this until status is `"done"` or
+`"error"`.
+
+**Response** — `200`
+
+```json
+{
+  "status": "queued" | "running" | "done" | "error",
+  "html": "string | null",
+  "imageUrl": "string | null",
+  "error": "string | null"
+}
+```
+
+On the local server the job store is an in-memory map (dev-only). In production it is backed by
+Firestore (`stitchJobs/{jobId}`) and the generation runs on a Cloud Task worker
+(`processStitchJob`).
+
+**Errors**
+
+| `404` | Unknown `jobId` |
+| `500` | Failed to read the job |
 
 ### `GET /api/admin/stats`
 

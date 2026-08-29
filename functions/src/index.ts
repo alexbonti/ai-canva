@@ -7,7 +7,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { generateContent } from "./ollama.js";
 import { generateCartoonImage } from "./fal.js";
-import { generateStitchUI } from "./stitch.js";
+import { enqueueStitchJob } from "./stitchJobs.js";
 
 // Initialize the Admin SDK (uses the Cloud Function's default credentials).
 initializeApp();
@@ -107,11 +107,44 @@ app.post("/api/stitch-generate", async (req, res) => {
     if (!prompt || typeof prompt !== "string") {
       return res.status(400).json({ error: "prompt is required" });
     }
-    const result = await generateStitchUI(prompt);
-    res.json(result);
+    // Fire-and-return: enqueue a background job instead of blocking.
+    // Stitch generation is slow (40s+) and would exceed the ~60s Firebase
+    // Hosting rewrite timeout if we awaited it here.
+    const jobId = await enqueueStitchJob(prompt);
+    res.json({ jobId, status: "queued" });
   } catch (err: any) {
     console.error("[/api/stitch-generate] Error:", err.message);
-    res.status(500).json({ error: err.message || "Failed to generate UI" });
+    res.status(500).json({ error: err.message || "Failed to start UI generation" });
+  }
+});
+
+/**
+ * GET /api/stitch-status/:jobId
+ * Returns the job state, including html/imageUrl when done.
+ */
+app.get("/api/stitch-status/:jobId", async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    if (!jobId) {
+      return res.status(400).json({ error: "jobId is required" });
+    }
+    const snap = await getFirestore().doc(`stitchJobs/${jobId}`).get();
+    if (!snap.exists) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+    const data = snap.data();
+    if (!data) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+    res.json({
+      status: data.status,
+      html: data.html ?? null,
+      imageUrl: data.imageUrl ?? null,
+      error: data.error ?? null,
+    });
+  } catch (err: any) {
+    console.error("[/api/stitch-status] Error:", err.message);
+    res.status(500).json({ error: err.message || "Failed to read UI job" });
   }
 });
 
@@ -278,3 +311,6 @@ app.post("/api/admin/users/:uid/status", async (req, res) => {
 });
 
 export const api = onRequest({ maxInstances: 5, timeoutSeconds: 120, memory: "512MiB" }, app);
+
+// Re-export the async Stitch Cloud Task worker so Firebase deploys it.
+export { processStitchJob } from "./stitchJobs.js";

@@ -23,7 +23,7 @@ to box — from an Idea, through Research, to PRD / Slides / Code / UI Design / 
 |------|---------|
 | `client/` | React + Vite frontend. Entry `client/src/`, store at `client/src/store/boardStore.ts`. |
 | `server/` | Local Express dev backend (`/api/generate`, `/api/generate-image`, `/api/stitch-generate`, `/api/health`). |
-| `functions/` | Same API as a Firebase Cloud Function (`onRequest`) for production. |
+| `functions/` | Same API as a Firebase Cloud Function (`onRequest`) for production. Also hosts `src/stitchJobs.ts` (the async Stitch Cloud Task worker). |
 | `scripts/deploy.sh` | One-command production deploy (build client, build Functions, deploy Hosting + Functions + rules). |
 | `docs/` | Guides: `OVERVIEW`, `ONBOARDING`, `ARCHITECTURE`, `BOX_TYPES`, `API`, `DEPLOYMENT`, `OSS_READINESS`, plus `docs/course/` teaching materials. |
 | `firebase.json`, `firestore.rules`, `storage.rules` | Firebase config and security rules. |
@@ -35,6 +35,8 @@ npm run dev            # run server + client together (concurrently)
 npm run dev:server     # local Express backend only
 npm run dev:client     # Vite client only
 npm run install:all    # npm install in both server/ and client/
+npm test               # run server + client unit tests (Vitest)
+npm run test:watch    # watch mode for both server and client tests
 npm run deploy         # = bash scripts/deploy.sh (production Firebase deploy)
 ```
 
@@ -50,6 +52,23 @@ npm run deploy         # = bash scripts/deploy.sh (production Firebase deploy)
   `NamedInput[]` for prompt templating, then branches by box type (cartoon → fal.ai, stitch →
   Google Stitch, slides → Ollama + JSON parsing, code/ui → Ollama + code extraction, else Ollama
   text).
+- **Stitch is asynchronous.** Stitch generation is slow (40s+) and exceeded the ~60s Firebase
+  Hosting rewrite timeout, so the deployed box previously reported "Request failed" even though the
+  screen was created in Stitch. `POST /api/stitch-generate` now returns a `jobId` immediately; the
+  client polls `GET /api/stitch-status/:jobId` until the job is `done`/`error`. The client-side
+  `generateStitchUI(prompt)` in `client/src/lib/api.ts` hides this (start + poll). Local dev uses an
+  in-memory job store in `server/src/app.ts`; production uses Firestore (`stitchJobs/{jobId}`, no
+  client access) plus a Cloud Task worker `processStitchJob` in `functions/src/stitchJobs.ts`.
+  `stitch.ts` caps prompt length (6000) and uses the fast `GEMINI_3_FLASH` model (`STITCH_MODEL`).
+  Keep the two backends' stitch endpoints in sync.
+- **Local server is split for testability.** `server/src/app.ts` exports `createApp()` (the Express
+  app + all routes + the in-memory stitch job store) with **no side effects at import**;
+  `server/src/index.ts` is the bootstrap that calls `createApp()`, finds a port, writes
+  `.server-port`, and listens. Write route tests against `createApp()` via supertest instead of
+  starting the server.
+- **Client pure logic lives in `client/src/lib/`** and is unit-tested: prompt templating
+  (`prompts.ts`), code/HTML wrapping (`code.ts`), slides JSON parsing (`slides.ts`), and Firestore
+  save serialization (`serialization.ts`). `boardStore.ts` imports these rather than inlining them.
 - **Prompt templating** references connected inputs by name: `{{Box Name}}`, `{{input_1}}`,
   `{{inputs}}`.
 - **11 box types:** Idea, Image, Research, Summarize, PRD, Dev Plan, Cartoon Profile, Slides, Code,
@@ -107,9 +126,28 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
 - **Client files:** `client/src/lib/admin.ts` (isAdmin/profile/heartbeat/fetchAdminStats) and
   `client/src/components/AdminBoard.tsx` (the dashboard UI).
 
+## Testing (Vitest)
+
+- **Run all:** `npm test` (server then client). **Watch:** `npm run test:watch`.
+- **Server tests** (`server/src/*.test.ts`, supertest + Vitest): hit `createApp()` from
+  `server/src/app.ts` with the AI modules (`ollama`/`fal`/`stitch`) mocked via `vi.mock`; they cover
+  route validation, response shaping, the stitch job flow, and `generateContent` token parsing.
+  Server test files are excluded from the `tsc` build via `exclude` in `server/tsconfig.json` — do
+  not remove that.
+- **Client tests** (`client/src/lib/*.test.ts`): pure functions only (prompts, code, slides,
+  serialization) — no DOM, no Firebase. `client/vitest.config.ts` (node env) loads instead of
+  `vite.config.ts` to avoid the dev-server proxy + build chunks.
+- **No functions/ tests yet** — they need the Firebase emulator / Admin SDK; keep API logic in sync
+  between `server` and `functions` by hand and cover the shared logic via `server` tests.
+
 ## Conventions & gotchas
 
 - **Adding a new box type:** see `docs/BOX_TYPES.md` and `docs/course/05_how_to_build_a_box.md`.
+- **Role filter (palette profiles):** each box type carries `roles: BoxRole[]`
+  (`everyone`/`designer`/`developer`/`product`) in `client/src/types.ts`; the role chips in
+  `Sidebar.tsx` filter which boxes appear in the "Add Box" palette. This is a discovery-only label —
+  a pure UI filter, never a permission. Add sensible `roles` tags when adding a box; see
+  `docs/BOX_TYPES.md`.
 - **Client Firebase config** lives in `client/src/lib/firebase.ts` (hardcoded `firebaseConfig`).
   For open hosting, prefer `VITE_FIREBASE_*` env vars at build time (see `docs/OSS_READINESS.md`).
 - **Deploying:** follow `docs/DEPLOYMENT.md` or the `ai-canva-deploy` skill

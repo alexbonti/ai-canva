@@ -137,7 +137,12 @@ hoisted ahead of `dotenv.config()`:
     (image-to-image).
   - No image → `fal-ai/flux/schnell` (text-to-image).
 - **`stitch.ts`** — `generateStitchUI(prompt)` uses the Google Stitch SDK to create/reuse a
-  project and generate a screen, then fetches and returns the HTML + screenshot URL.
+  project and generate a screen, then fetches and returns the HTML + screenshot URL. Prompts are
+  capped (`MAX_PROMPT_CHARS`, default 6000) and use the fast `GEMINI_3_FLASH` model so real
+  pipelines (large `{{inputs}}`) neither time out nor degrade into written specs.
+- **`stitchJobs.ts`** *(functions only)* — the async job worker. Stitch generation is slow (40s+)
+  and exceeds the ~60s Firebase Hosting rewrite timeout, so it runs on a Cloud Task queue. See
+  `POST /api/stitch-generate` / `GET /api/stitch-status/:jobId` below.
 
 ### Firestore data model
 
@@ -163,6 +168,12 @@ Subcollection `boards/{boardId}/presence/{uid}`:
 { userId, email, displayName, initials, color, cursorX, cursorY, lastActive }
 ```
 
+Collection `stitchJobs/{jobId}` *(production only, server-side)*:
+
+```
+{ status: "queued" | "running" | "done" | "error", prompt, html?, imageUrl?, error?, createdAt, updatedAt? }
+```
+
 ---
 
 ## Data flow for a "Run"
@@ -172,7 +183,11 @@ Subcollection `boards/{boardId}/presence/{uid}`:
    if an upstream Image box is connected).
 3. The prompt is filled with `fillPromptTemplate`, and the request goes to the backend
    (`/api/generate`, `/api/generate-image`, or `/api/stitch-generate`).
-4. The backend calls the relevant AI SDK and returns a result.
+4. The backend calls the relevant AI SDK and returns a result. **Stitch is asynchronous**: the
+   server returns a `jobId` immediately, the client polls `GET /api/stitch-status/:jobId` until
+   the job is `done`/`error`, then receives the HTML. (A synchronous Stitch round-trip exceeded the
+   ~60s Firebase Hosting rewrite timeout, so the deployed box reported "Request failed" even though
+   the screen was created in Stitch.)
 5. `runBox` post-processes it (parse slides JSON, extract code, etc.) and writes it into
    `boxData` with `status: "done"`.
 6. `scheduleSave()` triggers a debounced Firestore write; collaborators see it via `onSnapshot`.

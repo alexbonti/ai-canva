@@ -46,6 +46,12 @@ export interface BoxData {
 /** Metadata for each box type. */
 export type BoxCategory = "input" | "worker" | "custom";
 
+/**
+ * A role/persona a box is aimed at. Boxes tagged `"everyone"` appear in every
+ * role view (they are shared pipeline scaffolding). See `docs/BOX_TYPES.md`.
+ */
+export type BoxRole = "everyone" | "designer" | "developer" | "product";
+
 export interface BoxTypeMeta {
   label: string;
   icon: string;
@@ -53,6 +59,8 @@ export interface BoxTypeMeta {
   description: string;
   hasAI: boolean;
   category: BoxCategory;
+  /** Role tags used to filter the palette per persona (labels, not permissions). */
+  roles: BoxRole[];
   defaultPrompt: string;
   defaultSystemPrompt: string;
   defaultWidth: number;
@@ -67,6 +75,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     description: "Write down a basic idea. No AI — just your text.",
     hasAI: false,
     category: "input",
+    roles: ["everyone"],
     defaultPrompt: "",
     defaultSystemPrompt: "",
     defaultWidth: 320,
@@ -79,6 +88,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     description: "Research a topic using AI. Takes input from connected boxes.",
     hasAI: true,
     category: "worker",
+    roles: ["everyone"],
     defaultPrompt:
       "Research the following topic thoroughly. Provide key findings, relevant context, market landscape, and potential risks. Format as Markdown with clear headings.\n\nTopic:\n{{input_1}}",
     defaultSystemPrompt:
@@ -93,6 +103,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     description: "Combine and summarize multiple inputs into a concise overview.",
     hasAI: true,
     category: "worker",
+    roles: ["everyone"],
     defaultPrompt:
       "Synthesize the following inputs into a clear, concise summary. Identify common themes, key points, and any contradictions. Format as Markdown.\n\n{{inputs}}",
     defaultSystemPrompt:
@@ -107,6 +118,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     description: "Upload an image. The image becomes input for downstream boxes.",
     hasAI: false,
     category: "input",
+    roles: ["designer"],
     defaultPrompt: "",
     defaultSystemPrompt: "",
     defaultWidth: 320,
@@ -119,6 +131,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     description: "Generate cartoon profile pictures. Connect an Image box for image-to-image, or an Idea box for text-to-image.",
     hasAI: true,
     category: "worker",
+    roles: ["designer"],
     defaultPrompt:
       "Cartoon style 3D profile picture of {{input_1}}, colorful, fun, stylized cartoon character, clean simple background, professional avatar",
     defaultSystemPrompt: "",
@@ -132,6 +145,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     description: "Generate a pitch deck from research. Takes input from connected boxes and creates visual slides.",
     hasAI: true,
     category: "worker",
+    roles: ["product", "designer"],
     defaultPrompt:
       "Create a 10-slide startup pitch deck from the following research. Each slide should have a clear title and 3-5 concise bullet points.\n\nSlide structure:\n1. Problem — What pain point exists?\n2. Solution — How does your product solve it?\n3. Market Size — How big is the opportunity?\n4. Product — Key features and demo highlights\n5. Business Model — How do you make money?\n6. Traction — Current progress and metrics\n7. Competition — Competitive landscape and advantage\n8. Team — Who is building this?\n9. Financials — Key projections\n10. Ask — What do you need from investors?\n\nOutput as JSON array: [{\"title\": \"...\", \"bullets\": [\"...\", \"...\"], \"notes\": \"...\"}]\n\nResearch:\n{{inputs}}",
     defaultSystemPrompt:
@@ -146,6 +160,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     description: "Generate a React prototype from research. Live preview in the box.",
     hasAI: true,
     category: "worker",
+    roles: ["developer"],
     defaultPrompt:
       "Create a React prototype for the following requirements. Use React hooks (React.useState, React.useEffect, etc.) and inline styles for all styling. Keep it SIMPLE: use small mock data (3-5 items max), focus on the core UI and interactivity. Do NOT generate extensive data arrays or constant definitions. The output must be a complete working component with the App function and ReactDOM.createRoot render call.\n\nRequirements:\n{{inputs}}",
     defaultSystemPrompt:
@@ -160,6 +175,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     description: "Generate a Product Requirements Document from research. Structures findings into features, user stories, and specs for the Code box.",
     hasAI: true,
     category: "worker",
+    roles: ["product"],
     defaultPrompt:
       "Create a Product Requirements Document (PRD) based on the following research and ideas. Structure it with these sections:\n\n## Product Overview\nBrief description of what we are building and why.\n\n## Problem Statement\nWhat pain point does this solve? Who has this problem?\n\n## Target Users\nWho are the primary users? What are their needs?\n\n## Core Features\nList the key features with priority (P0 = must have, P1 = should have, P2 = nice to have).\n\n## User Stories\nWrite 3-5 user stories in the format: As a [user], I want to [action] so that [benefit].\n\n## UI/UX Guidelines\nKey screens, layout considerations, and design principles.\n\n## Technical Requirements\nTechnology stack recommendations, key constraints, and dependencies.\n\n## Success Metrics\nHow will we measure if this product is successful?\n\nResearch & Ideas:\n{{inputs}}",
     defaultSystemPrompt:
@@ -174,6 +190,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     description: "Transform a PRD into a detailed development plan with components, state, and implementation steps for the Code box.",
     hasAI: true,
     category: "worker",
+    roles: ["developer"],
     defaultPrompt:
       "Create a simple development plan for a React prototype based on this PRD. Keep it short and practical.\n\nList:\n1. Components to build (names + 1-line purpose)\n2. State variables (names + types)\n3. Key functions (names + what they do)\n4. Build order (3-5 steps)\n\nThis is for a simple prototype. Use small mock data. Do NOT over-engineer.\n\nPRD:\n{{inputs}}",
     defaultSystemPrompt:
@@ -188,6 +205,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     description: "Generate beautiful, production-quality React UIs with Tailwind CSS.",
     hasAI: true,
     category: "worker",
+    roles: ["designer"],
     defaultPrompt:
       "Design a beautiful React UI for the following. Use Tailwind CSS classes for ALL styling (no inline styles). Make it look like a real polished product.\n\nDesign requirements:\n- Modern, clean design with attention to detail\n- Good spacing, typography, and color harmony\n- Use gradients, shadows, rounded corners, and smooth transitions\n- Hover states on interactive elements\n- Include at least one gradient or glassmorphism effect\n- Make it responsive\n- Use small mock data (3-5 items)\n\nOutput ONLY JavaScript/JSX code. Use React hooks (React.useState, React.useEffect). Define a component called App. End with ReactDOM.createRoot(document.getElementById('root')).render(<App />).\n\nDescription:\n{{inputs}}",
     defaultSystemPrompt:
@@ -202,6 +220,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     description: "Generate beautiful UI screens using Google Stitch. Returns production-quality HTML directly.",
     hasAI: true,
     category: "worker",
+    roles: ["designer"],
     defaultPrompt:
       "Generate a beautiful, modern UI screen for the following. Make it polished and production-ready with good spacing, typography, and visual design.\n\nDescription:\n{{inputs}}",
     defaultSystemPrompt: "",

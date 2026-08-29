@@ -10,11 +10,13 @@ import {
   type EdgeChange,
   type Connection,
 } from "@xyflow/react";
-import type { BoxData, BoxType, BoxStatus, Slide, NamedInput } from "../types.js";
+import type { BoxData, BoxType, BoxStatus, NamedInput } from "../types.js";
 import { BOX_TYPES } from "../types.js";
 import { generate, generateImage, generateStitchUI } from "../lib/api.js";
 import { fillPromptTemplate, getBoxOutput } from "../lib/prompts.js";
 import { extractCode } from "../lib/code.js";
+import { parseSlidesResponse } from "../lib/slides.js";
+import { cleanBoxDataForFirestore } from "../lib/serialization.js";
 import {
   saveBoard, loadBoard, listBoards, listSharedBoards, deleteBoard,
   subscribeToBoard, subscribeToPresence, updatePresence, removePresence,
@@ -29,48 +31,6 @@ import { useTokenStore } from "./tokenStore.js";
 
 function makeId(): string {
   return `box-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
-/**
- * Parses the LLM's text response into a Slide[] array.
- * Handles JSON wrapped in markdown code blocks and extra text.
- */
-function parseSlidesResponse(text: string): Slide[] {
-  let jsonText = text.trim();
-
-  // Strip markdown code block wrapper (```json ... ```)
-  const codeBlockMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (codeBlockMatch) {
-    jsonText = codeBlockMatch[1].trim();
-  }
-
-  // Find the JSON array boundaries
-  const arrayStart = jsonText.indexOf("[");
-  const arrayEnd = jsonText.lastIndexOf("]");
-  if (arrayStart >= 0 && arrayEnd > arrayStart) {
-    jsonText = jsonText.slice(arrayStart, arrayEnd + 1);
-  }
-
-  try {
-    const parsed = JSON.parse(jsonText);
-    if (Array.isArray(parsed)) {
-      return parsed
-        .filter((s) => s && typeof s.title === "string")
-        .map((s) => ({
-          title: String(s.title),
-          bullets: Array.isArray(s.bullets)
-            ? s.bullets.map((b: unknown) => String(b))
-            : [],
-          notes: s.notes ? String(s.notes) : undefined,
-        }));
-    }
-  } catch {
-    // JSON parse failed — fall through to error
-  }
-
-  throw new Error(
-    "Could not parse slides from AI response. Expected a JSON array of slide objects."
-  );
 }
 
 // Debounced save to Firestore — triggers 1s after the last change
@@ -324,18 +284,7 @@ export const useBoardStore = create<BoardState>()(
           // Strip undefined values and base64 imageData from boxData.
           // updateDoc rejects undefined values, so we must remove them entirely.
           // imageData (base64) is also removed to stay under Firestore's 1MB limit.
-          const cleanBoxData = Object.fromEntries(
-            Object.entries(state.boxData).map(([id, data]) => {
-              const cleaned: Record<string, unknown> = {};
-              for (const [key, value] of Object.entries(data)) {
-                if (value === undefined) continue;
-                // Strip base64 imageData (too large for Firestore) but keep URLs
-                if (key === "imageData" && typeof value === "string" && value.startsWith("data:")) continue;
-                cleaned[key] = value;
-              }
-              return [id, cleaned];
-            })
-          );
+          const cleanBoxData = cleanBoxDataForFirestore(state.boxData);
           // Use updateBoardData (not saveBoard) so we do NOT overwrite
           // ownerId/ownerEmail/createdAt — collaborators can save without claiming ownership
           // Only save board CONTENT — do NOT include collaborators.
@@ -455,8 +404,7 @@ export const useBoardStore = create<BoardState>()(
         const state = get();
         if (!state.currentBoardId) return;
         const user = useAuthStore.getState().user;
-        if (!user || user.uid !== state.currentBoardId && state.collaborators === undefined) return;
-        // Only owner can share — check via board ownership
+        if (!user) return;
         try {
           await fsShareBoard(state.currentBoardId, emails);
           set({ collaborators: [...get().collaborators, ...emails] });

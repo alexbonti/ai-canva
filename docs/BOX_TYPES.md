@@ -142,9 +142,27 @@ All AI boxes support these in their prompt templates (see `lib/prompts.ts`):
 | `{{input}}` | Alias for the first input. |
 | `{{inputs}}` | All connected inputs, labeled and concatenated. |
 
+## Role tags & the palette filter
+
+Every box type carries `roles: BoxRole[]` (`"everyone" | "designer" | "developer" | "product"`)
+used by the sidebar role chips in `client/src/components/Sidebar.tsx`. This is a **discovery-only
+label**, not a permission:
+
+- Boxes tagged `"everyone"` (Idea, Research, Summarize) are shared pipeline scaffolding and appear
+  in every role view.
+- Selecting the **Designer**, **Developer**, or **Product** chip filters the palette to boxes
+  tagged with that role — plus all `"everyone"` boxes.
+- The selection is persisted per user in `localStorage` (`ai-canva:sidebar-role`) so it acts like a
+  lightweight profile. Filtering never hides boxes already on the canvas — it only declutters which
+  ones you can add.
+- Give a box multiple roles when it spans personas (e.g. `slides: ["product", "designer"]`).
+
+Tagging a box does not affect collaboration, the canvas, or `runBox` — it is purely a UI filter.
+
 ## Adding a new box type
 
-1. Add a `BoxType` union member and a `BOX_TYPES` entry in `client/src/types.ts`.
+1. Add a `BoxType` union member and a `BOX_TYPES` entry in `client/src/types.ts` (including its
+   `roles` tags — see above).
 2. Register it in `Canvas.tsx` (`nodeTypes`) and the MiniMap color map.
 3. Add a render/output branch in `BoxNode.tsx`.
 4. Add run behavior in `boardStore.ts` `runBox()` (or route to an existing branch).
