@@ -1,4 +1,4 @@
-import { memo, useState, useRef, useEffect } from "react";
+import { memo, useState, useRef, useEffect, lazy, Suspense } from "react";
 import { Handle, Position, NodeResizer, type NodeProps } from "@xyflow/react";
 import ReactMarkdown from "react-markdown";
 import { useBoardStore } from "../store/boardStore.js";
@@ -6,6 +6,16 @@ import { BOX_TYPES } from "../types.js";
 import type { BoxType } from "../types.js";
 import { wrapCodeInHtml, wrapUIInHtml, downloadHtml, copyToClipboard } from "../lib/code.js";
 import { uploadImageToStorage } from "../lib/storage.js";
+import sdk from "@stackblitz/sdk";
+import { toStackBlitzProject } from "../lib/project.js";
+// Lazy-load the code editor so CodeMirror (~500KB) is only fetched when a
+// code box's Code tab is actually opened, keeping the initial bundle small.
+const CodeEditor = lazy(() => import("./CodeEditor.js"));
+// The split-view modal also pulls in CodeMirror, so lazy-load it too.
+const CodeModal = lazy(() => import("./CodeModal.js"));
+// Sandpack (in-browser bundler) is heavy, so lazy-load it for the real-project
+// preview of Code boxes.
+const SandpackPreview = lazy(() => import("./SandpackPreview.js"));
 
 /**
  * Reads an image File, resizes it to max 1024px, and returns a compressed
@@ -60,6 +70,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
   const [codeTab, setCodeTab] = useState<"code" | "preview">("preview");
+  const [codeMaximized, setCodeMaximized] = useState(false);
   const [copied, setCopied] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -170,6 +181,11 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
     if (!boxData.code) return;
     const html = wrapCodeInHtml(boxData.code);
     downloadHtml(html);
+  };
+
+  const handleOpenStackBlitz = () => {
+    if (!boxData.code) return;
+    sdk.openProject(toStackBlitzProject(boxData.code));
   };
 
   return (
@@ -459,41 +475,80 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             {boxData.code && !isRunning && (
               <div className="flex flex-col h-full">
                 {/* Tab buttons */}
-                <div className="flex gap-1 mb-2">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setCodeTab("code")}
+                      className={"px-3 py-1 rounded-lg text-xs font-medium transition " + (codeTab === "code" ? "bg-slate-700 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}
+                    >
+                      📝 Code
+                    </button>
+                    <button
+                      onClick={() => { setCodeTab("preview"); setPreviewLoading(true); }}
+                      className={"px-3 py-1 rounded-lg text-xs font-medium transition " + (codeTab === "preview" ? "bg-cyan-500 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}
+                    >
+                      👁 Preview
+                    </button>
+                  </div>
                   <button
-                    onClick={() => setCodeTab("code")}
-                    className={"px-3 py-1 rounded-lg text-xs font-medium transition " + (codeTab === "code" ? "bg-slate-700 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}
+                    onClick={() => setCodeMaximized(true)}
+                    className="px-2.5 py-1 rounded-lg text-xs font-medium text-slate-500 bg-slate-100 hover:bg-slate-200 transition"
+                    title="Maximise — open code and preview side by side"
                   >
-                    📝 Code
-                  </button>
-                  <button
-                    onClick={() => { setCodeTab("preview"); setPreviewLoading(true); }}
-                    className={"px-3 py-1 rounded-lg text-xs font-medium transition " + (codeTab === "preview" ? "bg-cyan-500 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}
-                  >
-                    👁 Preview
+                    ⛶ Maximise
                   </button>
                 </div>
                 {/* Code tab */}
                 {codeTab === "code" && (
-                  <pre className="flex-1 overflow-auto bg-slate-900 text-slate-100 p-3 rounded-lg text-xs font-mono leading-relaxed min-h-0">
-                    {boxData.code}
-                  </pre>
+                  <div className="flex-1 min-h-0 flex flex-col">
+                    <Suspense
+                      fallback={
+                        <div className="flex-1 flex items-center justify-center text-xs text-slate-400 bg-slate-900 rounded-lg">
+                          Loading editor…
+                        </div>
+                      }
+                    >
+                      <CodeEditor
+                        value={boxData.code}
+                        onChange={(next) => updateBoxData(id, { code: next })}
+                        height="100%"
+                      />
+                    </Suspense>
+                    <p className="mt-1 text-[10px] text-slate-400">
+                      ✏️ Editable — changes save to the box and update the preview.
+                    </p>
+                  </div>
                 )}
                 {/* Preview tab */}
                 {codeTab === "preview" && (
                   <div className="flex-1 min-h-0 relative rounded-lg overflow-hidden border border-slate-200 bg-white">
-                    {previewLoading && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400 text-sm bg-white z-10">
-                        <span className="animate-spin text-2xl">⚙️</span>
-                        <span>Loading preview...</span>
-                      </div>
+                    {boxType === "code" ? (
+                      <Suspense
+                        fallback={
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400 text-sm bg-white z-10">
+                            <span className="animate-spin text-2xl">⚙️</span>
+                            <span>Loading preview…</span>
+                          </div>
+                        }
+                      >
+                        <SandpackPreview code={boxData.code || ""} height="100%" />
+                      </Suspense>
+                    ) : (
+                      <>
+                        {previewLoading && (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400 text-sm bg-white z-10">
+                            <span className="animate-spin text-2xl">⚙️</span>
+                            <span>Loading preview...</span>
+                          </div>
+                        )}
+                        <iframe
+                          srcDoc={isStitch ? (boxData.code || "") : (boxType === "ui" ? wrapUIInHtml : wrapCodeInHtml)(boxData.code || "")}
+                          className="absolute inset-0 w-full h-full border-0"
+                          sandbox="allow-scripts allow-popups allow-forms allow-same-origin allow-modals"
+                          title="React Preview"
+                        />
+                      </>
                     )}
-                    <iframe
-                      srcDoc={isStitch ? (boxData.code || "") : (boxType === "ui" ? wrapUIInHtml : wrapCodeInHtml)(boxData.code || "")}
-                      className="absolute inset-0 w-full h-full border-0"
-                      sandbox="allow-scripts allow-popups allow-forms allow-same-origin allow-modals"
-                      title="React Preview"
-                    />
                   </div>
                 )}
               </div>
@@ -560,6 +615,13 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 title="Download as HTML"
               >
                 💾 Save
+              </button>
+              <button
+                onClick={handleOpenStackBlitz}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap"
+                title="Open this prototype in StackBlitz (full IDE)"
+              >
+                ⚡ Open in StackBlitz
               </button>
             </>
           )}
@@ -645,6 +707,19 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         position={Position.Right}
         style={{ background: meta.color, width: 10, height: 10 }}
       />
+
+      {/* Maximised split view (code + preview) */}
+      {codeMaximized && (
+        <Suspense fallback={null}>
+          <CodeModal
+            onClose={() => setCodeMaximized(false)}
+            boxType={boxType}
+            code={boxData.code || ""}
+            onChange={(next) => updateBoxData(id, { code: next })}
+            title={meta.label + (boxData.content ? " — " + boxData.content : "")}
+          />
+        </Suspense>
+      )}
     </div>
     </>
   );

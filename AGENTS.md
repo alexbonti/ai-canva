@@ -154,6 +154,25 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   `LandingFooter`). It reuses `BOX_TYPES` for the box showcase, uses a `Reveal` scroll-fade wrapper
   (`useReveal.ts`), and keeps the dark indigo/cyan theme from `index.css` (`.landing-bg`,
   `.gradient-text`, `.glass-card`). `App.tsx` renders it when `!user`.
+- **Code editor:** the Code / UI / Stitch boxes use an editable CodeMirror 6 editor
+  (`client/src/components/CodeEditor.tsx`, `@uiw/react-codemirror` + `@codemirror/lang-javascript`
+  + `@uiw/codemirror-theme-vscode`). It is **lazy-loaded** via `React.lazy` in `BoxNode.tsx` so
+  CodeMirror (~500KB) is only fetched when a code box's Code tab opens. Edits call
+  `updateBoxData(id, { code })` (Firestore save is already debounced 1s in `boardStore.ts`), so
+  edits persist and the iframe preview reflects them live. A **⛶ Maximise** button on code boxes
+  opens `client/src/components/CodeModal.tsx` — a full-screen split view (editable code left, live
+  preview right) rendered via `createPortal` to `document.body` so it escapes React Flow's
+  transformed node container. Both `CodeEditor` and `CodeModal` are lazy-loaded.
+- **Real-project preview (Code box):** the `code` box type previews generated code as a **real
+  React project** via Sandpack (`@codesandbox/sandpack-react`, `client/src/components/SandpackPreview.tsx`,
+  lazy-loaded) using the lightweight **`react` template** (runtime environment — the heavier
+  `vite-react` template fails to connect its bundler on localhost). `client/src/lib/project.ts`
+  transforms the single generated JSX into a multi-file project: `toSandpackFiles` (for Sandpack:
+  `/App.js`, `/index.js`, `/public/index.html`, `/package.json`, `/styles.css`) and `toReactProject`
+  (a Vite project for StackBlitz). Both strip the `ReactDOM.createRoot` render call and add a React
+  import. The `ui`/`stitch` boxes still use the lightweight CDN iframe preview. An **⚡ Open in
+  StackBlitz** button (`@stackblitz/sdk`, `sdk.openProject`) opens the same project in a full IDE.
+  `project.ts` is unit-tested in `client/src/lib/project.test.ts`.
 - **Client Firebase config** lives in `client/src/lib/firebase.ts` (hardcoded `firebaseConfig`).
   For open hosting, prefer `VITE_FIREBASE_*` env vars at build time (see `docs/OSS_READINESS.md`).
 - **Deploying:** follow `docs/DEPLOYMENT.md` or the `ai-canva-deploy` skill
