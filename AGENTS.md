@@ -141,6 +141,16 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   `vite.config.ts` to avoid the dev-server proxy + build chunks.
 - **No functions/ tests yet** — they need the Firebase emulator / Admin SDK; keep API logic in sync
   between `server` and `functions` by hand and cover the shared logic via `server` tests.
+- **E2E suite:** `client/e2e.mjs` (playwright-core + system Chrome) drives the **real dev app** on
+  `localhost:5173` with the real backend: landing → seeded login → palette adds → note/label/timer
+  flows → a real `/api/generate` run (Ollama) with markdown output + token badge. Auth and
+  Firestore are synthetic: `main.tsx` exposes dev-only `window.__dsh` store hooks
+  (`import.meta.env.DEV`-guarded, stripped from prod) to seed a fake user/board — with a fake user
+  `currentBoardId` stays null so board saves/subscriptions no-op, and "Missing or insufficient
+  permissions" page errors are expected noise. Run with `node e2e.mjs` from `client/` while
+  `npm run dev` is up. Playwright clicks inside React Flow's transform can misfire (rotated
+  post-its especially) — prefer `page.evaluate` JS clicks/native value setters over coordinate
+  clicks.
 
 ## Conventions & gotchas
 
