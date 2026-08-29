@@ -2,9 +2,17 @@ import { memo, useState, useRef, useEffect, lazy, Suspense } from "react";
 import { Handle, Position, NodeResizer, type NodeProps } from "@xyflow/react";
 import ReactMarkdown from "react-markdown";
 import { useBoardStore } from "../store/boardStore.js";
-import { BOX_TYPES } from "../types.js";
+import { useAuthStore } from "../store/authStore.js";
+import { BOX_TYPES, LABEL_COLORS } from "../types.js";
 import type { BoxType } from "../types.js";
 import { wrapCodeInHtml, wrapUIInHtml, downloadHtml, copyToClipboard } from "../lib/code.js";
+import {
+  DEFAULT_TIMER_MS,
+  computeRemainingMs,
+  formatTimer,
+  isTimerFinished,
+  parseDurationInput,
+} from "../lib/timer.js";
 import { uploadImageToStorage } from "../lib/storage.js";
 import sdk from "@stackblitz/sdk";
 import { toStackBlitzProject } from "../lib/project.js";
@@ -80,6 +88,22 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
+  // Label box: click-to-edit text (same pattern as the box-name editor).
+  const [isEditingLabel, setIsEditingLabel] = useState(false);
+  const [labelDraft, setLabelDraft] = useState("");
+  // Timer box: duration input draft. null = show the stored duration.
+  const [durationDraft, setDurationDraft] = useState<string | null>(null);
+  // Timer box: live clock. Only this box instance ticks, and only while its
+  // timer runs — the display is always derived from the synced
+  // startedAt/remaining fields, never written to the store per tick.
+  const timerRunning = boxType === "timer" && boxData?.timerStatus === "running";
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!timerRunning) return;
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(t);
+  }, [timerRunning]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
 
@@ -145,6 +169,12 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isCode = boxType === "code" || boxType === "ui" || boxType === "stitch";
   const isStitch = boxType === "stitch";
   const isInputBox = isIdea || isImage;
+  // Collaboration boxes (note / label / timer) are standalone annotations:
+  // no AI, no Run button, no settings panel, and no connection handles.
+  const isNote = boxType === "note";
+  const isLabel = boxType === "label";
+  const isTimer = boxType === "timer";
+  const isUtility = isNote || isLabel || isTimer;
 
   const isRunning = boxData.status === "running";
   const hasError = boxData.status === "error";
@@ -199,13 +229,17 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
   return (
     <>
-      <NodeResizer minWidth={220} minHeight={160} isVisible={!!selected} />
+      <NodeResizer
+        minWidth={isLabel ? 120 : isNote ? 160 : 220}
+        minHeight={isLabel ? 40 : isNote ? 140 : isTimer ? 150 : 160}
+        isVisible={!!selected}
+      />
       <div
         className={"box-node" + (selected ? " selected" : "")}
         style={{ borderColor: meta.color }}
       >
-      {/* Target handle (input) — AI boxes only */}
-      {!isInputBox && (
+      {/* Target handle (input) — AI boxes only (not input/utility boxes) */}
+      {!isInputBox && !isUtility && (
         <Handle
           type="target"
           position={Position.Left}
@@ -264,10 +298,230 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
       {/* Body */}
       <div className="px-3 py-2 flex-1 min-h-0 overflow-y-auto">
+        {/* ===== Collaboration boxes (standalone, no AI) ===== */}
+
+        {/* Note box — post-it style team note */}
+        {isNote && (
+          <div className="flex flex-col h-full gap-1.5">
+            <textarea
+              // nodrag/nowheel: typing and scrolling inside the note must not
+              // drag or pan the node/canvas (React Flow listens for drags on
+              // the whole node unless the target has .nodrag).
+              className="nodrag nowheel w-full flex-1 min-h-[110px] resize-none rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-sm text-slate-700 shadow-inner placeholder:text-amber-700/40 focus:outline-none focus:ring-2 focus:ring-amber-300"
+              placeholder="Write a note for the team…"
+              value={boxData.content}
+              onChange={(e) => updateBoxData(id, { content: e.target.value })}
+            />
+            <p className="text-[10px] text-amber-700/70 truncate">
+              — {boxData.authorName || "Someone"}
+              {boxData.authorEmail ? ` (${boxData.authorEmail})` : ""}
+            </p>
+          </div>
+        )}
+
+        {/* Label box — small colored text pill */}
+        {isLabel && (
+          <div className="flex flex-col items-center justify-center h-full gap-2">
+            {isEditingLabel ? (
+              <input
+                autoFocus
+                className="nodrag w-full max-w-[180px] rounded-full border border-slate-300 bg-white px-3 py-1.5 text-center text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                value={labelDraft}
+                placeholder="Label text…"
+                onChange={(e) => setLabelDraft(e.target.value)}
+                onBlur={() => {
+                  if (labelDraft.trim()) updateBoxData(id, { content: labelDraft.trim() });
+                  setIsEditingLabel(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    if (labelDraft.trim()) updateBoxData(id, { content: labelDraft.trim() });
+                    setIsEditingLabel(false);
+                  }
+                  if (e.key === "Escape") setIsEditingLabel(false);
+                }}
+              />
+            ) : (
+              <div
+                className="nodrag max-w-full cursor-text rounded-full border border-black/5 px-4 py-1.5 text-sm font-bold text-slate-700 shadow-sm truncate"
+                style={{ backgroundColor: boxData.labelColor || LABEL_COLORS[0] }}
+                onClick={() => {
+                  setLabelDraft(boxData.content);
+                  setIsEditingLabel(true);
+                }}
+                title="Click to edit the label text"
+              >
+                {boxData.content || (
+                  <span className="text-slate-400 font-medium">Click to add text…</span>
+                )}
+              </div>
+            )}
+            {selected && (
+              <div className="nodrag flex gap-1.5">
+                {LABEL_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => updateBoxData(id, { labelColor: c })}
+                    className={"w-4 h-4 rounded-full border transition " + ((boxData.labelColor || LABEL_COLORS[0]) === c ? "border-slate-700 scale-125" : "border-slate-300")}
+                    style={{ backgroundColor: c }}
+                    title="Set label color"
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Timer box — shared countdown clock, synced via the board doc */}
+        {isTimer && (() => {
+          const duration = boxData.timerDurationMs ?? DEFAULT_TIMER_MS;
+          const remaining = computeRemainingMs(boxData, now);
+          const finished = isTimerFinished(boxData, now);
+          const status = boxData.timerStatus || "idle";
+          const draft = durationDraft ?? formatTimer(duration);
+          const parsedDraft = parseDurationInput(draft);
+          const progress = duration > 0 ? remaining / duration : 0;
+          const email = useAuthStore.getState().user?.email || "";
+          return (
+            <div className="nodrag h-full rounded-lg border border-slate-700 bg-slate-900 p-3 flex flex-col items-center justify-center gap-2.5">
+              {/* Digits */}
+              <div
+                className={
+                  "font-mono tabular-nums text-4xl font-bold tracking-wider " +
+                  (finished
+                    ? "text-rose-400 animate-pulse"
+                    : timerRunning && remaining <= 10_000
+                      ? "text-amber-300"
+                      : "text-cyan-300")
+                }
+              >
+                {formatTimer(remaining)}
+              </div>
+              {/* Progress bar */}
+              <div className="w-full h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                <div
+                  className={"h-full transition-[width] duration-300 " + (finished ? "bg-rose-500" : "bg-cyan-400")}
+                  style={{ width: `${Math.round(progress * 100)}%` }}
+                />
+              </div>
+              {finished && (
+                <div className="text-xs font-semibold text-rose-400 animate-pulse">⏰ Time's up</div>
+              )}
+              {/* Controls */}
+              <div className="flex items-center gap-1.5">
+                {(status === "idle" || status === "stopped") && (
+                  <>
+                    <input
+                      className="w-[70px] rounded-lg border border-slate-600 bg-slate-800 px-2 py-1 text-center font-mono text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      value={draft}
+                      placeholder="MM:SS"
+                      title="Duration — e.g. 5:30 or 90"
+                      onChange={(e) => setDurationDraft(e.target.value)}
+                    />
+                    <button
+                      onClick={() => {
+                        const ms = parsedDraft ?? duration;
+                        setDurationDraft(null);
+                        updateBoxData(id, {
+                          timerDurationMs: ms,
+                          timerRemainingMs: ms,
+                          timerStatus: "running",
+                          timerStartedAt: Date.now(),
+                          timerStartedBy: email,
+                        });
+                      }}
+                      disabled={parsedDraft === null}
+                      className="px-3 py-1 rounded-lg bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-400 transition disabled:opacity-40"
+                    >
+                      ▶ Start
+                    </button>
+                  </>
+                )}
+                {status === "running" && (
+                  <>
+                    <button
+                      onClick={() =>
+                        updateBoxData(id, {
+                          timerStatus: "paused",
+                          timerRemainingMs: computeRemainingMs(boxData, Date.now()),
+                        })
+                      }
+                      className="px-3 py-1 rounded-lg bg-slate-700 text-slate-100 text-sm font-medium hover:bg-slate-600 transition"
+                    >
+                      ⏸ Pause
+                    </button>
+                    <button
+                      onClick={() =>
+                        updateBoxData(id, {
+                          timerStatus: "stopped",
+                          timerRemainingMs: computeRemainingMs(boxData, Date.now()),
+                        })
+                      }
+                      className="px-3 py-1 rounded-lg bg-rose-500 text-white text-sm font-medium hover:bg-rose-400 transition"
+                    >
+                      ⏹ Stop
+                    </button>
+                  </>
+                )}
+                {status === "paused" && (
+                  <>
+                    <button
+                      onClick={() =>
+                        updateBoxData(id, {
+                          timerStatus: "running",
+                          timerStartedAt: Date.now(),
+                        })
+                      }
+                      className="px-3 py-1 rounded-lg bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-400 transition"
+                    >
+                      ▶ Resume
+                    </button>
+                    <button
+                      onClick={() =>
+                        updateBoxData(id, {
+                          timerStatus: "stopped",
+                        })
+                      }
+                      className="px-3 py-1 rounded-lg bg-rose-500 text-white text-sm font-medium hover:bg-rose-400 transition"
+                    >
+                      ⏹ Stop
+                    </button>
+                  </>
+                )}
+                {status !== "idle" && (
+                  <button
+                    onClick={() => {
+                      setDurationDraft(null);
+                      updateBoxData(id, {
+                        timerStatus: "idle",
+                        timerStartedAt: undefined,
+                        timerRemainingMs: undefined,
+                        timerStartedBy: undefined,
+                      });
+                    }}
+                    className="px-3 py-1 rounded-lg bg-slate-700 text-slate-100 text-sm font-medium hover:bg-slate-600 transition"
+                    title="Reset to the full duration"
+                  >
+                    ↺ Reset
+                  </button>
+                )}
+              </div>
+              {/* Attribution */}
+              {boxData.timerStartedBy && status !== "idle" && (
+                <p className="text-[10px] text-slate-400 truncate max-w-full">
+                  started by {boxData.timerStartedBy}
+                </p>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ===== AI / input boxes ===== */}
+
         {/* Idea box — editable textarea */}
         {isIdea && (
           <textarea
-            className="w-full min-h-[100px] resize-y rounded-lg border border-slate-200 p-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-300"
+            className="nodrag nowheel w-full min-h-[100px] resize-y rounded-lg border border-slate-200 p-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-300"
             placeholder="Write your idea here..."
             value={boxData.content}
             onChange={(e) =>
@@ -592,7 +846,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
       )}
 
       {/* Footer — AI boxes only */}
-      {!isInputBox && (
+      {!isInputBox && !isUtility && (
         <div className="px-3 py-2 border-t border-slate-100 flex items-center gap-2">
           <button
             onClick={() => runBox(id)}
@@ -637,8 +891,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         </div>
       )}
 
-      {/* Settings panel — collapsible */}
-      {!isInputBox && showSettings && (
+      {/* Settings panel — collapsible (AI boxes only) */}
+      {!isInputBox && !isUtility && showSettings && (
         <div className="px-3 py-3 border-t border-slate-100 bg-slate-50 space-y-2">
           {/* System prompt — text AI boxes only (not cartoon) */}
           {!isCartoon && (
@@ -710,12 +964,15 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         </div>
       )}
 
-      {/* Source handle (output) — all boxes */}
-      <Handle
-        type="source"
-        position={Position.Right}
-        style={{ background: meta.color, width: 10, height: 10 }}
-      />
+      {/* Source handle (output) — pipeline boxes only; collaboration boxes
+          (note/label/timer) are standalone annotations with no handles. */}
+      {!isUtility && (
+        <Handle
+          type="source"
+          position={Position.Right}
+          style={{ background: meta.color, width: 10, height: 10 }}
+        />
+      )}
 
       {/* Maximised split view (code + preview) */}
       {codeMaximized && (

@@ -11,6 +11,7 @@ interface SidebarProps {
 const SECTIONS: { title: string; category: BoxCategory }[] = [
   { title: "Inputs", category: "input" },
   { title: "Workers", category: "worker" },
+  { title: "Collaboration", category: "collab" },
   { title: "Custom", category: "custom" },
 ];
 

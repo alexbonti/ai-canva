@@ -1,4 +1,4 @@
-export type BoxType = "idea" | "research" | "summarize" | "image" | "cartoon" | "slides" | "code" | "prd" | "devplan" | "ui" | "stitch";
+export type BoxType = "idea" | "research" | "summarize" | "image" | "cartoon" | "slides" | "code" | "prd" | "devplan" | "ui" | "stitch" | "note" | "label" | "timer";
 
 export type BoxStatus = "idle" | "running" | "done" | "error";
 
@@ -41,10 +41,24 @@ export interface BoxData {
   code?: string;
   /** Token usage from the most recent LLM call for this box (text AI boxes). */
   tokens?: { promptTokens: number; completionTokens: number; totalTokens: number };
+  /** For Note boxes: who created the note (set once at creation). */
+  authorEmail?: string;
+  authorName?: string;
+  /** For Label boxes: the pill's background color (one of LABEL_COLORS). */
+  labelColor?: string;
+  /** For Timer boxes — see client/src/lib/timer.ts for the state machine. */
+  timerDurationMs?: number;
+  timerStatus?: "idle" | "running" | "stopped" | "paused";
+  /** Epoch ms when the current run started (basis for every viewer's countdown). */
+  timerStartedAt?: number;
+  /** Frozen remaining time in ms (set on pause/stop so all viewers agree). */
+  timerRemainingMs?: number;
+  /** Email of the user who last started the timer (shown as attribution). */
+  timerStartedBy?: string;
 }
 
 /** Metadata for each box type. */
-export type BoxCategory = "input" | "worker" | "custom";
+export type BoxCategory = "input" | "worker" | "collab" | "custom";
 
 /**
  * A role/persona a box is aimed at. Boxes tagged `"everyone"` appear in every
@@ -227,4 +241,46 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     defaultWidth: 440,
     defaultHeight: 420,
   },
+  note: {
+    label: "Note",
+    icon: "🗒️",
+    color: "#fbbf24",
+    description: "A post-it style note for team communication. Everyone on the board sees it.",
+    hasAI: false,
+    category: "collab",
+    roles: ["everyone"],
+    defaultPrompt: "",
+    defaultSystemPrompt: "",
+    defaultWidth: 260,
+    defaultHeight: 240,
+  },
+  label: {
+    label: "Label",
+    icon: "🏷️",
+    color: "#64748b",
+    description: "A simple colored text label to annotate areas of the board.",
+    hasAI: false,
+    category: "collab",
+    roles: ["everyone"],
+    defaultPrompt: "",
+    defaultSystemPrompt: "",
+    defaultWidth: 200,
+    defaultHeight: 64,
+  },
+  timer: {
+    label: "Timer",
+    icon: "⏱️",
+    color: "#06b6d4",
+    description: "A shared countdown clock. Anyone can start/stop it; everyone sees the same time.",
+    hasAI: false,
+    category: "collab",
+    roles: ["everyone"],
+    defaultPrompt: "",
+    defaultSystemPrompt: "",
+    defaultWidth: 260,
+    defaultHeight: 190,
+  },
 };
+
+/** Preset pill colors for Label boxes (index 0 = default). */
+export const LABEL_COLORS = ["#e2e8f0", "#fde68a", "#fecdd3", "#a5f3fc", "#a7f3d0"];

@@ -29,6 +29,9 @@ const nodeTypes = {
   devplan: BoxNode,
   ui: BoxNode,
   stitch: BoxNode,
+  note: BoxNode,
+  label: BoxNode,
+  timer: BoxNode,
 };
 
 export default function Canvas() {
@@ -94,6 +97,9 @@ export default function Canvas() {
             devplan: "#14b8a6",
             ui: "#c026d3",
             stitch: "#0ea5e9",
+            note: "#fbbf24",
+            label: "#64748b",
+            timer: "#06b6d4",
           };
           return colors[node.type || ""] || "#94a3b8";
         }}

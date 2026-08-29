@@ -71,8 +71,10 @@ npm run deploy         # = bash scripts/deploy.sh (production Firebase deploy)
   save serialization (`serialization.ts`). `boardStore.ts` imports these rather than inlining them.
 - **Prompt templating** references connected inputs by name: `{{Box Name}}`, `{{input_1}}`,
   `{{inputs}}`.
-- **11 box types:** Idea, Image, Research, Summarize, PRD, Dev Plan, Cartoon Profile, Slides, Code,
-  UI Design, Stitch UI. A "custom" category is reserved on the sidebar for future boxes.
+- **14 box types:** Idea, Image, Research, Summarize, PRD, Dev Plan, Cartoon Profile, Slides, Code,
+  UI Design, Stitch UI, plus three collaboration boxes — Note, Label, Timer. Categories:
+  `input`, `worker`, `collab` (standalone annotation tools: no AI, no Run, no handles), and a
+  reserved `custom` on the sidebar. See `docs/BOX_TYPES.md`.
 
 ## Admin board
 
@@ -143,6 +145,15 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
 ## Conventions & gotchas
 
 - **Adding a new box type:** see `docs/BOX_TYPES.md` and `docs/course/05_how_to_build_a_box.md`.
+- **Collaboration boxes (note / label / timer) are standalone:** category `"collab"`, `hasAI:
+  false`, and no connection handles, no Run button, no ⚙ panel — gate all of those in
+  `BoxNode.tsx` on `!isUtility` and keep the `runBox` early-return guard in `boardStore.ts`.
+  **Timer sync rule:** only state *transitions* (start/pause/resume/stop/reset) write to the
+  store; the countdown display is always derived locally from `timerStartedAt`/`timerRemainingMs`
+  (see `client/src/lib/timer.ts`) on a per-box 250ms interval — **never write per tick** or the
+  save/snapshot machinery will flood. **Editor surfaces inside nodes** (the note textarea, label
+  input, idea textarea) must carry the `nodrag` (+ `nowheel` where scrollable) class or React
+  Flow drags the node while the user types.
 - **Role filter (palette profiles):** each box type carries `roles: BoxRole[]`
   (`everyone`/`designer`/`developer`/`product`) in `client/src/types.ts`; the role chips in
   `Sidebar.tsx` filter which boxes appear in the "Add Box" palette. This is a discovery-only label —

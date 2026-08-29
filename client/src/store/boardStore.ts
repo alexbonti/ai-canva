@@ -17,6 +17,7 @@ import { fillPromptTemplate, getBoxOutput } from "../lib/prompts.js";
 import { extractCode } from "../lib/code.js";
 import { parseSlidesResponse } from "../lib/slides.js";
 import { cleanBoxDataForFirestore } from "../lib/serialization.js";
+import { DEFAULT_TIMER_MS } from "../lib/timer.js";
 import {
   saveBoard, loadBoard, listBoards, listSharedBoards, deleteBoard,
   subscribeToBoard, subscribeToPresence, updatePresence, removePresence,
@@ -81,6 +82,9 @@ function defaultBoxData(type: BoxType): BoxData {
     status: "idle" as BoxStatus,
     imageData: undefined,
     outputImage: undefined,
+    ...(type === "timer"
+      ? { timerDurationMs: DEFAULT_TIMER_MS, timerStatus: "idle" as const }
+      : null),
   };
 }
 
@@ -181,7 +185,20 @@ export const useBoardStore = create<BoardState>()(
           nodes: [...get().nodes, node],
           boxData: {
             ...get().boxData,
-            [id]: defaultBoxData(type),
+            [id]: {
+              ...defaultBoxData(type),
+              // Notes are a communication tool — attribute them to their
+              // author (set once at creation, shown under the note text).
+              ...(type === "note"
+                ? {
+                    authorEmail: useAuthStore.getState().user?.email || "",
+                    authorName:
+                      useAuthStore.getState().user?.displayName ||
+                      useAuthStore.getState().user?.email ||
+                      "Someone",
+                  }
+                : null),
+            },
           },
         });
 
@@ -473,6 +490,13 @@ export const useBoardStore = create<BoardState>()(
         if (data.status === "running") return;
 
         const boxType = (node.data.boxType || node.type) as BoxType;
+
+        // Collaboration boxes (note / label / timer) have no AI to run — the
+        // Run button is hidden for them. Guard here too so no future caller
+        // falls into the text-AI branch.
+        if (boxType === "note" || boxType === "label" || boxType === "timer") {
+          return;
+        }
 
         // Gather upstream inputs
         const incomingEdges = state.edges.filter((e) => e.target === id);

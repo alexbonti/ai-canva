@@ -4,12 +4,14 @@ This document describes every box type. Metadata lives in `client/src/types.ts`
 (`BOX_TYPES`), rendering in `client/src/components/BoxNode.tsx`, and the "run" behavior in
 `client/src/store/boardStore.ts` (`runBox`).
 
-Boxes fall into two categories:
+Boxes fall into three categories:
 
 - **Input boxes** (`category: "input"`) — no AI. They seed data into a pipeline.
 - **Worker boxes** (`category: "worker"`) — run an AI step (Ollama, fal.ai, or Google Stitch).
+- **Collaboration boxes** (`category: "collab"`) — standalone annotation tools with no AI, no
+  Run button, no settings panel, and no connection handles.
 
-> A third `custom` category is reserved in the sidebar but has no boxes yet ("Add Custom" is
+> A fourth `custom` category is reserved in the sidebar but has no boxes yet ("Add Custom" is
 > disabled).
 
 ---
@@ -128,6 +130,44 @@ directly.
 - **AI:** Google Stitch.
 - **Inputs:** `{{inputs}}`.
 - **Output:** `output` + `code` (the raw HTML), previewed directly in the iframe.
+
+---
+
+## Collaboration boxes
+
+Standalone annotation tools shown in the sidebar's "Collaboration" section. They have **no AI,
+no Run button, no ⚙ settings panel, and no connection handles** — they never join a pipeline.
+`runBox` early-returns for them as a guard. Their content lives in the regular `boxData` and syncs
+to every viewer through the board document snapshot, like all boxes.
+
+### 🗒️ Note — `note`
+
+A post-it style note for team communication. Anyone can write; everyone on the board sees edits
+live.
+
+- **Fields:** `content` (the note text), `authorEmail` / `authorName` (captured once at creation,
+  shown under the note).
+- **Interaction:** type in the note; edits save through the normal debounced board save.
+
+### 🏷️ Label — `label`
+
+A small colored text pill for annotating areas of the board.
+
+- **Fields:** `content` (label text), `labelColor` (one of `LABEL_COLORS` in `types.ts`).
+- **Interaction:** click the pill to edit the text; select the box to reveal five color dots.
+
+### ⏱️ Timer — `timer`
+
+A shared countdown clock. Anyone can start/pause/stop/reset it; every viewer sees the same time.
+
+- **Fields:** `timerDurationMs`, `timerStatus` (`idle` / `running` / `paused` / `stopped`),
+  `timerStartedAt` (epoch ms), `timerRemainingMs` (frozen on pause/stop), `timerStartedBy`.
+- **Sync design (important):** only state *transitions* write to the store. While running, every
+  viewer locally computes `remaining = timerRemainingMs − (now − timerStartedAt)` on a 250ms
+  interval — there are **zero Firestore writes per tick**. The pure logic lives in
+  `client/src/lib/timer.ts` (`parseDurationInput`, `formatTimer`, `computeRemainingMs`,
+  `isTimerFinished`) and is unit-tested in `timer.test.ts`.
+- **At zero:** the digits turn red and pulse with a "⏰ Time's up" banner (visual only — no sound).
 
 ---
 
