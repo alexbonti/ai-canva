@@ -173,6 +173,13 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   import. The `ui`/`stitch` boxes still use the lightweight CDN iframe preview. An **⚡ Open in
   StackBlitz** button (`@stackblitz/sdk`, `sdk.openProject`) opens the same project in a full IDE.
   `project.ts` is unit-tested in `client/src/lib/project.test.ts`.
+- **Code box: generated code MUST end up with a default export.** The box's system prompt makes the
+  model "define a component called App" but never ask for an `export`. If the generated `App.js`
+  has no default export, the Sandpack/StackBlitz entry's `import App from "./App"` resolves to
+  `undefined`, and the preview iframe shows Sandpack's overlay **"Element type is invalid ...
+  got: object ... mixed up default and named imports"**. `ensureDefaultExport()` in
+  `client/src/lib/project.ts` appends `export default App;` (deduped) in both `toSandpackFiles` and
+  `toReactProject` so the preview always resolves. Keep that guarantee when changing the transforms.
 - **Lazy-load gotcha (shared chunks):** `SandpackPreview.tsx` is lazy-imported from **two** places
   (`BoxNode.tsx` and `CodeModal.tsx`), so Vite bundles it as a **shared chunk** whose module-namespace
   object is re-exported and picked up by the lazy transform as

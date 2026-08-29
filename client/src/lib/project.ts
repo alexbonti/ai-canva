@@ -21,6 +21,19 @@ function stripRenderCall(code: string): string {
 }
 
 /**
+ * The Code box's generation prompt tells the model to "define a component
+ * called App" but does not require it to `export default`. If the generated
+ * App file has no default export, the entry file's `import App from "./App"`
+ * resolves to `undefined`, which React reports as "Element type is invalid ...
+ * got: object ... mixed up default and named imports". Guarantee a default
+ * export unless the generated code already provides one.
+ */
+function ensureDefaultExport(appFile: string): string {
+  if (/\bexport\s+default\b/.test(appFile)) return appFile;
+  return `${appFile}\n\nexport default App;`;
+}
+
+/**
  * Turns a single generated React component (which uses the `React.*` API and
  * ends with a `ReactDOM.createRoot` render call) into a real, runnable Vite
  * React project: index.html + entry + App + package.json + vite config.
@@ -28,7 +41,9 @@ function stripRenderCall(code: string): string {
 export function toReactProject(code: string): ProjectFiles {
   const appCode = stripRenderCall(code);
   const hasReactImport = /import\s+React\b/.test(appCode);
-  const appFile = (hasReactImport ? appCode : `import React from "react";\n\n${appCode}`).trim();
+  const appFile = ensureDefaultExport(
+    (hasReactImport ? appCode : `import React from "react";\n\n${appCode}`).trim()
+  );
 
   return {
     "/App.jsx": appFile,
@@ -101,7 +116,9 @@ export function toStackBlitzProject(code: string): Project {
 export function toSandpackFiles(code: string): ProjectFiles {
   const appCode = stripRenderCall(code);
   const hasReactImport = /import\s+React\b/.test(appCode);
-  const appFile = (hasReactImport ? appCode : `import React from "react";\n\n${appCode}`).trim();
+  const appFile = ensureDefaultExport(
+    (hasReactImport ? appCode : `import React from "react";\n\n${appCode}`).trim()
+  );
 
   return {
     "/App.js": appFile,

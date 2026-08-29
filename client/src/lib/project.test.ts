@@ -40,6 +40,17 @@ describe("toReactProject", () => {
     expect(entry).toContain('import App from "./App"');
     expect(entry).toContain('createRoot(document.getElementById("root"))');
   });
+
+  it("adds a default export to App.jsx (StackBlitz) when the code omits it", () => {
+    const app = toReactProject(SAMPLE_CODE)["/App.jsx"];
+    expect(app).toContain("export default App;");
+  });
+
+  it("does not duplicate an existing default export", () => {
+    const withExport = `function App() { return <div/>; }\nexport default App;\nReactDOM.createRoot(document.getElementById('root')).render(<App />);`;
+    const app = toReactProject(withExport)["/App.jsx"];
+    expect((app.match(/export default/g) || []).length).toBe(1);
+  });
 });
 
 describe("toStackBlitzProject", () => {
@@ -63,5 +74,12 @@ describe("toSandpackFiles", () => {
     const app = toSandpackFiles(SAMPLE_CODE)["/App.js"];
     expect(app).toContain('import React from "react"');
     expect(app).not.toContain("ReactDOM.createRoot");
+  });
+
+  it("adds a default export so the entry's import App resolves (Sandpack)", () => {
+    const app = toSandpackFiles(SAMPLE_CODE)["/App.js"];
+    expect(app).toContain("export default App;");
+    // no duplicate default export
+    expect((app.match(/export default/g) || []).length).toBe(1);
   });
 });
