@@ -142,15 +142,24 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
 - **No functions/ tests yet** — they need the Firebase emulator / Admin SDK; keep API logic in sync
   between `server` and `functions` by hand and cover the shared logic via `server` tests.
 - **E2E suite:** `client/e2e.mjs` (playwright-core + system Chrome) drives the **real dev app** on
-  `localhost:5173` with the real backend: landing → seeded login → palette adds → note/label/timer
-  flows → a real `/api/generate` run (Ollama) with markdown output + token badge. Auth and
-  Firestore are synthetic: `main.tsx` exposes dev-only `window.__dsh` store hooks
-  (`import.meta.env.DEV`-guarded, stripped from prod) to seed a fake user/board — with a fake user
-  `currentBoardId` stays null so board saves/subscriptions no-op, and "Missing or insufficient
-  permissions" page errors are expected noise. Run with `node e2e.mjs` from `client/` while
-  `npm run dev` is up. Playwright clicks inside React Flow's transform can misfire (rotated
-  post-its especially) — prefer `page.evaluate` JS clicks/native value setters over coordinate
-  clicks.
+  `localhost:5173` with the real backend. Part 1 (fake user via dev-only `window.__dsh` store hooks
+  in `main.tsx`, `import.meta.env.DEV`-guarded, stripped from prod): landing → login → palette adds
+  → note/label/timer flows → a real `/api/generate` run (Ollama) with markdown output + token badge.
+  Part 2 (**real auth + real Firestore, two users in separate contexts**): real email/password
+  sign-in via `createTestAccount`/`signInTestAccount` in `client/src/lib/auth.ts` (unused by the
+  app UI → tree-shaken from prod), real board creation, persistence across a page reload,
+  a second user opening the board via `?board=<id>`, and live cross-user sync (note edits A→B,
+  timer start/stop B→A with attribution, presence). Requires the **Email/Password provider**
+  enabled in Firebase Auth — done once via the Identity Toolkit admin API
+  (`PATCH .../admin/v2/projects/carbondocs/config?updateMask=signIn.email` with the firebase-tools
+  access token from `~/.config/configstore/firebase-tools.json`); it can be re-disabled in the
+  console, but the suite needs it. Test accounts (`e2e-a@/e2e-b@test.local`) are auto-created
+  (reused if present) and deleted afterwards via `accounts:lookup` + `accounts:delete`; test
+  boards are deleted at start and end of each run (self-cleaning). The single
+  "Missing or insufficient permissions" page error from Part 1's fake user is expected noise.
+  Run with `node e2e.mjs` from `client/` while `npm run dev` is up. Playwright clicks inside
+  React Flow's transform can misfire (rotated post-its especially) — prefer `page.evaluate` JS
+  clicks/native value setters over coordinate clicks. Result at time of writing: **48/48 passed**.
 
 ## Conventions & gotchas
 

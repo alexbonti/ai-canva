@@ -237,6 +237,254 @@ check("T8 /api/health via Vite proxy", await safe("T8 health", async () => {
   return health.status === "ok" && health.ollamaKey === "configured";
 }));
 
+
+// ---------- PART 2: REAL AUTH + REAL FIRESTORE (two users, live sync) ----------
+// Requires the Email/Password provider (enabled via the Identity Toolkit
+// admin API — see AGENTS.md). Two fresh browser contexts sign in as real
+// test users; board creation, persistence across reload, and live cross-user
+// sync (notes, timer, presence) all go through real Firestore.
+const PW = "E2e-Test-2025!";
+const USER_A = "e2e-a@test.local";
+const USER_B = "e2e-b@test.local";
+
+const signInReal = async (page, email) =>
+  page.evaluate(async ({ em, pw }) => {
+    const m = await import("/src/lib/auth.ts");
+    try {
+      await m.createTestAccount(em, pw);
+    } catch (e) {
+      // already exists from a previous run — just sign in
+      if (!/email-already-in-use/.test(e?.message || "")) throw e;
+      await m.signInTestAccount(em, pw);
+    }
+    return (window.__dsh.useAuthStore.getState().user || {}).email || null;
+  }, { em: email, pw: PW });
+
+const waitFor = async (fn, { timeout = 20000, every = 500, label = "" } = {}) => {
+  const t0 = Date.now();
+  for (;;) {
+    const v = await fn().catch(() => null);
+    if (v) return v;
+    if (Date.now() - t0 > timeout) throw new Error(`timeout waiting for ${label}`);
+    await new Promise((r) => setTimeout(r, every));
+  }
+};
+
+// Close the fake-user page — the rest runs in fresh, isolated contexts.
+await page.close();
+
+// ----- T9: real sign-in (user A) + real board auto-creation -----
+const ctxA = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+const pageA = await ctxA.newPage();
+await pageA.goto(APP, { waitUntil: "load" });
+{
+  const email = await signInReal(pageA, USER_A);
+  check("T9 real email/password sign-in", email === USER_A, `user=${email}`);
+  // Self-cleaning: remove test boards left by earlier crashed runs.
+  await safe("T9 cleanup leftovers", async () => {
+    await pageA.evaluate(() => window.__dsh.useBoardStore.getState().refreshBoardList());
+    await pageA.waitForTimeout(2500);
+    await pageA.evaluate(async (ownerEmail) => {
+      const fs = await import("/src/lib/firestore.ts");
+      const s = window.__dsh.useBoardStore.getState();
+      for (const b of s.boardList) {
+        if (b.ownerEmail === ownerEmail) await fs.deleteBoard(b.id);
+      }
+      window.__dsh.useBoardStore.setState({ currentBoardId: null, boardList: [] });
+    }, USER_A);
+  });
+  // Create a fresh board through the real store action (the auto-init effect
+  // already ran while a leftover board existed, so create explicitly here).
+  await pageA.evaluate(async () => {
+    await window.__dsh.useBoardStore.getState().createNewBoard("E2E Test Board");
+  });
+  const boardId = await waitFor(
+    () => pageA.evaluate(() => window.__dsh.useBoardStore.getState().currentBoardId),
+    { label: "board creation", timeout: 45000 }
+  ).catch(() => null);
+  check("T9 real board created in Firestore", !!boardId, boardId || "none");
+  const saveStatus = await pageA.evaluate(() => window.__dsh.useBoardStore.getState().saveStatus);
+  check("T9 board saved (saveStatus)", saveStatus === "saved", saveStatus);
+
+  // ----- T10: real persistence across a page reload -----
+  // Add a note through the real palette, type, let the debounced save land,
+  // then reload — the board must come back from Firestore with the note.
+  await pageA.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+      b.textContent.trim().endsWith("Note")
+    );
+    btn && btn.click();
+  });
+  await pageA.waitForTimeout(600);
+  const noteId = await waitFor(
+    () => pageA.evaluate(() => {
+      const s = window.__dsh.useBoardStore.getState();
+      const n = Object.values(s.boxData).find((b) => b.authorEmail === "e2e-a@test.local");
+      return n ? s.nodes.find((x) => x.id === Object.keys(s.boxData).find((k) => s.boxData[k] === n))?.id : null;
+    }),
+    { label: "note added" }
+  ).catch(() => null);
+  check("T10 note added as real user A", !!noteId);
+  if (noteId) {
+    await pageA.evaluate(({ text }) => {
+      const el = document.querySelector(".note-textarea");
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+      setter.call(el, text);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    }, { text: "Persisted across reload!" });
+    await pageA.waitForTimeout(2500); // debounced save + Firestore round-trip
+    const savedBeforeReload = await pageA.evaluate((id) =>
+      window.__dsh.useBoardStore.getState().boxData[id]?.content
+    , noteId);
+    await pageA.reload({ waitUntil: "load" });
+    const back = await waitFor(
+      () => pageA.evaluate((id) => {
+        const s = window.__dsh.useBoardStore.getState();
+        return s.currentBoardId && s.boxData[id]?.content === "Persisted across reload!" ? true : null;
+      }, noteId),
+      { label: "board reload from Firestore", timeout: 45000 }
+    ).catch(() => null);
+    check("T10 session persists across reload (no re-login)", await waitFor(
+      () => pageA.evaluate((em) =>
+        window.__dsh.useAuthStore.getState().user?.email === em ? true : null, USER_A),
+      { label: "session restore", timeout: 30000 }
+    ).then(() => true).catch(() => false));
+    check("T10 board reloads from Firestore with the note", !!back, `pre-reload content=${JSON.stringify(savedBeforeReload)}`);
+  }
+
+  // ----- T11: second real user opens the same board via ?board= -----
+  const ctxB = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const pageB = await ctxB.newPage();
+  const fullBoardId = await pageA.evaluate(() => window.__dsh.useBoardStore.getState().currentBoardId);
+  await pageB.goto(`${APP}/?board=${fullBoardId}`, { waitUntil: "load" });
+  {
+    const emailB = await signInReal(pageB, USER_B);
+    check("T11 second real user signs in", emailB === USER_B, `user=${emailB}`);
+    const joined = await waitFor(
+      () => pageB.evaluate(() => {
+        const s = window.__dsh.useBoardStore.getState();
+        return s.currentBoardId && Object.keys(s.boxData).length > 0 ? true : null;
+      }),
+      { label: "B loads shared board", timeout: 45000 }
+    ).catch(() => null);
+    check("T11 user B opens A's board via ?board= link", !!joined);
+
+    // ----- T12: live cross-user sync — note edit, timer, presence -----
+    // A edits the note; B must see the new text via the onSnapshot sync.
+    await pageA.evaluate((id) => {
+      const el = document.querySelector(".note-textarea");
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+      setter.call(el, "Edited live by A!");
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    }, noteId);
+    const bSawEdit = await waitFor(
+      () => pageB.evaluate(() => {
+        const s = window.__dsh.useBoardStore.getState();
+        const n = Object.values(s.boxData).find((b) => b.authorEmail === "e2e-a@test.local");
+        return n?.content === "Edited live by A!" ? true : null;
+      }),
+      { label: "B sees A's note edit", timeout: 15000 }
+    ).catch(() => null);
+    check("T12 note edit syncs A → B live", !!bSawEdit);
+
+    // B adds a Timer box via its real palette, then starts it; A must see the
+    // new box AND the running timer with attribution (full cross-user sync).
+    await pageB.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+        b.textContent.trim().endsWith("Timer")
+      );
+      btn && btn.click();
+    });
+    const bTimerId = await waitFor(
+      () => pageB.evaluate(() => {
+        const s = window.__dsh.useBoardStore.getState();
+        const n = s.nodes.find((x) => (x.data.boxType || x.type) === "timer");
+        return n?.id || null;
+      }),
+      { label: "B adds timer box" }
+    ).catch(() => null);
+    check("T12 B adds a timer box via palette", !!bTimerId);
+    await pageB.evaluate(() => {
+      const inp = document.querySelector("input[placeholder='MM:SS']");
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+      setter.call(inp, "15");
+      inp.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await pageB.waitForTimeout(200);
+    await pageB.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll("button")).find((b) => /▶ Start/.test(b.textContent));
+      btn && btn.click();
+    });
+    const aSawTimer = await waitFor(
+      () => pageA.evaluate(() => {
+        const s = window.__dsh.useBoardStore.getState();
+        const t = Object.values(s.boxData).find((b) => b.timerStatus === "running");
+        return t?.timerStartedBy === "e2e-b@test.local" ? true : null;
+      }),
+      { label: "A sees B's timer start", timeout: 15000 }
+    ).catch(() => null);
+    check("T12 timer start syncs B → A (with attribution)", !!aSawTimer);
+    await pageA.waitForTimeout(800);
+    const aDigits = await waitFor(
+      () => pageA.evaluate(() => (/00:1[0-5]/.test(document.body.innerText) ? true : null)),
+      { label: "A renders synced timer", timeout: 15000 }
+    ).then(() => true).catch(() => false);
+    check("T12 A's display counts down from B's start", aDigits);
+    // B stops; A must see it frozen/stopped.
+    await pageB.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll("button")).find((b) => /⏹ Stop/.test(b.textContent));
+      btn && btn.click();
+    });
+    const aSawStop = await waitFor(
+      () => pageA.evaluate(() =>
+        Object.values(window.__dsh.useBoardStore.getState().boxData).some((b) => b.timerStatus === "stopped") ? true : null
+      ),
+      { label: "A sees B's stop", timeout: 15000 }
+    ).catch(() => null);
+    check("T12 timer stop syncs B → A", !!aSawStop);
+
+    // Presence: A moves its mouse over the canvas; B should list A as active.
+    await pageA.mouse.move(640, 400);
+    await pageA.waitForTimeout(300);
+    await pageA.mouse.move(700, 450);
+    await pageA.waitForTimeout(2500);
+    const bSeesA = await pageB.evaluate(() =>
+      window.__dsh.useBoardStore.getState().activeUsers.some((u) => u.email === "e2e-a@test.local")
+    );
+    check("T12 presence: B sees A active on the board", bSeesA);
+    await ctxB.close();
+  }
+
+  // ----- T13: cleanup — delete the test board, sign out -----
+  {
+    const deleted = await safe("T13 delete", async () => {
+      await pageA.evaluate(async (ownerEmail) => {
+        const fs = await import("/src/lib/firestore.ts");
+        const s = window.__dsh.useBoardStore.getState();
+        await s.refreshBoardList();
+        // note: refreshBoardList is async in the store; give it a beat
+        await new Promise((r) => setTimeout(r, 1500));
+        for (const b of window.__dsh.useBoardStore.getState().boardList) {
+          if (b.ownerEmail === ownerEmail) await fs.deleteBoard(b.id);
+        }
+        window.__dsh.useBoardStore.setState({ currentBoardId: null, boardList: [], nodes: [], edges: [], boxData: {} });
+      }, USER_A);
+      await pageA.waitForTimeout(1500);
+      const remaining = await pageA.evaluate(() =>
+        window.__dsh.useBoardStore.getState().boardList.length
+      );
+      return remaining === 0;
+    });
+    check("T13 test boards deleted from Firestore", deleted === true);
+    await safe("T13 signout", async () => {
+      await pageA.evaluate(async () => {
+        const m = await import("/src/lib/auth.ts");
+        await m.signOutUser();
+      });
+    });
+  }
+  await ctxA.close();
+}
 // ---------- Summary ----------
 const passed = results.filter((r) => r.ok).length;
 console.log("\n================ E2E SUMMARY ================");
