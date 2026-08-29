@@ -159,7 +159,7 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   "Missing or insufficient permissions" page error from Part 1's fake user is expected noise.
   Run with `node e2e.mjs` from `client/` while `npm run dev` is up. Playwright clicks inside
   React Flow's transform can misfire (rotated post-its especially) — prefer `page.evaluate` JS
-  clicks/native value setters over coordinate clicks. Result at time of writing: **48/48 passed**.
+  clicks/native value setters over coordinate clicks. Result at time of writing: **50/50 passed** (includes the roster popover checks).
 
 ## Conventions & gotchas
 
@@ -247,6 +247,16 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   for other reasons. When a lazy import misbehaves, verify the resolved chunk export (`c.<named>` is
   `{ default: Comp }`) before assuming you must unwrap by hand — a bare `lazy(() => import("..."))`
   is the safe default.
+- **Presence & the board roster:** `boards/{id}/presence/{uid}` docs power live cursors
+  (`Cursors.tsx`) and the header roster (`PresenceRoster.tsx`). Cursor moves are throttled to one
+  write per 200ms; a **heartbeat in `boardStore.ts` re-stamps `lastActive` every 15s** while a
+  board is open (started in `subscribeToBoardUpdates`, cleared in `unsubscribeFromBoard`) so users
+  who are online but idle stay listed — `subscribeToPresence` filters out entries stale for >30s,
+  so without the heartbeat idle users would vanish from the roster. Heartbeat-only users carry
+  `hasCursor: false` (PresenceUser) and `Cursors.tsx` skips them, so no stray cursor renders at
+  (0,0). The roster popover (`PresenceRoster.tsx`, test ids `roster-popover`/`roster-row`/
+  `you-chip`) shows online users (with a "you" marker) plus board collaborators who are offline —
+  grouping logic is the pure `groupRoster()` in `client/src/lib/presence.ts` (unit-tested).
 - **Client Firebase config** lives in `client/src/lib/firebase.ts` (hardcoded `firebaseConfig`).
   For open hosting, prefer `VITE_FIREBASE_*` env vars at build time (see `docs/OSS_READINESS.md`).
 - **Deploying:** follow `docs/DEPLOYMENT.md` or the `ai-canva-deploy` skill

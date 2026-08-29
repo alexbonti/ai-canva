@@ -65,7 +65,11 @@ Key behaviors:
   document plus a presence subcollection listener. Echo prevention compares the snapshot's
   `updatedAt` with the last locally-saved `updatedAt` to avoid re-applying your own writes.
 - **Presence**: cursor moves are throttled to one write per 200ms into `boards/{id}/presence/{uid}`;
-  entries older than 30s are filtered out, and presence is removed on page unload.
+  entries older than 30s are filtered out, and presence is removed on page unload. A heartbeat
+  re-stamps `lastActive` every 15s while a board is open, so online-but-idle users stay in the
+  header roster (`PresenceRoster.tsx`) — a clickable avatar stack listing everyone on the board
+  now, plus collaborators who are offline. Heartbeat-only users are skipped by the cursor overlay
+  (`hasCursor: false`).
 
 ### Component tree
 

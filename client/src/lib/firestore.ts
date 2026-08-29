@@ -170,6 +170,7 @@ export function subscribeToPresence(
           color: data.color || "#94a3b8",
           cursorX: data.cursorX ?? 0,
           cursorY: data.cursorY ?? 0,
+          hasCursor: data.cursorX !== undefined,
         });
       }
     });

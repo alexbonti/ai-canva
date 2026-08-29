@@ -18,6 +18,9 @@ export interface PresenceUser {
   color: string;
   cursorX: number;
   cursorY: number;
+  /** False when the user is online (heartbeat) but has never moved their
+   *  cursor — Cursors skips those so no stray cursor renders at (0, 0). */
+  hasCursor?: boolean;
 }
 
 /** A connected upstream input with its box name and output. */

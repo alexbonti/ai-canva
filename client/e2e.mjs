@@ -452,6 +452,62 @@ await pageA.goto(APP, { waitUntil: "load" });
       window.__dsh.useBoardStore.getState().activeUsers.some((u) => u.email === "e2e-a@test.local")
     );
     check("T12 presence: B sees A active on the board", bSeesA);
+
+    // Roster popover: move B's mouse (writes B's presence too), then B opens
+    // the "who's on this board" panel — both users must be listed, with a
+    // "you" marker on B's own row.
+    await pageB.mouse.move(500, 350);
+    await pageB.waitForTimeout(400);
+    await pageB.mouse.move(560, 380);
+    await pageB.waitForTimeout(2500); // presence writes (200ms throttle) + snapshot
+    const roster = await safe("T12 roster", async () => {
+      const label = await pageB.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+          /online/.test(b.textContent || "")
+        );
+        return btn ? btn.textContent.replace(/\s+/g, " ").trim() : null;
+      });
+      const opened = await pageB.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+          /online/.test(b.textContent || "")
+        );
+        if (!btn) return false;
+        btn.click();
+        return true;
+      });
+      await pageB.waitForTimeout(400);
+      const list = await pageB.evaluate(() => {
+        // Target the popover via its test id (a text search would match
+        // ancestor divs and give false positives from canvas content).
+        const pop = document.querySelector('[data-testid="roster-popover"]');
+        if (!pop) return null;
+        const rows = Array.from(pop.querySelectorAll('[data-testid="roster-row"]'));
+        return {
+          rowCount: rows.length,
+          hasA: rows.some((r) => r.textContent.includes("e2e-a@test.local")),
+          hasB: rows.some((r) => r.textContent.includes("e2e-b@test.local")),
+          youMarker: rows.some((r) => !!r.querySelector('[data-testid="you-chip"]')),
+        };
+      });
+      const dbg = await pageB.evaluate(async () => {
+        const m = await import("/src/lib/presence.ts");
+        const st = window.__dsh.useBoardStore.getState();
+        const user = window.__dsh.useAuthStore.getState().user;
+        const r = m.groupRoster(st.activeUsers, st.collaborators, user?.email || undefined);
+        return {
+          authEmail: user?.email,
+          activeEmails: st.activeUsers.map((u) => u.email),
+          online: r.online.map((o) => ({ email: o.email, isSelf: o.isSelf })),
+        };
+      });
+      return { label, opened, list, dbg };
+    });
+    check(
+      "T12 roster popover lists both users (with you-marker)",
+      roster?.list?.rowCount === 2 && !!roster?.list?.hasA && !!roster?.list?.hasB && !!roster?.list?.youMarker,
+      `label=${JSON.stringify(roster?.label)} list=${JSON.stringify(roster?.list)} dbg=${JSON.stringify(roster?.dbg)}`
+    );
+    check("T12 roster shows 2 online", (roster?.label || "").includes("2 online"), roster?.label || "");
     await ctxB.close();
   }
 

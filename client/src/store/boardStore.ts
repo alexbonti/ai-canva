@@ -67,6 +67,10 @@ let lastSavedUpdatedAt = 0;
 // Throttle presence updates to max 1 write per 200ms
 let presenceTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingPresence: { x: number; y: number } | null = null;
+// Presence heartbeat: keeps lastActive fresh every 15s so users who are on
+// the board but not moving their mouse stay listed as online (the roster
+// filters out entries stale for >30s).
+let presenceHeartbeat: ReturnType<typeof setInterval> | null = null;
 
 // Subscription cleanup functions
 let boardUnsub: (() => void) | null = null;
@@ -408,11 +412,33 @@ export const useBoardStore = create<BoardState>()(
         presenceUnsub = subscribeToPresence(boardId, (users) => {
           set({ activeUsers: users });
         });
+
+        // Presence heartbeat: even without mouse movement, refresh
+        // lastActive every 15s so the online roster stays accurate.
+        if (presenceHeartbeat) clearInterval(presenceHeartbeat);
+        presenceHeartbeat = setInterval(async () => {
+          const user = useAuthStore.getState().user;
+          const bid = get().currentBoardId;
+          if (!user || !bid) return;
+          try {
+            await updatePresence(bid, user.uid, {
+              userId: user.uid,
+              email: user.email || "",
+              displayName: user.displayName || user.email || "",
+              initials: getInitials(user.email || user.uid),
+              color: getColorForEmail(user.email || user.uid),
+              ...(pendingPresence || {}), // keep the last known cursor, if any
+            });
+          } catch {
+            // best-effort
+          }
+        }, 15000);
       },
 
       unsubscribeFromBoard: () => {
         if (boardUnsub) { boardUnsub(); boardUnsub = null; }
         if (presenceUnsub) { presenceUnsub(); presenceUnsub = null; }
+        if (presenceHeartbeat) { clearInterval(presenceHeartbeat); presenceHeartbeat = null; }
         get().cleanupPresence();
         set({ activeUsers: [] });
       },

@@ -7,6 +7,7 @@ import NewBoardModal from "./components/NewBoardModal.js";
 import ShareModal from "./components/ShareModal.js";
 import LandingPage from "./components/landing/LandingPage.js";
 import AdminBoard from "./components/AdminBoard.js";
+import PresenceRoster from "./components/PresenceRoster.js";
 import { useBoardStore } from "./store/boardStore.js";
 import { useAuthStore } from "./store/authStore.js";
 import { useTokenStore } from "./store/tokenStore.js";
@@ -35,7 +36,6 @@ export default function App() {
   const refreshBoardList = useBoardStore((s) => s.refreshBoardList);
   const deleteCurrentBoard = useBoardStore((s) => s.deleteCurrentBoard);
   const clearBoard = useBoardStore((s) => s.clearBoard);
-  const activeUsers = useBoardStore((s) => s.activeUsers);
   const unsubscribeFromBoard = useBoardStore((s) => s.unsubscribeFromBoard);
   const cleanupPresence = useBoardStore((s) => s.cleanupPresence);
   const subscribeToBoardUpdates = useBoardStore((s) => s.subscribeToBoardUpdates);
@@ -222,28 +222,15 @@ export default function App() {
           {currentBoardId && (
             <span className={"text-xs " + saveColor}>{"💾 " + saveLabel}</span>
           )}
-          {/* Share button + active users */}
+          {/* Presence roster + Share button */}
           {currentBoardId && (
             <div className="flex items-center gap-1.5">
-              {activeUsers.length > 1 && (
-                <div className="flex items-center -space-x-1.5">
-                  {activeUsers.slice(0, 4).map((u) => (
-                    <div
-                      key={u.userId}
-                      className="w-6 h-6 rounded-full text-white text-xs font-bold flex items-center justify-center border-2 border-white"
-                      style={{ backgroundColor: u.color }}
-                      title={u.email}
-                    >
-                      {u.initials}
-                    </div>
-                  ))}
-                </div>
-              )}
+              <PresenceRoster />
               <button
                 onClick={() => setShowShareModal(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition"
               >
-                {"👥 Share" + (activeUsers.length > 1 ? " (" + activeUsers.length + ")" : "")}
+                👥 Share
               </button>
             </div>
           )}
