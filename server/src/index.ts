@@ -122,6 +122,19 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
+/**
+ * GET /api/admin/stats — admin-only system stats.
+ *
+ * The local dev server has no Firebase Admin SDK / service account, so admin
+ * stats are only available in the production Cloud Function. This stub keeps
+ * the API surface consistent and returns a clear message instead of a 404.
+ */
+app.get("/api/admin/stats", (_req, res) => {
+  res.status(501).json({
+    error: "Admin stats are only available in the Firebase Cloud Function (production).",
+  });
+});
+
 // Find an available port (auto-increments if the preferred port is in use)
 findPort(PREFERRED_PORT).then((actualPort) => {
   // Write the actual port to a file so the Vite client can read it

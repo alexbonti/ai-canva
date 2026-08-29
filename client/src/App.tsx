@@ -6,9 +6,11 @@ import Sidebar from "./components/Sidebar.js";
 import NewBoardModal from "./components/NewBoardModal.js";
 import ShareModal from "./components/ShareModal.js";
 import LandingPage from "./components/LandingPage.js";
+import AdminBoard from "./components/AdminBoard.js";
 import { useBoardStore } from "./store/boardStore.js";
 import { useAuthStore } from "./store/authStore.js";
 import { signInWithGoogle, signOutUser } from "./lib/auth.js";
+import { isAdmin, updateUserProfile, heartbeat } from "./lib/admin.js";
 import { BOX_TYPES } from "./types.js";
 import type { BoxType } from "./types.js";
 
@@ -40,12 +42,28 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showNewBoardModal, setShowNewBoardModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [adminView, setAdminView] = useState(false);
+  const [isAdminUser, setIsAdminUser] = useState(false);
 
   // Initialize auth listener on mount
   useEffect(() => {
     const unsubscribe = useAuthStore.getState().init();
     return unsubscribe;
   }, []);
+
+  // On login: record the user profile, check admin status, and start a
+  // heartbeat so the admin board can show "active now" users.
+  useEffect(() => {
+    if (!user) {
+      setIsAdminUser(false);
+      setAdminView(false);
+      return;
+    }
+    updateUserProfile(user).catch(() => {});
+    isAdmin(user.uid).then(setIsAdminUser).catch(() => {});
+    const timer = setInterval(() => heartbeat(user).catch(() => {}), 60000);
+    return () => clearInterval(timer);
+  }, [user]);
 
   // Cleanup presence on page close
   useEffect(() => {
@@ -283,6 +301,15 @@ export default function App() {
                 🗑
               </button>
             )}
+            {isAdminUser && (
+              <button
+                onClick={() => setAdminView(!adminView)}
+                className={"flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition " + (adminView ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}
+                title="Admin board"
+              >
+                🛠️ Admin
+              </button>
+            )}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100">
               <img src={user.photoURL || ""} alt="" className="w-6 h-6 rounded-full" />
               <span className="text-xs text-slate-600 max-w-[120px] truncate">{user.email}</span>
@@ -299,11 +326,15 @@ export default function App() {
       </header>
 
       <div className="flex-1 relative">
-        <ReactFlowProvider>
-          <Canvas />
-          <Sidebar open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
-          <Toolbar />
-        </ReactFlowProvider>
+        {adminView ? (
+          <AdminBoard user={user} onBack={() => setAdminView(false)} />
+        ) : (
+          <ReactFlowProvider>
+            <Canvas />
+            <Sidebar open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+            <Toolbar />
+          </ReactFlowProvider>
+        )}
       </div>
       <NewBoardModal
         open={showNewBoardModal}

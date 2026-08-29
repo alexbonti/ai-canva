@@ -107,6 +107,42 @@ Generates a UI screen with Google Stitch. Used by the **Stitch UI** box.
 | `400` | `prompt` missing or not a string |
 | `500` | Stitch call failed (e.g. missing `STITCH_API_KEY`) |
 
+### `GET /api/admin/stats`
+
+Admin-only. Returns system-wide usage stats (users, boards, storage). Requires the caller to be
+an admin (a doc must exist at `admins/{uid}`) and to send a Firebase ID token.
+
+**Auth**
+
+```
+Authorization: Bearer <Firebase ID token>
+```
+
+**Response** — `200`
+
+```json
+{
+  "generatedAt": 1234567890,
+  "users": { "total": 42, "activeLast5m": 3, "newLast7d": 5 },
+  "boards": { "total": 12, "newLast7d": 2 },
+  "storage": { "bytes": 123456, "files": 8 }
+}
+```
+
+**Errors**
+
+| Status | When |
+|--------|------|
+| `401` | Missing or invalid ID token |
+| `403` | Caller is not an admin |
+| `500` | Stats computation failed |
+| `501` | Local dev server (admin stats are production-only) |
+
+> **Note:** This endpoint is only implemented in the **Cloud Function** (`functions/`), which uses
+> the Firebase Admin SDK. The local dev server (`server/`) returns `501` because it has no service
+> account. Stats are computed server-side so sensitive aggregates are never exposed to client
+> Firestore rules.
+
 ---
 
 ## Environment variables

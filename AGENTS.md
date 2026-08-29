@@ -55,6 +55,25 @@ npm run deploy         # = bash scripts/deploy.sh (production Firebase deploy)
 - **11 box types:** Idea, Image, Research, Summarize, PRD, Dev Plan, Cartoon Profile, Slides, Code,
   UI Design, Stitch UI. A "custom" category is reserved on the sidebar for future boxes.
 
+## Admin board
+
+Admins can view system-wide usage (total users, active users, new users/boards in 7 days, storage
+used) via an "Admin" button in the header.
+
+- **Admin designation:** a doc at `admins/{uid}` marks a user as admin (add it manually via the
+  Firebase console or a script). The client reads `admins/{uid}` (rules allow self-read) to show the
+  Admin button; the server re-verifies.
+- **User tracking:** the client writes `users/{uid}` on login (email, displayName, photoURL,
+  `createdAt`, `lastActive`) and heartbeats `lastActive` every ~60s. This powers the user counts and
+  "active now" metric.
+- **Stats endpoint:** `GET /api/admin/stats` (see `docs/API.md`). It verifies the caller's ID token
+  + admin role, then computes counts via Firestore `count()` and storage usage via the Admin SDK.
+- **Production-only:** the endpoint is implemented in `functions/` (uses `firebase-admin`). The
+  local `server/` returns `501` because it has no service account — this is an **intentional
+  deviation** from the server/functions duplication rule.
+- **Client files:** `client/src/lib/admin.ts` (isAdmin/profile/heartbeat/fetchAdminStats) and
+  `client/src/components/AdminBoard.tsx` (the dashboard UI).
+
 ## Conventions & gotchas
 
 - **Adding a new box type:** see `docs/BOX_TYPES.md` and `docs/course/05_how_to_build_a_box.md`.
