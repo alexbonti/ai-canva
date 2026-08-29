@@ -172,7 +172,10 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   (a Vite project for StackBlitz). Both strip the `ReactDOM.createRoot` render call and add a React
   import. The `ui`/`stitch` boxes still use the lightweight CDN iframe preview. An **⚡ Open in
   StackBlitz** button (`@stackblitz/sdk`, `sdk.openProject`) opens the same project in a full IDE.
-  `project.ts` is unit-tested in `client/src/lib/project.test.ts`.
+  `project.ts` is unit-tested in `client/src/lib/project.test.ts`. Note: Sandpack only sizes its
+  inner preview to the provider wrapper's height — pass `style={{ height }}` to `SandpackProvider`
+  in `SandpackPreview.tsx` (not just to `SandpackPreviewView`), or the preview collapses to a small
+  default and the app is clipped to the top of the box.
 - **Code box: generated code MUST end up with a default export.** The box's system prompt makes the
   model "define a component called App" but never ask for an `export`. If the generated `App.js`
   has no default export, the Sandpack/StackBlitz entry's `import App from "./App"` resolves to

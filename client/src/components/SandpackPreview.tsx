@@ -18,6 +18,10 @@ export default function SandpackPreview({ code, height = "100%" }: SandpackPrevi
       files={toSandpackFiles(code)}
       theme="dark"
       options={{ autoReload: true, externalResources: [] }}
+      // Sandpack only sizes the inner preview to 100% of its wrapper; without
+      // giving the provider root a height it collapses to a small default and
+      // the app is clipped to the top of the box. Propagate the requested height.
+      style={{ height }}
     >
       <SandpackPreviewView
         style={{ height }}
