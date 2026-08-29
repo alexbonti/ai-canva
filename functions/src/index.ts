@@ -12,6 +12,32 @@ import { generateStitchUI } from "./stitch.js";
 // Initialize the Admin SDK (uses the Cloud Function's default credentials).
 initializeApp();
 
+/**
+ * Counts registered users (and those created in the last `newWindowMs`) from
+ * Firebase Authentication. Auth is the authoritative source of registered users —
+ * the `users` collection only tracks login heartbeats and undercounts accounts
+ * that signed up before client-side tracking existed.
+ */
+async function countAuthUsers(now: number, newWindowMs: number): Promise<{ total: number; newLast7d: number }> {
+  const auth = getAuth();
+  const cutoff = now - newWindowMs;
+  let total = 0;
+  let newLast7d = 0;
+  let nextPageToken: string | undefined;
+  do {
+    const result = await auth.listUsers(1000, nextPageToken);
+    for (const u of result.users) {
+      total += 1;
+      const createdMs = u.metadata?.creationTime
+        ? new Date(u.metadata.creationTime).getTime()
+        : 0;
+      if (createdMs >= cutoff) newLast7d += 1;
+    }
+    nextPageToken = result.pageToken;
+  } while (nextPageToken);
+  return { total, newLast7d };
+}
+
 const app = express();
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: "10mb" }));
@@ -102,11 +128,12 @@ app.get("/api/admin/stats", async (req, res) => {
     const DAY_MS = 24 * 60 * 60 * 1000;
     const ACTIVE_WINDOW_MS = 5 * 60 * 1000;
 
-    // Aggregate counts via Firestore count() queries.
-    const [usersTotal, boardsTotal, usersNew, boardsNew, usersActive] = await Promise.all([
-      db.collection("users").count().get(),
+    // Total/new users come from Auth; active users come from the heartbeat
+    // docs the client writes to the `users` collection. Boards/storage from
+    // Firestore/Storage.
+    const [authUsers, boardsTotal, boardsNew, usersActive] = await Promise.all([
+      countAuthUsers(now, 7 * DAY_MS),
       db.collection("boards").count().get(),
-      db.collection("users").where("createdAt", ">=", now - 7 * DAY_MS).count().get(),
       db.collection("boards").where("createdAt", ">=", now - 7 * DAY_MS).count().get(),
       db.collection("users").where("lastActive", ">=", now - ACTIVE_WINDOW_MS).count().get(),
     ]);
@@ -123,9 +150,9 @@ app.get("/api/admin/stats", async (req, res) => {
     res.json({
       generatedAt: now,
       users: {
-        total: usersTotal.data().count,
+        total: authUsers.total,
         activeLast5m: usersActive.data().count,
-        newLast7d: usersNew.data().count,
+        newLast7d: authUsers.newLast7d,
       },
       boards: {
         total: boardsTotal.data().count,

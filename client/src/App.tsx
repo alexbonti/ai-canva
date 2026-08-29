@@ -87,6 +87,9 @@ export default function App() {
       // Check URL param first (shared links)
       const params = new URLSearchParams(window.location.search);
       const urlBoardId = params.get("board");
+      // Always refresh the board list so the header count is correct on load,
+      // regardless of whether a stored/URL board short-circuits below.
+      await refreshBoardList();
       if (urlBoardId) {
         await loadBoardFromFirestore(urlBoardId);
         return;
@@ -97,7 +100,6 @@ export default function App() {
         return;
       }
       // No board yet — auto-load most recent or create new
-      await refreshBoardList();
       const boards = useBoardStore.getState().boardList;
       if (boards.length > 0) {
         await loadBoardFromFirestore(boards[0].id);

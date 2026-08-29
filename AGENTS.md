@@ -64,10 +64,12 @@ used) via an "Admin" button in the header.
   Firebase console or a script). The client reads `admins/{uid}` (rules allow self-read) to show the
   Admin button; the server re-verifies.
 - **User tracking:** the client writes `users/{uid}` on login (email, displayName, photoURL,
-  `createdAt`, `lastActive`) and heartbeats `lastActive` every ~60s. This powers the user counts and
-  "active now" metric.
+  `createdAt`, `lastActive`) and heartbeats `lastActive` every ~60s. This powers the "active now"
+  metric.
 - **Stats endpoint:** `GET /api/admin/stats` (see `docs/API.md`). It verifies the caller's ID token
-  + admin role, then computes counts via Firestore `count()` and storage usage via the Admin SDK.
+  + admin role, then computes: total/new users from **Firebase Auth** (`listUsers`), active users
+  from the `users` collection heartbeat, board counts via Firestore `count()`, and storage usage
+  via the Admin SDK.
 - **Production-only:** the endpoint is implemented in `functions/` (uses `firebase-admin`). The
   local `server/` returns `501` because it has no service account — this is an **intentional
   deviation** from the server/functions duplication rule.

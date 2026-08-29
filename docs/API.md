@@ -142,6 +142,10 @@ Authorization: Bearer <Firebase ID token>
 > the Firebase Admin SDK. The local dev server (`server/`) returns `501` because it has no service
 > account. Stats are computed server-side so sensitive aggregates are never exposed to client
 > Firestore rules.
+>
+> **User counts:** `total` and `newLast7d` are counted from **Firebase Auth** (`listUsers`), the
+> authoritative source of registered users. `activeLast5m` counts users whose `lastActive`
+> heartbeat (written by the client to the `users` collection) is within the last 5 minutes.
 
 ---
 
