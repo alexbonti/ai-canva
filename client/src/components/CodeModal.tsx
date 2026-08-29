@@ -1,18 +1,13 @@
-import { useState, lazy, Suspense, type ComponentType } from "react";
+import { useState, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import CodeEditor from "./CodeEditor.js";
 import { wrapCodeInHtml, wrapUIInHtml } from "../lib/code.js";
 import type { BoxType } from "../types.js";
 
 // Sandpack is heavy; lazy-load it so it only loads when a Code box is maximised.
-// Explicitly unwrap the default export (see BoxNode.tsx for why — this module is
-// a shared lazy chunk and `React.lazy` would otherwise resolve to its namespace
-// object, causing "Element type is invalid ... got: object").
-const SandpackPreview = lazy(() =>
-  import("./SandpackPreview.js").then((m) => m.default) as unknown as Promise<{
-    default: ComponentType<{ code: string; height?: string }>;
-  }>
-);
+// Use the bare lazy form (React.lazy unwraps the import's default export); do not
+// chain `.then((m) => m.default)` — see BoxNode.tsx and AGENTS.md.
+const SandpackPreview = lazy(() => import("./SandpackPreview.js"));
 
 interface CodeModalProps {
   onClose: () => void;

@@ -1,4 +1,4 @@
-import { memo, useState, useRef, useEffect, lazy, Suspense, type ComponentType } from "react";
+import { memo, useState, useRef, useEffect, lazy, Suspense } from "react";
 import { Handle, Position, NodeResizer, type NodeProps } from "@xyflow/react";
 import ReactMarkdown from "react-markdown";
 import { useBoardStore } from "../store/boardStore.js";
@@ -14,15 +14,13 @@ const CodeEditor = lazy(() => import("./CodeEditor.js"));
 // The split-view modal also pulls in CodeMirror, so lazy-load it too.
 const CodeModal = lazy(() => import("./CodeModal.js"));
 // Sandpack (in-browser bundler) is heavy, so lazy-load it for the real-project
-// preview of Code boxes. We explicitly unwrap the default export: because this
-// module is also lazy-imported by CodeModal, Vite bundles it as a shared chunk
-// whose namespace object is re-exported, and `React.lazy` would otherwise
-// resolve to that object (→ "Element type is invalid ... got: object").
-const SandpackPreview = lazy(() =>
-  import("./SandpackPreview.js").then((m) => m.default) as unknown as Promise<{
-    default: ComponentType<{ code: string; height?: string }>;
-  }>
-);
+// preview of Code boxes. This module is also lazy-imported by CodeModal. React
+// lazy always resolves a dynamic import to its `.default` export, so a bare
+// `lazy(() => import("./SandpackPreview.js"))` is the correct form — do NOT
+// wrap the import in `.then((m) => m.default)`, which resolves to the bare
+// component and makes React return `undefined` (white screen / "resolves to
+// undefined"). See AGENTS.md "Lazy-load gotcha (shared chunks)".
+const SandpackPreview = lazy(() => import("./SandpackPreview.js"));
 
 /**
  * Reads an image File, resizes it to max 1024px, and returns a compressed

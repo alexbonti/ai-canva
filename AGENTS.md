@@ -174,13 +174,19 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   StackBlitz** button (`@stackblitz/sdk`, `sdk.openProject`) opens the same project in a full IDE.
   `project.ts` is unit-tested in `client/src/lib/project.test.ts`.
 - **Lazy-load gotcha (shared chunks):** `SandpackPreview.tsx` is lazy-imported from **two** places
-  (`BoxNode.tsx` and `CodeModal.tsx`), so Vite bundles it as a **shared chunk** whose namespace
-  object is re-exported. A bare `React.lazy(() => import("./SandpackPreview.js"))` then resolves to
-  that namespace object (`{ default: Component }`) instead of the component, causing the
-  production-only error **"Element type is invalid ... got: object"** (dev is unaffected because
-  Vite serves ESM modules directly). Always unwrap the default explicitly when lazy-loading a module
-  that is imported from more than one lazy site:
-  `lazy(() => import("./SandpackPreview.js").then((m) => m.default))`.
+  (`BoxNode.tsx` and `CodeModal.tsx`), so Vite bundles it as a **shared chunk** whose module-namespace
+  object is re-exported and picked up by the lazy transform as
+  `import("./SandpackPreview-<hash>.js").then(c => c.k)` where `c.k` is `{ default: SandpackPreview }`.
+  React 19 **always evaluates a lazy to the resolved value's `.default`** (`React.lazy` returns
+  `payload._result.default`), so the **bare form is the correct one**:
+  `lazy(() => import("./SandpackPreview.js"))`. It resolves to `{ default: Component }` and React
+  unwraps the component fine. **Do NOT** wrap the import in `.then((m) => m.default)` — that resolves
+  to the *bare component*, and React then reads `{Component}.default` → `undefined`, crashing with
+  `"Element type is invalid. Received a promise that resolves to: undefined."` and a white/render-broken
+  screen. This `.then()` "fix" regresses BOTH dev and prod even though the pre-fix bundle looked broken
+  for other reasons. When a lazy import misbehaves, verify the resolved chunk export (`c.<named>` is
+  `{ default: Comp }`) before assuming you must unwrap by hand — a bare `lazy(() => import("..."))`
+  is the safe default.
 - **Client Firebase config** lives in `client/src/lib/firebase.ts` (hardcoded `firebaseConfig`).
   For open hosting, prefer `VITE_FIREBASE_*` env vars at build time (see `docs/OSS_READINESS.md`).
 - **Deploying:** follow `docs/DEPLOYMENT.md` or the `ai-canva-deploy` skill
