@@ -211,15 +211,38 @@ app.get("/api/admin/users", async (req, res) => {
     }
     const pageToken = typeof req.query.pageToken === "string" ? req.query.pageToken : undefined;
     const result = await getAuth().listUsers(200, pageToken);
-    const users = result.users.map((u) => ({
-      uid: u.uid,
-      email: u.email || "",
-      displayName: u.displayName || u.email || "",
-      photoURL: u.photoURL || "",
-      disabled: !!u.disabled,
-      createdAt: u.metadata?.creationTime || null,
-      lastSignIn: u.metadata?.lastSignInTime || null,
-    }));
+
+    // Load each user's token usage totals (usageTotals/{uid}) into a map to
+    // join by uid. Kept separate (up/input vs down/output) because they cost
+    // differently. Falls back to 0s if a user has no usage yet.
+    const usageMap = new Map<string, { promptTokens: number; completionTokens: number; totalTokens: number }>();
+    try {
+      const totalsSnap = await getFirestore().collection("usageTotals").get();
+      totalsSnap.forEach((d) => {
+        const data = d.data();
+        usageMap.set(d.id, {
+          promptTokens: Number(data.promptTokens || 0),
+          completionTokens: Number(data.completionTokens || 0),
+          totalTokens: Number(data.totalTokens || 0),
+        });
+      });
+    } catch {
+      // Leave map empty; users will show 0 usage.
+    }
+
+    const users = result.users.map((u) => {
+      const t = usageMap.get(u.uid) || { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+      return {
+        uid: u.uid,
+        email: u.email || "",
+        displayName: u.displayName || u.email || "",
+        photoURL: u.photoURL || "",
+        disabled: !!u.disabled,
+        createdAt: u.metadata?.creationTime || null,
+        lastSignIn: u.metadata?.lastSignInTime || null,
+        tokens: t,
+      };
+    });
     res.json({ users, nextPageToken: result.pageToken || null });
   } catch (err: any) {
     console.error("[/api/admin/users] Error:", err.message);

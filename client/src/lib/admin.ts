@@ -66,6 +66,8 @@ export interface AdminUser {
   disabled: boolean;
   createdAt: string | null;
   lastSignIn: string | null;
+  /** Per-user token usage: promptTokens = up (input), completionTokens = down (output). */
+  tokens: { promptTokens: number; completionTokens: number; totalTokens: number };
 }
 
 async function adminFetch(user: User, path: string, init?: RequestInit): Promise<Response> {

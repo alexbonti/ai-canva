@@ -192,7 +192,8 @@ Authorization: Bearer <Firebase ID token>
       "photoURL": "https://...",
       "disabled": false,
       "createdAt": "2024-01-01T12:00:00.000Z",
-      "lastSignIn": "2024-05-01T12:00:00.000Z"
+      "lastSignIn": "2024-05-01T12:00:00.000Z",
+      "tokens": { "promptTokens": 500, "completionTokens": 2000, "totalTokens": 2500 }
     }
   ],
   "nextPageToken": "token-or-null"
@@ -200,6 +201,10 @@ Authorization: Bearer <Firebase ID token>
 ```
 
 Pass `nextPageToken` in `?pageToken=` to fetch the next page.
+
+`tokens` is each user's **cumulative token usage** — `promptTokens` is tokens **up** (input) and
+`completionTokens` is tokens **down** (output), which cost differently. Admins see this per user in
+the Admin Board's Users tab.
 
 **Errors:** `401` missing/invalid token, `403` not an admin, `500` failure.
 

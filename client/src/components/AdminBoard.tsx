@@ -227,8 +227,10 @@ export default function AdminBoard({ user, onBack }: { user: User; onBack: () =>
                   <tr className="text-left text-xs text-slate-500 border-b border-slate-100">
                     <th className="px-5 py-2.5">User</th>
                     <th className="px-4 py-2.5">Status</th>
-                    <th className="px-4 py-2.5 hidden md:table-cell">Signed Up</th>
-                    <th className="px-4 py-2.5 hidden lg:table-cell">Last Sign-in</th>
+                    <th className="px-4 py-2.5 text-right hidden md:table-cell">Tokens ⬆</th>
+                    <th className="px-4 py-2.5 text-right hidden md:table-cell">Tokens ⬇</th>
+                    <th className="px-4 py-2.5 hidden lg:table-cell">Signed Up</th>
+                    <th className="px-4 py-2.5 hidden xl:table-cell">Last Sign-in</th>
                     <th className="px-4 py-2.5 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -255,8 +257,14 @@ export default function AdminBoard({ user, onBack }: { user: User; onBack: () =>
                           {u.disabled ? "Blocked" : "Active"}
                         </span>
                       </td>
-                      <td className="px-4 py-3 hidden md:table-cell text-slate-500">{formatDate(u.createdAt)}</td>
-                      <td className="px-4 py-3 hidden lg:table-cell text-slate-500">{formatDate(u.lastSignIn)}</td>
+                      <td className="px-4 py-3 text-right hidden md:table-cell">
+                        <div className="text-sm text-slate-700 font-medium tabular-nums">{formatNum(u.tokens?.promptTokens)}</div>
+                      </td>
+                      <td className="px-4 py-3 text-right hidden md:table-cell">
+                        <div className="text-sm text-slate-700 font-medium tabular-nums">{formatNum(u.tokens?.completionTokens)}</div>
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell text-slate-500">{formatDate(u.createdAt)}</td>
+                      <td className="px-4 py-3 hidden xl:table-cell text-slate-500">{formatDate(u.lastSignIn)}</td>
                       <td className="px-4 py-3 text-right">
                         {u.uid === user.uid ? (
                           <span className="text-xs text-slate-400">(you)</span>

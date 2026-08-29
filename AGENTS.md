@@ -96,6 +96,9 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
 - **Admin aggregate:** `/api/admin/stats` sums `usageTotals` across all users and returns
   `tokens: { promptTokens, completionTokens, totalTokens }`, shown as a card in the AdminBoard
   Overview.
+- **Per-user admin view:** `GET /api/admin/users` joins each user with their `usageTotals` doc and
+  returns per-user `tokens`. The AdminBoard Users tab shows "Tokens ⬆" (input / `promptTokens`) and
+  "Tokens ⬇" (output / `completionTokens`) columns — kept separate because they cost differently.
 - **Rules:** a user can create/read their own `tokenUsage` docs and read/write their own
   `usageTotals` doc; the admin function reads aggregates via the Admin SDK.
 - **Production-only:** the endpoint is implemented in `functions/` (uses `firebase-admin`). The
