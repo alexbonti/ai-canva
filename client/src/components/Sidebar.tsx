@@ -14,14 +14,7 @@ const SECTIONS: { title: string; category: BoxCategory }[] = [
   { title: "Custom", category: "custom" },
 ];
 
-/** Role filters shown as chips at the top of the palette. */
-const ROLE_FILTERS: { id: "all" | BoxRole; label: string; icon: string }[] = [
-  { id: "all", label: "All", icon: "🧩" },
-  { id: "designer", label: "Designer", icon: "🎨" },
-  { id: "developer", label: "Developer", icon: "💻" },
-  { id: "product", label: "Product", icon: "📊" },
-];
-
+/** Role filters shown as a dropdown at the top of the palette. */
 const ROLE_STORAGE_KEY = "ai-canva:sidebar-role";
 
 export default function Sidebar({ open, onToggle }: SidebarProps) {
@@ -85,27 +78,20 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
 
         {/* Role filter */}
         <div className="px-3 py-2 border-b border-slate-100 bg-slate-50/60">
-          <div className="flex items-center gap-1.5">
-            {ROLE_FILTERS.map((f) => {
-              const active = role === f.id;
-              return (
-                <button
-                  key={f.id}
-                  onClick={() => selectRole(f.id)}
-                  title={`Show ${f.label} boxes (${active ? "active" : "click to filter"})`}
-                  className={
-                    "flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold transition " +
-                    (active
-                      ? "bg-slate-800 text-white shadow"
-                      : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200")
-                  }
-                >
-                  <span className="text-sm">{f.icon}</span>
-                  <span className="hidden sm:inline">{f.label}</span>
-                </button>
-              );
-            })}
-          </div>
+          <label className="mb-1 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            <span>View</span>
+          </label>
+          <select
+            value={role}
+            onChange={(e) => selectRole(e.target.value as "all" | BoxRole)}
+            className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 focus:border-blue-400 focus:outline-none"
+            title="Filter which boxes appear in the palette"
+          >
+            <option value="all">🧩 All boxes</option>
+            <option value="designer">🎨 Designer</option>
+            <option value="developer">💻 Developer</option>
+            <option value="product">📊 Product</option>
+          </select>
         </div>
 
         {/* Scrollable content */}

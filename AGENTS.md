@@ -148,6 +148,12 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   `Sidebar.tsx` filter which boxes appear in the "Add Box" palette. This is a discovery-only label —
   a pure UI filter, never a permission. Add sensible `roles` tags when adding a box; see
   `docs/BOX_TYPES.md`.
+- **Landing page:** the logged-out entry is a full marketing page in
+  `client/src/components/landing/` (`LandingPage.tsx` composes `LandingNav`, `LandingHero`,
+  `LandingHowItWorks`, `LandingFeatures`, `LandingBoxes`, `LandingRoles`, `LandingCTA`,
+  `LandingFooter`). It reuses `BOX_TYPES` for the box showcase, uses a `Reveal` scroll-fade wrapper
+  (`useReveal.ts`), and keeps the dark indigo/cyan theme from `index.css` (`.landing-bg`,
+  `.gradient-text`, `.glass-card`). `App.tsx` renders it when `!user`.
 - **Client Firebase config** lives in `client/src/lib/firebase.ts` (hardcoded `firebaseConfig`).
   For open hosting, prefer `VITE_FIREBASE_*` env vars at build time (see `docs/OSS_READINESS.md`).
 - **Deploying:** follow `docs/DEPLOYMENT.md` or the `ai-canva-deploy` skill

@@ -5,7 +5,7 @@ import Toolbar from "./components/Toolbar.js";
 import Sidebar from "./components/Sidebar.js";
 import NewBoardModal from "./components/NewBoardModal.js";
 import ShareModal from "./components/ShareModal.js";
-import LandingPage from "./components/LandingPage.js";
+import LandingPage from "./components/landing/LandingPage.js";
 import AdminBoard from "./components/AdminBoard.js";
 import { useBoardStore } from "./store/boardStore.js";
 import { useAuthStore } from "./store/authStore.js";
