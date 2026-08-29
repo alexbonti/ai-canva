@@ -175,7 +175,11 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   `project.ts` is unit-tested in `client/src/lib/project.test.ts`. Note: Sandpack only sizes its
   inner preview to the provider wrapper's height — pass `style={{ height }}` to `SandpackProvider`
   in `SandpackPreview.tsx` (not just to `SandpackPreviewView`), or the preview collapses to a small
-  default and the app is clipped to the top of the box.
+  default and the app is clipped to the top of the box. StackBlitz note: `toReactProject` (used by
+  `toStackBlitzProject`) must use **non-leading-slash** file paths (`"App.jsx"`, `"index.jsx"`, …)
+  because WebContainers throws `path should be a path.relative()'d string, but got "/"` on leading-slash
+  keys, which made StackBlitz open blank (code never imported). Sandpack's `toSandpackFiles` still uses
+  leading slashes (`/App.js`) — keep the two transforms' path conventions separate.
 - **Code box: generated code MUST end up with a default export.** The box's system prompt makes the
   model "define a component called App" but never ask for an `export`. If the generated `App.js`
   has no default export, the Sandpack/StackBlitz entry's `import App from "./App"` resolves to

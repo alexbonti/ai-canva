@@ -46,8 +46,12 @@ export function toReactProject(code: string): ProjectFiles {
   );
 
   return {
-    "/App.jsx": appFile,
-    "/index.jsx": `import { StrictMode } from "react";
+    // StackBlitz WebContainers (template: 'node') requires `path.relative()`-style,
+    // non-leading-slash file paths — a leading "/" makes it throw
+    // "path should be a path.relative()'d string". Sandpack's file tree (in
+    // toSandpackFiles) does use leading slashes; keep them separate.
+    "App.jsx": appFile,
+    "index.jsx": `import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import App from "./App";
@@ -58,7 +62,7 @@ root.render(
     <App />
   </StrictMode>
 );`,
-    "/index.html": `<!DOCTYPE html>
+    "index.html": `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -67,10 +71,10 @@ root.render(
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/index.jsx"></script>
+    <script type="module" src="./index.jsx"></script>
   </body>
 </html>`,
-    "/package.json": JSON.stringify(
+    "package.json": JSON.stringify(
       {
         scripts: { dev: "vite", build: "vite build", preview: "vite preview" },
         dependencies: { react: "^18.2.0", "react-dom": "^18.2.0" },
@@ -83,13 +87,13 @@ root.render(
       null,
       2
     ),
-    "/vite.config.js": `import { defineConfig } from "vite";
+    "vite.config.js": `import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
 });`,
-    "/styles.css": `body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; }
+    "styles.css": `body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; }
 #root { padding: 16px; }
 * { box-sizing: border-box; }`,
   };
