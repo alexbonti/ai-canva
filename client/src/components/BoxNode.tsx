@@ -515,6 +515,18 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         )}
       </div>
 
+      {/* Token usage from the last LLM call */}
+      {boxData.tokens && (
+        <div className="px-3 py-1.5 border-t border-slate-100 flex items-center justify-end gap-2 text-[10px] text-slate-400">
+          <span title="Input → output tokens used by this call">
+            ⚡ <span className="tabular-nums">{boxData.tokens.promptTokens} in · {boxData.tokens.completionTokens} out</span>
+          </span>
+          <span className="font-semibold text-slate-500 tabular-nums">
+            {boxData.tokens.totalTokens} tok
+          </span>
+        </div>
+      )}
+
       {/* Footer — AI boxes only */}
       {!isInputBox && (
         <div className="px-3 py-2 border-t border-slate-100 flex items-center gap-2">

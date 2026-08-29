@@ -9,8 +9,10 @@ import LandingPage from "./components/LandingPage.js";
 import AdminBoard from "./components/AdminBoard.js";
 import { useBoardStore } from "./store/boardStore.js";
 import { useAuthStore } from "./store/authStore.js";
+import { useTokenStore } from "./store/tokenStore.js";
 import { signInWithGoogle, signOutUser } from "./lib/auth.js";
 import { isAdmin, updateUserProfile, heartbeat } from "./lib/admin.js";
+import { fetchUserTokenTotal } from "./lib/firestore.js";
 import { BOX_TYPES } from "./types.js";
 import type { BoxType } from "./types.js";
 
@@ -45,6 +47,9 @@ export default function App() {
   const [adminView, setAdminView] = useState(false);
   const [isAdminUser, setIsAdminUser] = useState(false);
 
+  const totalTokens = useTokenStore((s) => s.totalTokens);
+  const fmtTokens = (n: number) => n.toLocaleString("en-US");
+
   // Initialize auth listener on mount
   useEffect(() => {
     const unsubscribe = useAuthStore.getState().init();
@@ -57,10 +62,13 @@ export default function App() {
     if (!user) {
       setIsAdminUser(false);
       setAdminView(false);
+      useTokenStore.getState().reset();
       return;
     }
     updateUserProfile(user).catch(() => {});
     isAdmin(user.uid).then(setIsAdminUser).catch(() => {});
+    // Seed the user's cumulative token count from Firestore.
+    fetchUserTokenTotal(user.uid).then((n) => useTokenStore.getState().setTotal(n));
     const timer = setInterval(() => heartbeat(user).catch(() => {}), 60000);
     return () => clearInterval(timer);
   }, [user]);
@@ -312,6 +320,12 @@ export default function App() {
                 🛠️ Admin
               </button>
             )}
+            <div
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 text-xs text-slate-500"
+              title={"Your total LLM tokens used: " + fmtTokens(totalTokens)}
+            >
+              ⚡ <span className="font-semibold text-slate-600 tabular-nums">{fmtTokens(totalTokens)}</span> tok
+            </div>
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100">
               <img src={user.photoURL || ""} alt="" className="w-6 h-6 rounded-full" />
               <span className="text-xs text-slate-600 max-w-[120px] truncate">{user.email}</span>

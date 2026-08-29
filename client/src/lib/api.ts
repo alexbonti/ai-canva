@@ -5,8 +5,16 @@ export interface GenerateRequest {
   userPrompt: string;
 }
 
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
 export interface GenerateResponse {
   content: string;
+  model?: string;
+  usage?: TokenUsage;
   error?: string;
 }
 

@@ -26,5 +26,17 @@ service cloud.firestore {
     match /admins/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
     }
+
+    // Token usage — a user can only create/read their own call records.
+    // Per-user rolling totals use Firestore increment, which is a write to
+    // the user's own doc.
+    match /tokenUsage/{id} {
+      allow read: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+
+    match /usageTotals/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
   }
 }

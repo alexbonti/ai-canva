@@ -20,10 +20,12 @@ import {
   subscribeToBoard, subscribeToPresence, updatePresence, removePresence,
   shareBoard as fsShareBoard, unshareBoard as fsUnshareBoard,
   updateBoardData,
+  recordTokenUsage,
   type BoardDoc,
 } from "../lib/firestore.js";
 import type { PresenceUser } from "../types.js";
 import { useAuthStore } from "./authStore.js";
+import { useTokenStore } from "./tokenStore.js";
 
 function makeId(): string {
   return `box-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -611,6 +613,24 @@ export const useBoardStore = create<BoardState>()(
             });
 
             if (result.error) throw new Error(result.error);
+
+            // Record token usage — update the box display, persist to Firestore,
+            // and bump the user's session cumulative total.
+            if (result.usage) {
+              get().updateBoxData(id, { tokens: result.usage });
+              const user = useAuthStore.getState().user;
+              if (user) {
+                recordTokenUsage(
+                  user.uid,
+                  get().currentBoardId || "",
+                  id,
+                  boxType,
+                  result.usage,
+                  result.model
+                );
+                useTokenStore.getState().addTokens(result.usage.totalTokens);
+              }
+            }
 
             if (boxType === "slides") {
               // Parse the LLM's JSON output into a slide deck

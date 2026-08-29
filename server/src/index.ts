@@ -39,12 +39,20 @@ app.post("/api/generate", async (req, res) => {
       return res.status(400).json({ error: "userPrompt is required" });
     }
 
-    const content = await generateContent(
+    const result = await generateContent(
       systemPrompt || "You are a helpful assistant.",
       userPrompt
     );
 
-    res.json({ content });
+    res.json({
+      content: result.content,
+      model: result.model,
+      usage: {
+        promptTokens: result.promptTokens,
+        completionTokens: result.completionTokens,
+        totalTokens: result.totalTokens,
+      },
+    });
   } catch (err: any) {
     console.error("[/api/generate] Error:", err.message);
     res.status(500).json({

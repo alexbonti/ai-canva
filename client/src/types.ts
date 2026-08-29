@@ -39,6 +39,8 @@ export interface BoxData {
   slides?: Slide[];
   /** For Code boxes: the generated React component code (JSX). */
   code?: string;
+  /** Token usage from the most recent LLM call for this box (text AI boxes). */
+  tokens?: { promptTokens: number; completionTokens: number; totalTokens: number };
 }
 
 /** Metadata for each box type. */

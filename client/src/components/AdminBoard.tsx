@@ -21,6 +21,10 @@ function formatDate(iso: string | null): string {
   return isNaN(d.getTime()) ? "—" : d.toLocaleString();
 }
 
+function formatNum(n: number): string {
+  return (n || 0).toLocaleString("en-US");
+}
+
 interface StatCardProps {
   label: string;
   value: string;
@@ -167,6 +171,13 @@ export default function AdminBoard({ user, onBack }: { user: User; onBack: () =>
                   <StatCard label="Total Boards" value={String(stats.boards.total)} icon="📋" accent="#f59e0b" />
                   <StatCard label="New Boards" value={String(stats.boards.newLast7d)} sub="last 7 days" icon="🆕" accent="#ec4899" />
                   <StatCard label="Storage Used" value={formatBytes(stats.storage.bytes)} sub={stats.storage.files + " files"} icon="💾" accent="#14b8a6" />
+                  <StatCard
+                    label="LLM Tokens Used"
+                    value={formatNum(stats.tokens.totalTokens)}
+                    sub={formatNum(stats.tokens.promptTokens) + " in · " + formatNum(stats.tokens.completionTokens) + " out"}
+                    icon="⚡"
+                    accent="#6366f1"
+                  />
                 </div>
                 <div className="flex items-center justify-between text-xs text-slate-400 mb-4">
                   <span>Last updated {new Date(stats.generatedAt).toLocaleString()}</span>

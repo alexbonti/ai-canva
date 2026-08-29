@@ -42,8 +42,16 @@ PRD, Dev Plan, Slides, Code, UI Design).
 **Response** — `200`
 
 ```json
-{ "content": "string" }
+{
+  "content": "string",
+  "model": "deepseek-v4-flash",
+  "usage": { "promptTokens": 120, "completionTokens": 450, "totalTokens": 570 }
+}
 ```
+
+`usage` reports the model's **token usage** for this call (`promptTokens` = input, `completionTokens`
+= output) from Ollama's `prompt_eval_count` / `eval_count`. The client displays this per box and
+persists it to Firestore (see "Token usage" below).
 
 **Errors**
 
@@ -55,6 +63,20 @@ PRD, Dev Plan, Slides, Code, UI Design).
 The model defaults to `deepseek-v4-flash` and can be overridden with `OLLAMA_MODEL`. Requests go to
 `{OLLAMA_HOST}/api/chat` (default `https://ollama.com` for Ollama Cloud) authenticated with
 `OLLAMA_API_KEY`.
+
+### Token usage persistence
+
+Token usage is recorded **client-side** (the client already knows the authenticated user), in two
+places in Firestore:
+
+- `tokenUsage/{autoId}` — one doc per call with `userId`, `boardId`, `boxId`, `boxType`, `model`,
+  `promptTokens`, `completionTokens`, `totalTokens`, `createdAt`. Detailed history / aggregation.
+- `usageTotals/{uid}` — per-user **rolling totals** (`promptTokens`, `completionTokens`,
+  `totalTokens`, `updatedAt`) updated atomically via Firestore `increment`, so concurrent calls
+  don't lose updates. The header's ⚡ count reads this.
+
+Rules: a user can create/read their own `tokenUsage` docs and read/write their own `usageTotals`
+doc. The admin function reads aggregate totals via the Admin SDK (bypasses rules).
 
 ### `POST /api/generate-image`
 
@@ -125,7 +147,8 @@ Authorization: Bearer <Firebase ID token>
   "generatedAt": 1234567890,
   "users": { "total": 42, "activeLast5m": 3, "newLast7d": 5 },
   "boards": { "total": 12, "newLast7d": 2 },
-  "storage": { "bytes": 123456, "files": 8 }
+  "storage": { "bytes": 123456, "files": 8 },
+  "tokens": { "promptTokens": 1000, "completionTokens": 4500, "totalTokens": 5500 }
 }
 ```
 

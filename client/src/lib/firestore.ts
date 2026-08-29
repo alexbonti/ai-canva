@@ -13,6 +13,8 @@ import {
   arrayUnion,
   arrayRemove,
   updateDoc,
+  addDoc,
+  increment,
   setDoc as setDocPresence,
 } from "firebase/firestore";
 import type { PresenceUser } from "../types.js";
@@ -209,4 +211,62 @@ export async function shareBoard(boardId: string, emails: string[]): Promise<voi
 export async function unshareBoard(boardId: string, email: string): Promise<void> {
   const ref = doc(db, BOARDS_COLLECTION, boardId);
   await updateDoc(ref, { collaborators: arrayRemove(email) });
+}
+
+// === Token usage ===
+
+/**
+ * Records one LLM call's token usage. Writes a detailed `tokenUsage/{autoId}`
+ * doc for history/aggregation and atomically bumps the user's rolling totals
+ * in `usageTotals/{uid}` (via Firestore increment, so concurrent calls don't
+ * lose updates). Best-effort: failures are swallowed so a usage-write hiccup
+ * never fails the user's generation.
+ */
+export async function recordTokenUsage(
+  userId: string,
+  boardId: string,
+  boxId: string,
+  boxType: string,
+  usage: { promptTokens: number; completionTokens: number; totalTokens: number },
+  model?: string
+): Promise<void> {
+  try {
+    await Promise.all([
+      addDoc(collection(db, "tokenUsage"), {
+        userId,
+        boardId,
+        boxId,
+        boxType,
+        model: model || "",
+        promptTokens: usage.promptTokens,
+        completionTokens: usage.completionTokens,
+        totalTokens: usage.totalTokens,
+        createdAt: new Date(),
+      }),
+      setDoc(
+        doc(db, "usageTotals", userId),
+        {
+          promptTokens: increment(usage.promptTokens),
+          completionTokens: increment(usage.completionTokens),
+          totalTokens: increment(usage.totalTokens),
+          updatedAt: new Date(),
+        },
+        { merge: true }
+      ),
+    ]);
+  } catch (err) {
+    console.warn("[tokenUsage] Could not record usage:", err);
+  }
+}
+
+/** Returns the given user's cumulative token total (0 if never used). */
+export async function fetchUserTokenTotal(userId: string): Promise<number> {
+  try {
+    const snap = await getDoc(doc(db, "usageTotals", userId));
+    if (snap.exists()) return Number(snap.data().totalTokens || 0);
+    return 0;
+  } catch (err) {
+    console.warn("[tokenUsage] Could not fetch total:", err);
+    return 0;
+  }
 }

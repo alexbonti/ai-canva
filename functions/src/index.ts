@@ -71,8 +71,16 @@ app.post("/api/generate", async (req, res) => {
     if (!userPrompt || typeof userPrompt !== "string") {
       return res.status(400).json({ error: "userPrompt is required" });
     }
-    const content = await generateContent(systemPrompt || "You are a helpful assistant.", userPrompt);
-    res.json({ content });
+    const result = await generateContent(systemPrompt || "You are a helpful assistant.", userPrompt);
+    res.json({
+      content: result.content,
+      model: result.model,
+      usage: {
+        promptTokens: result.promptTokens,
+        completionTokens: result.completionTokens,
+        totalTokens: result.totalTokens,
+      },
+    });
   } catch (err: any) {
     console.error("[/api/generate] Error:", err.message);
     res.status(500).json({ error: err.message || "Failed to generate content" });
@@ -156,6 +164,21 @@ app.get("/api/admin/stats", async (req, res) => {
       storageFiles += 1;
     }
 
+    // LLM tokens used across all users (sum each user's rolling totals,
+    // maintained client-side via Firestore increment).
+    const tokenTotals = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+    try {
+      const totalsSnap = await db.collection("usageTotals").get();
+      totalsSnap.forEach((doc) => {
+        const d = doc.data();
+        tokenTotals.promptTokens += Number(d.promptTokens || 0);
+        tokenTotals.completionTokens += Number(d.completionTokens || 0);
+        tokenTotals.totalTokens += Number(d.totalTokens || 0);
+      });
+    } catch {
+      // Leave totals at 0 on failure.
+    }
+
     res.json({
       generatedAt: now,
       users: {
@@ -168,6 +191,7 @@ app.get("/api/admin/stats", async (req, res) => {
         newLast7d: boardsNew.data().count,
       },
       storage: { bytes: storageBytes, files: storageFiles },
+      tokens: tokenTotals,
     });
   } catch (err: any) {
     console.error("[/api/admin/stats] Error:", err.message);

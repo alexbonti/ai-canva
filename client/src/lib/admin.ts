@@ -55,6 +55,7 @@ export interface AdminStats {
   users: { total: number; activeLast5m: number; newLast7d: number };
   boards: { total: number; newLast7d: number };
   storage: { bytes: number; files: number };
+  tokens: { promptTokens: number; completionTokens: number; totalTokens: number };
 }
 
 export interface AdminUser {

@@ -75,6 +75,29 @@ used) via an "Admin" button in the header.
   which call `auth.listUsers` / `auth.updateUser`. An admin cannot block their own account.
 - **Admin auth helper:** `requireAdmin(req)` in `functions/src/index.ts` verifies the ID token +
   admin role for all `/api/admin/*` routes.
+
+## Token usage tracking
+
+The app reports per-call LLM token usage and tracks cumulative usage per user and across the system.
+
+- **Source:** Ollama's non-streaming `/api/chat` response includes `prompt_eval_count` (input) and
+  `eval_count` (output). `generateContent` in both `server/src/ollama.ts` and `functions/src/ollama.ts`
+  returns `{ content, model, promptTokens, completionTokens, totalTokens }`, and `/api/generate`
+  returns those counts under `usage`.
+- **Per-box display:** each text AI box stores `tokens` in its `BoxData` and shows "in · out / total
+  tok" in the box footer after running.
+- **Persistence (client-side):** after each successful generate, the client writes a detailed
+  `tokenUsage/{autoId}` doc (userId, boardId, boxId, boxType, model, prompt/completion/total,
+  createdAt) and atomically bumps the user's rolling total in `usageTotals/{uid}` via Firestore
+  `increment` (so concurrent calls don't lose updates).
+- **Cumulative in the header:** `client/src/store/tokenStore.ts` (non-persisted) holds the logged-in
+  user's session total, seeded from `usageTotals/{uid}` on login and incremented as calls run. A ⚡
+  badge in the header shows it.
+- **Admin aggregate:** `/api/admin/stats` sums `usageTotals` across all users and returns
+  `tokens: { promptTokens, completionTokens, totalTokens }`, shown as a card in the AdminBoard
+  Overview.
+- **Rules:** a user can create/read their own `tokenUsage` docs and read/write their own
+  `usageTotals` doc; the admin function reads aggregates via the Admin SDK.
 - **Production-only:** the endpoint is implemented in `functions/` (uses `firebase-admin`). The
   local `server/` returns `501` because it has no service account — this is an **intentional
   deviation** from the server/functions duplication rule.
