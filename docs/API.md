@@ -147,6 +147,68 @@ Authorization: Bearer <Firebase ID token>
 > authoritative source of registered users. `activeLast5m` counts users whose `lastActive`
 > heartbeat (written by the client to the `users` collection) is within the last 5 minutes.
 
+### `GET /api/admin/users?pageToken=...`
+
+Admin-only. Lists registered users from Firebase Auth (paginated, up to 200 per page).
+
+**Auth**
+
+```
+Authorization: Bearer <Firebase ID token>
+```
+
+**Response** — `200`
+
+```json
+{
+  "users": [
+    {
+      "uid": "abc123",
+      "email": "user@example.com",
+      "displayName": "Jane Doe",
+      "photoURL": "https://...",
+      "disabled": false,
+      "createdAt": "2024-01-01T12:00:00.000Z",
+      "lastSignIn": "2024-05-01T12:00:00.000Z"
+    }
+  ],
+  "nextPageToken": "token-or-null"
+}
+```
+
+Pass `nextPageToken` in `?pageToken=` to fetch the next page.
+
+**Errors:** `401` missing/invalid token, `403` not an admin, `500` failure.
+
+### `POST /api/admin/users/:uid/status`
+
+Admin-only. Blocks (`{ "disabled": true }`) or unblocks (`{ "disabled": false }`) a user's account
+via `auth.updateUser`. An admin cannot block their own account.
+
+**Auth:** same `Authorization: Bearer <Firebase ID token>`.
+
+**Request body**
+
+```json
+{ "disabled": true }
+```
+
+**Response** — `200`
+
+```json
+{ "uid": "abc123", "disabled": true }
+```
+
+**Errors**
+
+| Status | When |
+|--------|------|
+| `400` | Trying to block your own account |
+| `401` | Missing/invalid token |
+| `403` | Not an admin |
+| `404` | User not found |
+| `500` | Update failed |
+
 ---
 
 ## Environment variables

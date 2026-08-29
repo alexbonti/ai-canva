@@ -57,18 +57,68 @@ export interface AdminStats {
   storage: { bytes: number; files: number };
 }
 
-/**
- * Fetches system-wide admin stats from the backend.
- * Requires the caller to be an admin; the backend verifies the ID token.
- */
-export async function fetchAdminStats(user: User): Promise<AdminStats> {
+export interface AdminUser {
+  uid: string;
+  email: string;
+  displayName: string;
+  photoURL: string;
+  disabled: boolean;
+  createdAt: string | null;
+  lastSignIn: string | null;
+}
+
+async function adminFetch(user: User, path: string, init?: RequestInit): Promise<Response> {
   const token = await user.getIdToken();
-  const res = await fetch("/api/admin/stats", {
-    headers: { Authorization: `Bearer ${token}` },
+  return fetch(path, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...(init?.headers || {}),
+    },
   });
+}
+
+async function handleAdminResponse(res: Response): Promise<any> {
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
     throw new Error(err.error || `HTTP ${res.status}`);
   }
   return res.json();
 }
+
+/**
+ * Fetches system-wide admin stats from the backend.
+ * Requires the caller to be an admin; the backend verifies the ID token.
+ */
+export async function fetchAdminStats(user: User): Promise<AdminStats> {
+  const res = await adminFetch(user, "/api/admin/stats");
+  return handleAdminResponse(res);
+}
+
+/**
+ * Fetches a page of registered users from Firebase Auth.
+ * Pass `pageToken` (from a prior response) to get the next page.
+ */
+export async function fetchUsers(
+  user: User,
+  pageToken?: string
+): Promise<{ users: AdminUser[]; nextPageToken: string | null }> {
+  const q = pageToken ? `?pageToken=${encodeURIComponent(pageToken)}` : "";
+  const res = await adminFetch(user, `/api/admin/users${q}`);
+  return handleAdminResponse(res);
+}
+
+/** Blocks (disabled: true) or unblocks (disabled: false) a user's account. */
+export async function setUserBlocked(
+  user: User,
+  uid: string,
+  disabled: boolean
+): Promise<void> {
+  const res = await adminFetch(user, `/api/admin/users/${encodeURIComponent(uid)}/status`, {
+    method: "POST",
+    body: JSON.stringify({ disabled }),
+  });
+  await handleAdminResponse(res);
+}
+

@@ -70,6 +70,11 @@ used) via an "Admin" button in the header.
   + admin role, then computes: total/new users from **Firebase Auth** (`listUsers`), active users
   from the `users` collection heartbeat, board counts via Firestore `count()`, and storage usage
   via the Admin SDK.
+- **User management:** the admin board also lists all users and can block/unblock accounts:
+  `GET /api/admin/users` (paginated) and `POST /api/admin/users/:uid/status` (`{ disabled }`),
+  which call `auth.listUsers` / `auth.updateUser`. An admin cannot block their own account.
+- **Admin auth helper:** `requireAdmin(req)` in `functions/src/index.ts` verifies the ID token +
+  admin role for all `/api/admin/*` routes.
 - **Production-only:** the endpoint is implemented in `functions/` (uses `firebase-admin`). The
   local `server/` returns `501` because it has no service account — this is an **intentional
   deviation** from the server/functions duplication rule.
