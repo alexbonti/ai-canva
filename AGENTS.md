@@ -148,6 +148,10 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
 - **Collaboration boxes (note / label / timer) are standalone:** category `"collab"`, `hasAI:
   false`, and no connection handles, no Run button, no ⚙ panel — gate all of those in
   `BoxNode.tsx` on `!isUtility` and keep the `runBox` early-return guard in `boardStore.ts`.
+  **Note and label render as annotations, not box cards:** BoxNode early-returns custom JSX for
+  them (post-it paper `.note-node` / floating chip `.label-node`, styles in `client/src/index.css`,
+  hover/selected ✕ delete instead of the header ✕). The timer is the only collab box that still
+  uses the standard card. Early returns sit after all hooks — keep every hook above them.
   **Timer sync rule:** only state *transitions* (start/pause/resume/stop/reset) write to the
   store; the countdown display is always derived locally from `timerStartedAt`/`timerRemainingMs`
   (see `client/src/lib/timer.ts`) on a per-box 250ms interval — **never write per tick** or the

@@ -176,6 +176,109 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isTimer = boxType === "timer";
   const isUtility = isNote || isLabel || isTimer;
 
+  // ===== Collaboration annotations render WITHOUT the standard box card =====
+  // (no header bar, no border/footer chrome) so they read as canvas
+  // annotations, not pipeline boxes. Early returns are safe here: every hook
+  // is called above.
+
+  // Note: a post-it paper.
+  if (isNote) {
+    return (
+      <>
+        <NodeResizer minWidth={160} minHeight={140} isVisible={!!selected} />
+        <div className={"note-node" + (selected ? " selected" : "")}>
+          <button
+            className="note-delete nodrag"
+            onClick={() => deleteBox(id)}
+            title="Delete note"
+          >
+            ✕
+          </button>
+          <textarea
+            className="nodrag nowheel note-textarea"
+            placeholder="Write a note for the team…"
+            value={boxData.content}
+            onChange={(e) => updateBoxData(id, { content: e.target.value })}
+          />
+          <p className="note-author">
+            — {boxData.authorName || "Someone"}
+            {boxData.authorEmail ? ` (${boxData.authorEmail})` : ""}
+          </p>
+        </div>
+      </>
+    );
+  }
+
+  // Label: a floating text chip.
+  if (isLabel) {
+    return (
+      <div className={"label-node" + (selected ? " selected" : "")}>
+        <div className="label-row">
+          {isEditingLabel ? (
+            <input
+              autoFocus
+              className="nodrag w-44 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-center text-[13px] font-bold text-slate-700 shadow-md focus:outline-none focus:ring-2 focus:ring-slate-300"
+              value={labelDraft}
+              placeholder="Label text…"
+              onChange={(e) => setLabelDraft(e.target.value)}
+              onBlur={() => {
+                if (labelDraft.trim()) updateBoxData(id, { content: labelDraft.trim() });
+                setIsEditingLabel(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  if (labelDraft.trim()) updateBoxData(id, { content: labelDraft.trim() });
+                  setIsEditingLabel(false);
+                }
+                if (e.key === "Escape") setIsEditingLabel(false);
+              }}
+            />
+          ) : (
+            <div
+              className="label-pill nodrag cursor-text"
+              style={{ backgroundColor: boxData.labelColor || LABEL_COLORS[0] }}
+              onClick={() => {
+                setLabelDraft(boxData.content);
+                setIsEditingLabel(true);
+              }}
+              title="Click to edit the label text"
+            >
+              {boxData.content || (
+                <span className="text-slate-400 font-medium">Click to add text…</span>
+              )}
+            </div>
+          )}
+          <button
+            className="label-delete nodrag"
+            style={{ left: "calc(100% + 6px)", top: "50%", transform: "translateY(-50%)" }}
+            onClick={() => deleteBox(id)}
+            title="Delete label"
+          >
+            ✕
+          </button>
+        </div>
+        {selected && (
+          <div className="nodrag flex gap-1.5">
+            {LABEL_COLORS.map((c) => (
+              <button
+                key={c}
+                onClick={() => updateBoxData(id, { labelColor: c })}
+                className={
+                  "w-4 h-4 rounded-full border transition " +
+                  ((boxData.labelColor || LABEL_COLORS[0]) === c
+                    ? "border-slate-700 scale-125"
+                    : "border-slate-300")
+                }
+                style={{ backgroundColor: c }}
+                title="Set label color"
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const isRunning = boxData.status === "running";
   const hasError = boxData.status === "error";
   const hasTextOutput = boxData.output && boxData.output.trim().length > 0;
@@ -230,8 +333,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   return (
     <>
       <NodeResizer
-        minWidth={isLabel ? 120 : isNote ? 160 : 220}
-        minHeight={isLabel ? 40 : isNote ? 140 : isTimer ? 150 : 160}
+        minWidth={220}
+        minHeight={isTimer ? 150 : 160}
         isVisible={!!selected}
       />
       <div
@@ -298,80 +401,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
       {/* Body */}
       <div className="px-3 py-2 flex-1 min-h-0 overflow-y-auto">
-        {/* ===== Collaboration boxes (standalone, no AI) ===== */}
-
-        {/* Note box — post-it style team note */}
-        {isNote && (
-          <div className="flex flex-col h-full gap-1.5">
-            <textarea
-              // nodrag/nowheel: typing and scrolling inside the note must not
-              // drag or pan the node/canvas (React Flow listens for drags on
-              // the whole node unless the target has .nodrag).
-              className="nodrag nowheel w-full flex-1 min-h-[110px] resize-none rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-sm text-slate-700 shadow-inner placeholder:text-amber-700/40 focus:outline-none focus:ring-2 focus:ring-amber-300"
-              placeholder="Write a note for the team…"
-              value={boxData.content}
-              onChange={(e) => updateBoxData(id, { content: e.target.value })}
-            />
-            <p className="text-[10px] text-amber-700/70 truncate">
-              — {boxData.authorName || "Someone"}
-              {boxData.authorEmail ? ` (${boxData.authorEmail})` : ""}
-            </p>
-          </div>
-        )}
-
-        {/* Label box — small colored text pill */}
-        {isLabel && (
-          <div className="flex flex-col items-center justify-center h-full gap-2">
-            {isEditingLabel ? (
-              <input
-                autoFocus
-                className="nodrag w-full max-w-[180px] rounded-full border border-slate-300 bg-white px-3 py-1.5 text-center text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300"
-                value={labelDraft}
-                placeholder="Label text…"
-                onChange={(e) => setLabelDraft(e.target.value)}
-                onBlur={() => {
-                  if (labelDraft.trim()) updateBoxData(id, { content: labelDraft.trim() });
-                  setIsEditingLabel(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    if (labelDraft.trim()) updateBoxData(id, { content: labelDraft.trim() });
-                    setIsEditingLabel(false);
-                  }
-                  if (e.key === "Escape") setIsEditingLabel(false);
-                }}
-              />
-            ) : (
-              <div
-                className="nodrag max-w-full cursor-text rounded-full border border-black/5 px-4 py-1.5 text-sm font-bold text-slate-700 shadow-sm truncate"
-                style={{ backgroundColor: boxData.labelColor || LABEL_COLORS[0] }}
-                onClick={() => {
-                  setLabelDraft(boxData.content);
-                  setIsEditingLabel(true);
-                }}
-                title="Click to edit the label text"
-              >
-                {boxData.content || (
-                  <span className="text-slate-400 font-medium">Click to add text…</span>
-                )}
-              </div>
-            )}
-            {selected && (
-              <div className="nodrag flex gap-1.5">
-                {LABEL_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => updateBoxData(id, { labelColor: c })}
-                    className={"w-4 h-4 rounded-full border transition " + ((boxData.labelColor || LABEL_COLORS[0]) === c ? "border-slate-700 scale-125" : "border-slate-300")}
-                    style={{ backgroundColor: c }}
-                    title="Set label color"
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
+        {/* Timer box (collab) — the only collaboration box rendered inside the
+            standard card; note/label early-return above as annotations. */}
         {/* Timer box — shared countdown clock, synced via the board doc */}
         {isTimer && (() => {
           const duration = boxData.timerDurationMs ?? DEFAULT_TIMER_MS;

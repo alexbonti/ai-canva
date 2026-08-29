@@ -143,7 +143,8 @@ to every viewer through the board document snapshot, like all boxes.
 ### 🗒️ Note — `note`
 
 A post-it style note for team communication. Anyone can write; everyone on the board sees edits
-live.
+live. Notes render as **annotation paper, not a box card** — no header bar or border chrome, just
+a slightly rotated yellow sticky with a hover/selected ✕ delete button.
 
 - **Fields:** `content` (the note text), `authorEmail` / `authorName` (captured once at creation,
   shown under the note).
@@ -151,7 +152,8 @@ live.
 
 ### 🏷️ Label — `label`
 
-A small colored text pill for annotating areas of the board.
+A small colored text pill for annotating areas of the board. Labels render as a **floating chip
+with no card frame at all** — the pill *is* the node, with a hover/selected ✕ delete button.
 
 - **Fields:** `content` (label text), `labelColor` (one of `LABEL_COLORS` in `types.ts`).
 - **Interaction:** click the pill to edit the text; select the box to reveal five color dots.
