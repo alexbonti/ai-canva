@@ -183,5 +183,41 @@ export function createApp(): express.Express {
     });
   });
 
+  /**
+   * POST /api/admin/roles — facilitator role management needs the Admin SDK,
+   * so it only exists in the Cloud Function (same deviation as admin stats).
+   */
+  app.post("/api/admin/roles", (_req, res) => {
+    res.status(501).json({
+      error: "Role management is only available in the Firebase Cloud Function (production).",
+    });
+  });
+
+  /**
+   * Workshop guest join proxies to the DEPLOYED Cloud Function. The join
+   * endpoint mints Firebase custom tokens, which requires the Admin SDK —
+   * the local server has no service account. Proxying (instead of stubbing)
+   * keeps the full guest flow testable on localhost: the deployed function
+   * is the source of truth and localhost is an authorized auth domain.
+   */
+  app.post("/api/workshop/join", async (req, res) => {
+    const PROXY_TARGET =
+      process.env.WORKSHOP_PROXY_URL || "https://carbondocs.web.app/api/workshop/join";
+    try {
+      const r = await fetch(PROXY_TARGET, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body || {}),
+      });
+      const data = await r.json();
+      res.status(r.status).json(data);
+    } catch (e: any) {
+      console.error("[/api/workshop/join] proxy error:", e?.message);
+      res
+        .status(502)
+        .json({ error: "Workshop join is unavailable — the production function could not be reached." });
+    }
+  });
+
   return app;
 }

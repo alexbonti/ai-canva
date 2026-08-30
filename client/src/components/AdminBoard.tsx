@@ -4,6 +4,7 @@ import {
   fetchAdminStats,
   fetchUsers,
   setUserBlocked,
+  setFacilitatorRole,
   type AdminStats,
   type AdminUser,
 } from "../lib/admin.js";
@@ -102,6 +103,18 @@ export default function AdminBoard({ user, onBack }: { user: User; onBack: () =>
     if (tab === "users" && users.length === 0) loadUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
+
+  const handleToggleFacilitator = async (target: AdminUser) => {
+    setBusyUid(target.uid);
+    try {
+      await setFacilitatorRole(user, target.uid, !target.facilitator);
+      setUsers((prev) => prev.map((u) => (u.uid === target.uid ? { ...u, facilitator: !u.facilitator } : u)));
+    } catch (err: any) {
+      alert(err?.message || "Failed to update role");
+    } finally {
+      setBusyUid(null);
+    }
+  };
 
   const handleToggleBlock = async (target: AdminUser) => {
     const action = target.disabled ? "unblock" : "block";
@@ -256,6 +269,23 @@ export default function AdminBoard({ user, onBack }: { user: User; onBack: () =>
                         <span className={"inline-block px-2 py-0.5 rounded-full text-xs font-medium " + (u.disabled ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700")}>
                           {u.disabled ? "Blocked" : "Active"}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-2">
+                          <span className={"inline-block px-2 py-0.5 rounded-full text-xs font-medium " + (u.facilitator ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-400")}>
+                            {u.facilitator ? "Facilitator" : "—"}
+                          </span>
+                          {u.uid !== user.uid && (
+                            <button
+                              onClick={() => handleToggleFacilitator(u)}
+                              disabled={busyUid === u.uid}
+                              className="px-2.5 py-1 rounded-lg text-xs font-medium text-indigo-600 hover:bg-indigo-50 transition disabled:opacity-60"
+                              title={u.facilitator ? "Revoke the facilitator role" : "Grant the facilitator role"}
+                            >
+                              {u.facilitator ? "Revoke" : "Grant"}
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-right hidden md:table-cell">
                         <div className="text-sm text-slate-700 font-medium tabular-nums">{formatNum(u.tokens?.promptTokens)}</div>

@@ -19,6 +19,42 @@ export function onAuthChange(callback: (user: User | null) => void): () => void 
   return onAuthStateChanged(auth, callback);
 }
 
+/**
+ * Joins a workshop with a seat code. The join endpoint (Cloud Function)
+ * redeems the code for a durable Firebase custom token: first use binds the
+ * code to a new guest uid, later uses return a token for the SAME uid so the
+ * guest keeps their identity and boards on any device. Signs in and returns
+ * the team/workshop info for the post-join flow.
+ */
+export async function signInWithWorkshopCode(
+  code: string
+): Promise<{
+  isNew: boolean;
+  teamId: string;
+  workshopId: string;
+  teamName: string;
+  workshopName: string;
+  boardId: string;
+}> {
+  const { signInWithCustomToken } = await import("firebase/auth");
+  const res = await fetch("/api/workshop/join", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: code.trim().toUpperCase() }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error || "Failed to join workshop");
+  await signInWithCustomToken(auth, data.token as string);
+  return {
+    isNew: !!data.isNew,
+    teamId: data.teamId || "",
+    workshopId: data.workshopId || "",
+    teamName: data.teamName || "",
+    workshopName: data.workshopName || "",
+    boardId: data.boardId || "",
+  };
+}
+
 // --- E2E test helpers (unused by the app UI, so tree-shaken from prod) ---
 // The E2E suite (client/e2e.mjs) imports this module from the Vite dev server
 // and signs in with email/password — the prod UI only offers Google. Requires

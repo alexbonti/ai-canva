@@ -29,6 +29,7 @@ import {
 } from "../lib/firestore.js";
 import type { PresenceUser } from "../types.js";
 import { useAuthStore } from "./authStore.js";
+import { getUserEmail } from "../lib/admin.js";
 import { useTokenStore } from "./tokenStore.js";
 
 function makeId(): string {
@@ -412,9 +413,13 @@ export const useBoardStore = create<BoardState>()(
         const user = useAuthStore.getState().user;
         if (!user) return;
         try {
+          // Guests (workshop code users) have no auth email — fall back to
+          // their profile email from users/{uid} so email-shared boards still
+          // appear for them.
+          const email = user.email || (await getUserEmail(user.uid));
           const [owned, shared] = await Promise.all([
             listBoards(user.uid),
-            user.email ? listSharedBoards(user.email) : Promise.resolve([]),
+            email || user.uid ? listSharedBoards(email, user.uid) : Promise.resolve([]),
           ]);
           // Merge, deduplicate by id, sort by updatedAt desc
           const seen = new Set<string>();

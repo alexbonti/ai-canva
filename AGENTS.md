@@ -161,7 +161,11 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   "Missing or insufficient permissions" page error from Part 1's fake user is expected noise.
   Run with `node e2e.mjs` from `client/` while `npm run dev` is up. Playwright clicks inside
   React Flow's transform can misfire (rotated post-its especially) — prefer `page.evaluate` JS
-  clicks/native value setters over coordinate clicks. Result at time of writing: **61/61 passed** (roster, area-drawing, and custom-box checks included).
+  clicks/native value setters over coordinate clicks. Part 3 (facilitator + guest): the suite
+  grants the facilitator role to a test user via the Firestore admin REST API (OAuth token from
+  firebase-tools), then drives the dashboard (workshop → template → team → seat codes), joins as
+  a guest in a fresh context (code → profile modal → team board → own board → team board visible
+  in the list), and cleans everything up. Result at time of writing: **75/75 passed**.
 
 ## Conventions & gotchas
 
@@ -279,6 +283,28 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   Firestore rules for the `boxes` subcollection live under `match /users/{uid}/boxes/{boxId}` —
   remember to deploy rules (`firebase deploy --only firestore:rules`) when they change; the E2E
   writes were denied until the rules were live.
+- **Workshops / facilitator / guests:** `facilitators/{uid}` marker docs mirror `admins/{uid}`
+  (self-read only; granted via `POST /api/admin/roles`, admin-only, functions — 501 locally).
+  The Facilitator Dashboard (`FacilitatorBoard.tsx`, header button for admins+facilitators) has
+  Templates / Workshops / Teams tabs: templates are ordinary boards flagged `isTemplate`
+  (`listBoards` excludes them from the regular board list), workshops live at `workshops/{id}`,
+  and a team is created by COPYING a template board (`buildTeamBoard` in `lib/workshop.ts`) with
+  `{workshopId, boardId, facilitatorUid, maxMembers: 5}` at `teams/{id}`. Seat codes live at the
+  **top-level `codes/{code}`** (`{code, teamId, workshopId, uid?, claimed?}`) — top level so the
+  join endpoint fetches by id with NO query/index (a collection-group query would need an index
+  you cannot create without the console). **Guests:** the landing shows "🎟️ Have a workshop
+  code?" → `POST /api/workshop/join { code }` (functions only) mints a Firebase **custom token**
+  for a durable uid — first use creates the auth user and claims the code, later uses return a
+  token for the SAME uid (codes are effectively bearer credentials), so guests keep their
+  identity/boards across devices. Guests then pick a name (email optional, never for login) via
+  `GuestProfileModal`, get added to the team board via `memberUids` (new BoardDoc field;
+  `listSharedBoards(email, uid)` merges the email and memberUids queries), and can create their
+  own boards (guests skip the auto-"My First Board" creation — no auth email). The local dev
+  server PROXIES `/api/workshop/join` to the deployed function (Admin SDK needed). **Critical
+  IAM gotcha:** custom-token minting failed with `iam.serviceAccounts.signBlob` denied until the
+  project granted `roles/iam.serviceAccountTokenCreator` to the functions runtime service accounts
+  (done once via `cloudresourcemanager setIamPolicy`; `saveBoard` must also carry
+  `isTemplate`/`teamId`/`memberUids` or template flags are silently dropped).
 - **Presence & the board roster:** `boards/{id}/presence/{uid}` docs power live cursors
   (`Cursors.tsx`) and the header roster (`PresenceRoster.tsx`). Cursor moves are throttled to one
   write per 200ms; a **heartbeat in `boardStore.ts` re-stamps `lastActive` every 15s** while a

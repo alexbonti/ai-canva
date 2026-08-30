@@ -27,6 +27,12 @@ export interface BoardDoc {
   ownerId: string;
   ownerEmail: string;
   collaborators: string[];
+  /** Facilitator template boards — excluded from the regular board list. */
+  isTemplate?: boolean;
+  /** Set on team boards created from a template (back-reference). */
+  teamId?: string;
+  /** Guest (code-based) members with access, by uid — team boards. */
+  memberUids?: string[];
   nodes: unknown[];
   edges: unknown[];
   boxData: Record<string, unknown>;
@@ -43,6 +49,9 @@ function parseBoard(id: string, data: Record<string, any>): BoardDoc {
     ownerId: data.ownerId || "",
     ownerEmail: data.ownerEmail || "",
     collaborators: data.collaborators || [],
+    isTemplate: data.isTemplate || false,
+    teamId: data.teamId || "",
+    memberUids: data.memberUids || [],
     nodes: data.nodes || [],
     edges: data.edges || [],
     boxData: data.boxData || {},
@@ -64,6 +73,9 @@ export async function saveBoard(board: BoardDoc): Promise<void> {
       nodes: board.nodes,
       edges: board.edges,
       boxData: board.boxData,
+      isTemplate: board.isTemplate || false,
+      teamId: board.teamId || "",
+      memberUids: board.memberUids || [],
       createdAt: board.createdAt,
       updatedAt: board.updatedAt,
     },
@@ -88,19 +100,78 @@ export async function listBoards(userId: string): Promise<BoardDoc[]> {
   );
   const snap = await getDocs(q);
   const boards = snap.docs.map((d) => parseBoard(d.id, d.data() as Record<string, any>));
-  return boards.sort((a, b) => b.updatedAt - a.updatedAt);
+  return boards
+    .filter((b) => !b.isTemplate) // templates are managed in the Facilitator Dashboard
+    .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
-/** Lists boards shared with a user by email, newest first. */
-export async function listSharedBoards(userEmail: string): Promise<BoardDoc[]> {
+/** Lists a facilitator's template boards (workshop assets). */
+export async function listTemplateBoards(userId: string): Promise<BoardDoc[]> {
   const q = query(
     collection(db, BOARDS_COLLECTION),
-    where("collaborators", "array-contains", userEmail),
+    where("ownerId", "==", userId),
+    where("isTemplate", "==", true),
     limit(50)
   );
   const snap = await getDocs(q);
-  const boards = snap.docs.map((d) => parseBoard(d.id, d.data() as Record<string, any>));
-  return boards.sort((a, b) => b.updatedAt - a.updatedAt);
+  return snap.docs
+    .map((d) => parseBoard(d.id, d.data() as Record<string, any>))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+/**
+ * Lists boards shared with a user — either by email (the classic share flow)
+ * or by uid membership (workshop team boards carry memberUids for guests).
+ * Either key may be empty; results are merged and deduped, newest first.
+ */
+export async function listSharedBoards(userEmail: string, uid?: string): Promise<BoardDoc[]> {
+  const queries: Promise<BoardDoc[]>[] = [];
+  if (userEmail) {
+    queries.push(
+      getDocs(
+        query(
+          collection(db, BOARDS_COLLECTION),
+          where("collaborators", "array-contains", userEmail),
+          limit(50)
+        )
+      ).then((snap) => snap.docs.map((d) => parseBoard(d.id, d.data() as Record<string, any>)))
+    );
+  }
+  if (uid) {
+    queries.push(
+      getDocs(
+        query(
+          collection(db, BOARDS_COLLECTION),
+          where("memberUids", "array-contains", uid),
+          limit(50)
+        )
+      ).then((snap) => snap.docs.map((d) => parseBoard(d.id, d.data() as Record<string, any>)))
+    );
+  }
+  const results = await Promise.all(queries);
+  const seen = new Set<string>();
+  const merged: BoardDoc[] = [];
+  for (const list of results) {
+    for (const b of list) {
+      if (seen.has(b.id)) continue;
+      seen.add(b.id);
+      merged.push(b);
+    }
+  }
+  return merged.sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+/** Adds a guest as a member of a board (uid always; email when provided). */
+export async function addBoardMember(
+  boardId: string,
+  uid: string,
+  email?: string
+): Promise<void> {
+  const ref = doc(db, BOARDS_COLLECTION, boardId);
+  await updateDoc(ref, {
+    memberUids: arrayUnion(uid),
+    ...(email ? { collaborators: arrayUnion(email) } : {}),
+  });
 }
 
 /** Deletes a board by ID. */

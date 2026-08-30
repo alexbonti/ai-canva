@@ -263,6 +263,15 @@ app.get("/api/admin/users", async (req, res) => {
       // Leave map empty; users will show 0 usage.
     }
 
+    // Facilitator role markers, joined by uid (facilitators/{uid} docs).
+    const facilitators = new Set<string>();
+    try {
+      const facSnap = await getFirestore().collection("facilitators").get();
+      facSnap.forEach((d) => facilitators.add(d.id));
+    } catch {
+      // Leave empty; users will show as non-facilitators.
+    }
+
     const users = result.users.map((u) => {
       const t = usageMap.get(u.uid) || { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
       return {
@@ -271,6 +280,7 @@ app.get("/api/admin/users", async (req, res) => {
         displayName: u.displayName || u.email || "",
         photoURL: u.photoURL || "",
         disabled: !!u.disabled,
+        facilitator: facilitators.has(u.uid),
         createdAt: u.metadata?.creationTime || null,
         lastSignIn: u.metadata?.lastSignInTime || null,
         tokens: t,
@@ -307,6 +317,128 @@ app.post("/api/admin/users/:uid/status", async (req, res) => {
     }
     console.error("[/api/admin/users/:uid/status] Error:", err.message);
     res.status(500).json({ error: err.message || "Failed to update user" });
+  }
+});
+
+/**
+ * POST /api/admin/roles   { uid, role: "facilitator", grant: boolean }
+ * Admin-only. Grants or revokes the facilitator role (facilitators/{uid}).
+ */
+app.post("/api/admin/roles", async (req, res) => {
+  try {
+    const auth = await requireAdmin(req);
+    if ("status" in auth) {
+      return res.status(auth.status).json({ error: auth.error });
+    }
+    const { uid, role, grant } = req.body || {};
+    if (role !== "facilitator") {
+      return res.status(400).json({ error: "Unsupported role" });
+    }
+    if (typeof uid !== "string" || !uid) {
+      return res.status(400).json({ error: "Missing uid" });
+    }
+    const ref = getFirestore().doc(`facilitators/${uid}`);
+    if (grant) {
+      await ref.set({ grantedBy: auth.uid, grantedAt: Date.now() });
+    } else {
+      await ref.delete();
+    }
+    res.json({ uid, role, grant: !!grant });
+  } catch (err: any) {
+    console.error("[/api/admin/roles] Error:", err.message);
+    res.status(500).json({ error: err.message || "Failed to update role" });
+  }
+});
+
+/**
+ * POST /api/workshop/join   { code }
+ * Redeems a workshop seat code for a guest. Codes are durable credentials:
+ * the FIRST redemption creates a dedicated guest auth user and binds it to
+ * the code; every later redemption returns a fresh custom token for the
+ * SAME uid, so guests keep their identity (profile, boards) on any device.
+ * Uses the Admin SDK (custom token minting) — this endpoint exists only in
+ * the Cloud Function; the local dev server proxies to it.
+ */
+app.post("/api/workshop/join", async (req, res) => {
+  try {
+    const code = String(req.body?.code || "").trim().toUpperCase();
+    if (!/^[A-Z2-9]{8}$/.test(code)) {
+      return res.status(400).json({ error: "Invalid code format" });
+    }
+
+    // Codes live at the top-level codes/{code} collection: a direct doc get
+    // (no query — collection-group queries would need an index).
+    const db = getFirestore();
+    const codeRef = db.doc(`codes/${code}`);
+    const codeSnap = await codeRef.get();
+    if (!codeSnap.exists) {
+      return res.status(404).json({ error: "Unknown code — check with your facilitator" });
+    }
+    const codeData = codeSnap.data() as {
+      code: string;
+      teamId?: string;
+      workshopId?: string;
+      uid?: string;
+      claimed?: boolean;
+      claimedAt?: number;
+    };
+    const teamId = codeData.teamId;
+    if (!teamId) {
+      return res.status(500).json({ error: "Corrupt code record" });
+    }
+    const teamSnap = await db.doc(`teams/${teamId}`).get();
+    if (!teamSnap.exists) {
+      return res.status(404).json({ error: "This team no longer exists" });
+    }
+    const team = teamSnap.data() as { boardId?: string; name?: string; workshopName?: string; maxMembers?: number };
+
+    // Enforce team capacity: count already-claimed codes for this team.
+    // Single-field query (teamId) + client-side filter on claimed — avoids a
+    // composite index; teams have at most 5 codes, so this is trivially cheap.
+    const teamCodesSnap = await db.collection("codes").where("teamId", "==", teamId).get();
+    const claimedCount = teamCodesSnap.docs.filter((d) => d.data()?.claimed).length;
+    let guestUid = codeData.uid;
+
+    if (!guestUid) {
+      if (claimedCount >= (team.maxMembers ?? 5)) {
+        return res.status(409).json({ error: "This team is full (5/5)" });
+      }
+      guestUid = `guest-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+      try {
+        await getAuth().createUser({ uid: guestUid });
+      } catch (e: any) {
+        // uid collision is practically impossible; treat other errors as fatal
+        if (e?.code !== "auth/uid-already-exists") throw e;
+      }
+      await codeRef.set(
+        { uid: guestUid, claimed: true, claimedAt: Date.now() },
+        { merge: true }
+      );
+      await db.doc(`users/${guestUid}`).set({
+        guest: true,
+        displayName: "",
+        email: "",
+        teamId,
+        workshopId: codeData.workshopId || "",
+        code,
+        createdAt: Date.now(),
+        lastActive: Date.now(),
+      });
+    }
+
+    const token = await getAuth().createCustomToken(guestUid);
+    res.json({
+      token,
+      isNew: !codeData.uid,
+      teamId,
+      workshopId: codeData.workshopId || "",
+      teamName: team.name || "",
+      workshopName: team.workshopName || "",
+      boardId: team.boardId || "",
+    });
+  } catch (err: any) {
+    console.error("[/api/workshop/join] Error:", err.message);
+    res.status(500).json({ error: err.message || "Failed to join workshop" });
   }
 });
 

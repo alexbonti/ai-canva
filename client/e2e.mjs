@@ -781,6 +781,300 @@ await pageA.goto(APP, { waitUntil: "load" });
   }
   await ctxA.close();
 }
+
+// ---------- PART 3: FACILITATOR + WORKSHOP GUEST ----------
+// Runs against the local dev app; the guest join goes through the local
+// server's proxy to the deployed join endpoint (custom-token minting needs
+// the Admin SDK). The facilitator role is granted to e2e-a via the admin
+// Firestore REST API (the same OAuth token used for user cleanup).
+import fs from "node:fs";
+import os from "node:os";
+let adminToken = "";
+try {
+  const cfg = JSON.parse(fs.readFileSync(os.homedir() + "/.config/configstore/firebase-tools.json", "utf8"));
+  const exp = cfg.tokens?.expires_at || 0;
+  if (Date.now() / 1000 < exp) adminToken = cfg.tokens?.access_token || "";
+} catch {
+  // no token — facilitator checks will be skipped gracefully
+}
+const fsRest = (method, path, body) =>
+  fetch(`https://firestore.googleapis.com/v1/projects/carbondocs/databases/(default)/documents${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  }).then((r) => r.json());
+
+await safe("TF facilitator flow", async () => {
+  // Sign in a fresh facilitator user (e2e-f) — cleaner than reusing A.
+  const ctxF = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const pageF = await ctxF.newPage();
+  await pageF.goto(APP, { waitUntil: "load" });
+  const fEmail = await signInReal(pageF, "e2e-f@test.local");
+  check("TF facilitator signs in", fEmail === "e2e-f@test.local", `user=${fEmail}`);
+  const fUid = await pageF.evaluate(() => window.__dsh.useAuthStore.getState().user?.uid);
+
+  // Grant the facilitator role via the admin REST API, then reload so the
+  // app picks up the flag.
+  if (adminToken) {
+    await fsRest("PATCH", `/facilitators/${fUid}`, {
+      fields: { grantedBy: { stringValue: "e2e" }, grantedAt: { integerValue: "1" } },
+    });
+    await pageF.reload({ waitUntil: "load" });
+    await waitFor(() => pageF.evaluate(() => window.__dsh.useAuthStore.getState().user?.uid === null ? null : true), {
+      label: "facilitator re-login",
+      timeout: 30000,
+    }).catch(() => {});
+    await pageF.waitForTimeout(2500);
+  }
+  const hasFacilitatorBtn = await pageF.evaluate(() =>
+    Array.from(document.querySelectorAll("button")).some((b) => (b.textContent || "").includes("Facilitator"))
+  );
+  check("TF facilitator button appears after grant", hasFacilitatorBtn || !adminToken, adminToken ? "" : "(no admin token — skipped)");
+
+  if (hasFacilitatorBtn) {
+    // Open the dashboard and create a workshop.
+    await pageF.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+        (b.textContent || "").includes("🧑‍🏫 Facilitator")
+      );
+      btn && btn.click();
+    });
+    await pageF.waitForTimeout(600);
+    const dashboard = await pageF.evaluate(() => document.body.innerText.includes("Facilitator Dashboard"));
+    check("TF dashboard opens", dashboard);
+
+    await pageF.evaluate(() => {
+      const inp = document.querySelector("input[placeholder*='Workshop name']");
+      if (!inp) return false;
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+      setter.call(inp, "E2E Workshop");
+      inp.dispatchEvent(new Event("input", { bubbles: true }));
+      const btn = Array.from(document.querySelectorAll("button")).find((b) => b.textContent.trim() === "Create");
+      btn && btn.click();
+      return true;
+    });
+    await pageF.waitForTimeout(2000);
+    const workshopCreated = await pageF.evaluate(() => document.body.innerText.includes("E2E Workshop"));
+    check("TF workshop created", workshopCreated);
+
+    // Create a template board (Create & open), then return to the dashboard.
+    await pageF.evaluate(() => {
+      const tabs = Array.from(document.querySelectorAll("button")).filter((b) => b.textContent.trim() === "templates");
+      tabs[0] && tabs[0].click();
+    });
+    await pageF.waitForTimeout(400);
+    await pageF.evaluate(() => {
+      const inp = document.querySelector("input[placeholder*='Template name']");
+      if (!inp) return;
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+      setter.call(inp, "E2E Template");
+      inp.dispatchEvent(new Event("input", { bubbles: true }));
+      const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+        (b.textContent || "").includes("Create & open")
+      );
+      btn && btn.click();
+    });
+    await pageF.waitForTimeout(3000); // template board created + opened
+    const templateBoardLoaded = await pageF.evaluate(() =>
+      !!window.__dsh.useBoardStore.getState().currentBoardId
+    );
+    check("TF template board created and opened", templateBoardLoaded);
+
+    // Back to the dashboard → teams → create a team from the template.
+    await pageF.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+        (b.textContent || "").includes("🧑‍🏫 Facilitator")
+      );
+      btn && btn.click();
+    });
+    await pageF.waitForTimeout(800);
+    await pageF.evaluate(() => {
+      const tabs = Array.from(document.querySelectorAll("button")).filter((b) => b.textContent.trim() === "teams");
+      tabs[0] && tabs[0].click();
+    });
+    // Wait for both selects to be populated (workshops + templates load
+    // asynchronously after the dashboard mounts).
+    await waitFor(
+      () =>
+        pageF.evaluate(() => {
+          const sels = Array.from(document.querySelectorAll("select"));
+          if (sels.length < 2) return null;
+          const hasWs = Array.from(sels[0].options).some((o) => o.text === "E2E Workshop");
+          const hasTpl = Array.from(sels[1].options).some((o) => o.text === "E2E Template");
+          return hasWs && hasTpl ? true : null;
+        }),
+      { label: "team form selects populated", timeout: 20000 }
+    ).catch(() => {});
+    const setSelect = (idx, label) =>
+      pageF.evaluate(({ idx, label }) => {
+        const sel = document.querySelectorAll("select")[idx];
+        if (!sel) return false;
+        const opt = Array.from(sel.options).find((o) => o.text === label);
+        if (!opt) return false;
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value").set;
+        setter.call(sel, opt.value);
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+        return true;
+      }, { idx, label });
+    const wsOk = await setSelect(0, "E2E Workshop");
+    await pageF.waitForTimeout(500);
+    const tplOk = await setSelect(1, "E2E Template");
+    const teamFormState = { wsOk, tplOk };
+    await pageF.evaluate(() => {
+      const selects = Array.from(document.querySelectorAll("select"));
+      const tpl = selects[1];
+      const tplSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value").set;
+      const tplOption = Array.from(tpl.options).find((o) => o.text === "E2E Template");
+      if (tplOption) { tplSetter.call(tpl, tplOption.value); tpl.dispatchEvent(new Event("change", { bubbles: true })); }
+      const inp = document.querySelector("input[placeholder*='Team name']");
+      if (inp) {
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+        setter.call(inp, "Team Rocket");
+        inp.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      const btn = Array.from(document.querySelectorAll("button")).find((b) => b.textContent.trim() === "Create team");
+      btn && btn.click();
+    });
+    await pageF.waitForTimeout(3500);
+    const seatCode = await pageF.evaluate(() => {
+      const codes = Array.from(document.querySelectorAll("code")).map((c) => c.textContent.trim());
+      const claimed = document.body.innerText.includes("Seats: 0/5");
+      return { code: codes.find((c) => /^[A-Z2-9]{8}$/.test(c)) || null, zeroSeats: claimed, teamListed: document.body.innerText.includes("Team Rocket") };
+    });
+    check("TF team created from the template", seatCode.teamListed && seatCode.zeroSeats, JSON.stringify({ ...seatCode, ...teamFormState }));
+    check("TF team has seat codes", !!seatCode.code, seatCode.code || "none");
+
+    // ----- GUEST: join with the code in a fresh context -----
+    if (seatCode.code) {
+      const ctxG = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+      const pageG = await ctxG.newPage();
+      await pageG.goto(APP, { waitUntil: "load" });
+      await pageG.waitForTimeout(1500);
+      // Open the code modal from the landing.
+      await pageG.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+          (b.textContent || "").includes("Have a workshop code?")
+        );
+        btn && btn.click();
+      });
+      await pageG.waitForTimeout(400);
+      const modalOpened = await pageG.evaluate(() => !!document.querySelector("input[placeholder='CODE']"));
+      check("TG guest code modal opens on the landing", modalOpened);
+      await pageG.evaluate((code) => {
+        const inp = document.querySelector("input[placeholder='CODE']");
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+        setter.call(inp, code);
+        inp.dispatchEvent(new Event("input", { bubbles: true }));
+        const btn = Array.from(document.querySelectorAll("button")).find((b) => b.textContent.trim() === "Join");
+        btn && btn.click();
+      }, seatCode.code);
+      // The guest signs in via the custom token, then gets the profile modal.
+      const profileModal = await waitFor(
+        () =>
+          pageG.evaluate(() =>
+            document.body.innerText.includes("Welcome to") &&
+            document.querySelector("input[placeholder*='e.g. Alex']")
+              ? true
+              : null
+          ),
+        { label: "guest profile modal", timeout: 30000 }
+      ).then(() => true).catch(() => false);
+      check("TG guest gets the profile step (no login needed)", profileModal);
+      const guestUid = await pageG.evaluate(() => window.__dsh.useAuthStore.getState().user?.uid).catch(() => null);
+      if (profileModal) {
+        await pageG.evaluate(() => {
+          const inp = document.querySelector("input[placeholder*='e.g. Alex']");
+          const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+          setter.call(inp, "Guesty McGuest");
+          inp.dispatchEvent(new Event("input", { bubbles: true }));
+          const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+            (b.textContent || "").includes("Join my team")
+          );
+          btn && btn.click();
+        });
+        const landed = await waitFor(
+          () => pageG.evaluate(() => (window.__dsh.useBoardStore.getState().currentBoardId ? true : null)),
+          { label: "guest lands on team board", timeout: 30000 }
+        ).then(() => true).catch(() => false);
+        check("TG guest lands on the team board", landed);
+        const boardState = await pageG.evaluate(() => {
+          const s = window.__dsh.useBoardStore.getState();
+          return { title: s.boardTitle, nodes: s.nodes.length };
+        });
+        check("TG team board is the team's template copy", /Team Rocket/.test(boardState.title), JSON.stringify(boardState));
+
+        // The guest creates their own individual board.
+        await pageG.evaluate(() => {
+          const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+            (b.textContent || "").includes("Boards (")
+          );
+          btn && btn.click();
+        });
+        await pageG.waitForTimeout(600);
+        await pageG.evaluate(() => {
+          const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+            (b.textContent || "").includes("New Board")
+          );
+          btn && btn.click();
+        });
+        await pageG.waitForTimeout(500);
+        await pageG.evaluate(() => {
+          const inp = document.querySelector("input[placeholder*='Startup Pitch']");
+          if (inp) {
+            const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+            setter.call(inp, "Guest Own Board");
+            inp.dispatchEvent(new Event("input", { bubbles: true }));
+          }
+          const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+            (b.textContent || "").includes("Create") && inp
+          );
+          btn && btn.click();
+        });
+        await pageG.waitForTimeout(2500);
+        const ownBoard = await pageG.evaluate(() => {
+          const s = window.__dsh.useBoardStore.getState();
+          return { title: s.boardTitle, id: s.currentBoardId };
+        });
+        check("TG guest can create their own board", /Guest Own Board/.test(ownBoard.title), ownBoard.title);
+
+        // The team board is still visible in the guest's board list.
+        const listHasTeam = await pageG.evaluate(() => {
+          const s = window.__dsh.useBoardStore.getState();
+          return s.boardList.some((b) => /Team Rocket/.test(b.title));
+        });
+        check("TG guest sees the team board in their board list", listHasTeam);
+
+        // Cleanup: delete the guest auth user (REST) + close context.
+        if (guestUid && adminToken) {
+          await fetch("https://identitytoolkit.googleapis.com/v1/projects/carbondocs/accounts:delete", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ localId: guestUid }),
+          }).catch(() => {});
+        }
+      }
+      await ctxG.close();
+    }
+
+    // Cleanup: delete the team (also deletes its board + codes).
+    await pageF.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+        (b.title || "").includes("Delete the team")
+      );
+      btn && btn.click();
+    });
+    await pageF.waitForTimeout(2500);
+    const teamGone = await pageF.evaluate(() => !document.body.innerText.includes("Team Rocket"));
+    check("TF team deleted (board + codes cleaned up)", teamGone);
+
+    // Revoke the facilitator role.
+    if (adminToken && fUid) {
+      await fsRest("DELETE", `/facilitators/${fUid}`);
+    }
+  }
+  await ctxF.close();
+});
+
 // ---------- Summary ----------
 const passed = results.filter((r) => r.ok).length;
 console.log("\n================ E2E SUMMARY ================");
