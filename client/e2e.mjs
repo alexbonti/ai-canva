@@ -615,6 +615,142 @@ await pageA.goto(APP, { waitUntil: "load" });
     await ctxB.close();
   }
 
+  // ----- T14: Custom boxes (create, instantiate, run, persist, delete) -----
+  {
+    const setNative = (sel, value) =>
+      pageA.evaluate(({ sel, value }) => {
+        const el = document.querySelector(sel);
+        if (!el) return false;
+        const proto = el.tagName === "TEXTAREA" ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+        Object.getOwnPropertyDescriptor(proto, "value").set.call(el, value);
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        return true;
+      }, { sel, value });
+
+    // Open the create dialog via the real sidebar button.
+    await pageA.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+        (b.textContent || "").includes("New Custom Box")
+      );
+      btn && btn.click();
+    });
+    await pageA.waitForTimeout(400);
+    check("T14 custom box modal opens", !!(await pageA.$("input[placeholder*='Translate to French']")));
+
+    // Fill the form.
+    await setNative("input[placeholder*='Translate to French']", "Echo Test Box");
+    await setNative("input[placeholder*='What does this box do?']", "Replies with a fixed marker");
+    await setNative("textarea[placeholder*='What the AI should do']", "Reply with exactly: CUSTOM-BOX-OK");
+    await setNative("textarea[placeholder*='professional translator']", "You follow instructions literally.");
+    await pageA.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+        /Save to my profile/.test(b.textContent || "")
+      );
+      btn && btn.click();
+    });
+    await pageA.waitForTimeout(2000);
+
+    // The definition is saved to the profile and listed in the palette.
+    const listed = await pageA.evaluate(() =>
+      window.__dsh && document.body.innerText.includes("Echo Test Box")
+    );
+    check("T14 saved definition appears in the palette", listed);
+
+    // Add an instance to the board via the palette button.
+    const beforeNodes = await pageA.evaluate(() => window.__dsh.useBoardStore.getState().nodes.length);
+    await pageA.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+        (b.textContent || "").trim().endsWith("Echo Test Box")
+      );
+      btn && btn.click();
+    });
+    await pageA.waitForTimeout(600);
+    const inst = await pageA.evaluate((b) => {
+      const s = window.__dsh.useBoardStore.getState();
+      const n = s.nodes.find((x) => (x.data.boxType || x.type) === "custom");
+      return n ? { id: n.id, nodes: s.nodes.length, prompt: s.boxData[n.id]?.prompt } : null;
+    }, beforeNodes);
+    check("T14 instance added from the template", !!inst && inst.nodes === beforeNodes + 1, JSON.stringify(inst?.prompt || "").slice(0, 40));
+
+    // Run the instance through the real backend.
+    if (inst) {
+      await pageA.evaluate((id) => {
+        const btn = Array.from(
+          document.querySelectorAll(`.react-flow__node[data-id="${id}"] button`)
+        ).find((b) => /▶ Run/.test(b.textContent));
+        btn && btn.click();
+      }, inst.id);
+      let output = null;
+      for (let i = 0; i < 45; i++) {
+        await pageA.waitForTimeout(2000);
+        output = await pageA.evaluate((id) => {
+          const b = window.__dsh.useBoardStore.getState().boxData[id];
+          return b && b.status === "done" ? b.output : null;
+        }, inst.id);
+        if (output) break;
+      }
+      check("T14 custom box runs via real /api/generate", !!output && /CUSTOM-BOX-OK/i.test(output), (output || "").slice(0, 40));
+    }
+
+    // Persistence: reload — the definition must still be listed in the
+    // PALETTE (not the board instance, which shares the name).
+    await pageA.reload({ waitUntil: "load" });
+    const persisted = await waitFor(
+      () => pageA.evaluate(() => {
+        // The palette entry is a BUTTON whose text is exactly the def label;
+        // the board instance renders the name in spans, not buttons.
+        const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+          (b.textContent || "").trim().endsWith("Echo Test Box")
+        );
+        return btn ? true : null;
+      }),
+      { label: "custom def in palette after reload", timeout: 30000 }
+    ).then(() => true).catch(() => false);
+    check("T14 definition persists across reload (saved to profile)", persisted);
+
+    // Delete the template via its hover ✕.
+    const delDbg = await pageA.evaluate(async () => {
+      // Delete every leftover "Echo Test Box" template (prior failed runs
+      // may have left orphans behind — the suite self-heals).
+      let deleted = 0;
+      for (let i = 0; i < 5; i++) {
+        const row = Array.from(document.querySelectorAll("button")).find((b) =>
+          (b.textContent || "").trim().endsWith("Echo Test Box")
+        );
+        if (!row) break;
+        const del = row.parentElement && row.parentElement.querySelector("button[title*='Delete this template']");
+        if (!del) break;
+        del.click();
+        deleted++;
+        await new Promise((r) => setTimeout(r, 700));
+      }
+      const row = Array.from(document.querySelectorAll("button")).find((b) =>
+        (b.textContent || "").trim().endsWith("Echo Test Box")
+      );
+      const del = row && row.parentElement && row.parentElement.querySelector("button[title*='Delete this template']");
+      const clicked = !!del && (del.click(), true);
+      const store = await import("/src/store/userBoxesStore.ts");
+      const auth = await import("/src/store/authStore.ts");
+      return {
+        rowFound: !!row,
+        delFound: !!del,
+        clicked,
+        defCount: document.querySelectorAll("button[title*='Delete this template']").length,
+        uid: auth.useAuthStore.getState().user?.uid,
+        defs: store.useUserBoxesStore.getState().defs.map((d) => ({ id: d.id, label: d.label })),
+      };
+    });
+    const removed = await waitFor(
+      () => pageA.evaluate(() =>
+        Array.from(document.querySelectorAll("button")).every((b) =>
+          !(b.textContent || "").trim().endsWith("Echo Test Box")
+        ) ? true : null
+      ),
+      { label: "template removed", timeout: 15000 }
+    ).then(() => true).catch(() => false);
+    check("T14 template deleted from the profile", removed, JSON.stringify(delDbg));
+  }
+
   // ----- T13: cleanup — delete the test board, sign out -----
   {
     const deleted = await safe("T13 delete", async () => {

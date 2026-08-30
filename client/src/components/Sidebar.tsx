@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useBoardStore } from "../store/boardStore.js";
+import { useUserBoxesStore } from "../store/userBoxesStore.js";
 import { BOX_TYPES } from "../types.js";
 import type { BoxType, BoxCategory, BoxRole } from "../types.js";
+import CustomBoxModal from "./CustomBoxModal.js";
 
 interface SidebarProps {
   open: boolean;
@@ -20,6 +22,10 @@ const ROLE_STORAGE_KEY = "ai-canva:sidebar-role";
 
 export default function Sidebar({ open, onToggle }: SidebarProps) {
   const addBox = useBoardStore((s) => s.addBox);
+  const addCustomBox = useBoardStore((s) => s.addCustomBox);
+  const customDefs = useUserBoxesStore((s) => s.defs);
+  const removeCustomDef = useUserBoxesStore((s) => s.remove);
+  const [showCustomModal, setShowCustomModal] = useState(false);
 
   const [role, setRole] = useState<"all" | BoxRole>(() => {
     const stored = typeof localStorage !== "undefined" ? localStorage.getItem(ROLE_STORAGE_KEY) : null;
@@ -98,7 +104,10 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
         {/* Scrollable content */}
         <div className="overflow-y-auto p-3 space-y-4" style={{ maxHeight: "calc(100% - 105px)" }}>
           {SECTIONS.map((section) => {
-            const boxes = boxesByCategory(section.category);
+            // The static "custom" meta is a runtime fallback, never a
+            // palette item — the Custom section lists the user's saved
+            // definitions instead.
+            const boxes = boxesByCategory(section.category).filter(([t]) => t !== "custom");
             const isCustom = section.category === "custom";
             if (!isCustom && boxes.length === 0) return null;
             return (
@@ -119,14 +128,44 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                     </button>
                   ))}
                   {isCustom && (
-                    <button
-                      disabled
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition border-l-[3px] border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed opacity-60"
-                      title="Coming soon"
-                    >
-                      <span className="text-base flex-shrink-0">➕</span>
-                      <span className="flex-1 text-left">Add Custom</span>
-                    </button>
+                    <>
+                      {/* The user's saved custom box templates — click to add
+                          an instance to the board; ✕ removes the template
+                          (boxes already on boards are unaffected). */}
+                      {customDefs.map((def) => (
+                        <div key={def.id} className="relative group">
+                          <button
+                            onClick={() => addCustomBox(def)}
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition border-l-[3px] bg-slate-50 hover:bg-slate-100 text-slate-700"
+                            style={{ borderLeftColor: def.color }}
+                            title={def.description || "Add this custom box"}
+                          >
+                            <span className="text-base flex-shrink-0">{def.icon}</span>
+                            <span className="flex-1 text-left truncate">{def.label}</span>
+                          </button>
+                          <button
+                            onClick={() => removeCustomDef(def.id)}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full text-[10px] text-slate-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center"
+                            title="Delete this template (boards keep their copies)"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                      {customDefs.length === 0 && (
+                        <p className="text-[11px] text-slate-400 px-1 leading-snug">
+                          Create your own reusable AI boxes — saved to your profile.
+                        </p>
+                      )}
+                      <button
+                        onClick={() => setShowCustomModal(true)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition border-l-[3px] border-indigo-400 bg-indigo-50 hover:bg-indigo-100 text-indigo-700"
+                        title="Create a custom box"
+                      >
+                        <span className="text-base flex-shrink-0">✨</span>
+                        <span className="flex-1 text-left">New Custom Box</span>
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -134,6 +173,9 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
           })}
         </div>
       </div>
+
+      {/* Create Custom Box dialog */}
+      {showCustomModal && <CustomBoxModal onClose={() => setShowCustomModal(false)} />}
     </>
   );
 }

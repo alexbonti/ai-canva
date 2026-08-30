@@ -72,10 +72,11 @@ npm run deploy         # = bash scripts/deploy.sh (production Firebase deploy)
   save serialization (`serialization.ts`). `boardStore.ts` imports these rather than inlining them.
 - **Prompt templating** references connected inputs by name: `{{Box Name}}`, `{{input_1}}`,
   `{{inputs}}`.
-- **14 box types:** Idea, Image, Research, Summarize, PRD, Dev Plan, Cartoon Profile, Slides, Code,
-  UI Design, Stitch UI, plus three collaboration boxes — Note, Label, Timer. Categories:
-  `input`, `worker`, `collab` (standalone annotation tools: no AI, no Run, no handles), and a
-  reserved `custom` on the sidebar. See `docs/BOX_TYPES.md`.
+- **14 built-in box types** plus user-created custom boxes: Idea, Image, Research, Summarize, PRD,
+  Dev Plan, Cartoon Profile, Slides, Code, UI Design, Stitch UI, three collaboration boxes (Note,
+  Label, Timer), and the `custom` runtime type (see "Custom boxes" below). Categories:
+  `input`, `worker`, `collab` (standalone annotation tools: no AI, no Run, no handles), and
+  `custom` (the user's saved templates). See `docs/BOX_TYPES.md`.
 
 ## Admin board
 
@@ -160,7 +161,7 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   "Missing or insufficient permissions" page error from Part 1's fake user is expected noise.
   Run with `node e2e.mjs` from `client/` while `npm run dev` is up. Playwright clicks inside
   React Flow's transform can misfire (rotated post-its especially) — prefer `page.evaluate` JS
-  clicks/native value setters over coordinate clicks. Result at time of writing: **55/55 passed** (roster popover + area-drawing checks included).
+  clicks/native value setters over coordinate clicks. Result at time of writing: **61/61 passed** (roster, area-drawing, and custom-box checks included).
 
 ## Conventions & gotchas
 
@@ -265,6 +266,19 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   -200/-300 borders) so areas never compete with boxes on top; the minimap shows areas in their
   border shade. `noWheelClassName="react-flow__node"` covers area nodes too — scroll over an area
   zooms the canvas as over any node.
+- **Custom boxes (user-created templates):** users create reusable AI box templates ("✨ New
+  Custom Box" in the sidebar) — name, emoji, color, prompt template, system prompt. Definitions
+  are saved per-user at `users/{uid}/boxes/{boxId}` (owner-only rules; `userBoxesStore.ts` loads
+  them on login, `lib/customBoxes.ts` holds the pure validation/normalization, unit-tested).
+  **Instantiation copies, not references:** `addCustomBox(def)` in `boardStore` creates a
+  `custom`-type node whose `data.customLabel/customIcon/customColor` and `boxData.prompt/
+  systemPrompt` are copied from the definition — so deleting a saved template never affects boxes
+  already on boards, and runBox falls through to the normal text-AI branch (no special casing).
+  BoxNode merges the static `BOX_TYPES.custom` fallback with the per-node overrides; the Sidebar
+  excludes the static `custom` entry from the palette and renders the user's definitions instead.
+  Firestore rules for the `boxes` subcollection live under `match /users/{uid}/boxes/{boxId}` —
+  remember to deploy rules (`firebase deploy --only firestore:rules`) when they change; the E2E
+  writes were denied until the rules were live.
 - **Presence & the board roster:** `boards/{id}/presence/{uid}` docs power live cursors
   (`Cursors.tsx`) and the header roster (`PresenceRoster.tsx`). Cursor moves are throttled to one
   write per 200ms; a **heartbeat in `boardStore.ts` re-stamps `lastActive` every 15s** while a

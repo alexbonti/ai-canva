@@ -8,6 +8,7 @@ import ShareModal from "./components/ShareModal.js";
 import LandingPage from "./components/landing/LandingPage.js";
 import AdminBoard from "./components/AdminBoard.js";
 import PresenceRoster from "./components/PresenceRoster.js";
+import { useUserBoxesStore } from "./store/userBoxesStore.js";
 import { useBoardStore } from "./store/boardStore.js";
 import { useAuthStore } from "./store/authStore.js";
 import { useTokenStore } from "./store/tokenStore.js";
@@ -63,8 +64,10 @@ export default function App() {
       setIsAdminUser(false);
       setAdminView(false);
       useTokenStore.getState().reset();
+      useUserBoxesStore.setState({ defs: [] });
       return;
     }
+    useUserBoxesStore.getState().load();
     updateUserProfile(user).catch(() => {});
     isAdmin(user.uid).then(setIsAdminUser).catch(() => {});
     // Seed the user's cumulative token count from Firestore.

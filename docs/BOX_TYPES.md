@@ -173,6 +173,22 @@ A shared countdown clock. Anyone can start/pause/stop/reset it; every viewer see
 
 ---
 
+## Custom boxes
+
+The `custom` type is not a built-in — it is what **user-created templates** instantiate as.
+Users build their own reusable AI boxes ("✨ New Custom Box" in the sidebar): a name, emoji,
+color, and the prompt/system-prompt templates (with the same `{{input_1}}` variables as the
+built-ins). Definitions are saved to the user's profile (`users/{uid}/boxes/{boxId}` in
+Firestore) and appear in the palette on every board.
+
+- **Semantics:** adding one to a board COPIES the template's prompt, system prompt, icon, and
+  color onto the box — so deleting a saved template never affects boxes already on boards.
+- **Runtime:** a custom box is a normal AI text box (Run → Ollama → markdown output) with a ⚙
+  settings panel for tweaking the instance's prompts.
+- **Cleanup:** hover a template in the palette and press ✕ to remove it from your profile.
+
+---
+
 ## Prompt template variables
 
 All AI boxes support these in their prompt templates (see `lib/prompts.ts`):
