@@ -184,6 +184,110 @@ await safe("T6 timer flow", async () => {
   check("T6 Stop freezes the display", s1 === s2 && stopped, `${s1} == ${s2}`);
 });
 
+// ---------- TA: Area drawing tool end-to-end ----------
+await safe("TA areas flow", async () => {
+  // Dismiss the "How to use" panel so it doesn't block canvas drags.
+  await page.evaluate(() => {
+    const panel = Array.from(document.querySelectorAll("div")).find((d) =>
+      (d.textContent || "").includes("How to use") && d.className.includes("rounded-xl")
+    );
+    const x = panel && panel.querySelector("button");
+    x && x.click();
+  });
+  await page.waitForTimeout(300);
+
+  // Activate the area tool via the real toolbar button.
+  const activated = await page.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+      /▭ Area$/.test((b.textContent || "").trim())
+    );
+    if (!btn) return false;
+    btn.click();
+    return true;
+  });
+  check("TA area tool activates", activated);
+  // Pick a pale color (Emerald, index 2) via the tool palette.
+  await page.evaluate(() => {
+    const dot = Array.from(document.querySelectorAll("button")).find((b) =>
+      (b.title || "").includes("Draw color — Emerald")
+    );
+    dot && dot.click();
+  });
+  await page.waitForTimeout(200);
+
+  // Draw by dragging on empty canvas — probe a few regions until one hits
+  // the pane (the board content position depends on fitView).
+  const before = await page.evaluate(() => window.__dsh.useBoardStore.getState().nodes.length);
+  const regions = [
+    [250, 560, 950, 740],
+    [700, 120, 1000, 380],
+    [300, 70, 700, 170],
+  ];
+  let areaId = null;
+  for (const [x1, y1, x2, y2] of regions) {
+    await page.mouse.move(x1, y1);
+    await page.mouse.down();
+    await page.mouse.move(Math.round((x1 + x2) / 2), Math.round((y1 + y2) / 2));
+    await page.mouse.move(x2, y2);
+    await page.mouse.up();
+    await page.waitForTimeout(500);
+    areaId = await page.evaluate(() => {
+      const s = window.__dsh.useBoardStore.getState();
+      const a = s.nodes.find((n) => n.type === "area");
+      return a ? a.id : null;
+    });
+    if (areaId) break;
+  }
+  check("TA drawing a drag creates an area node", !!areaId, areaId || "none");
+
+  if (areaId) {
+    // z-order: the area must sit BELOW box nodes (zIndex -1 vs >= 0).
+    const z = await page.evaluate((id) => {
+      const areaZ = document.querySelector(`.react-flow__node[data-id="${id}"]`)?.style?.zIndex;
+      const anyBox = Array.from(document.querySelectorAll(".react-flow__node")).find((n) =>
+        n.querySelector(".box-node")
+      );
+      return { areaZ, boxZ: anyBox ? anyBox.style.zIndex || "0" : null };
+    }, areaId);
+    check("TA area renders below the boxes (zIndex -1)", z.areaZ === "-1", JSON.stringify(z));
+
+    // Recolor via the selected-area picker.
+    await page.mouse.click(
+      Number(await page.evaluate((id) => document.querySelector(`.react-flow__node[data-id="${id}"]`).getBoundingClientRect().left, areaId)) + 12,
+      Number(await page.evaluate((id) => document.querySelector(`.react-flow__node[data-id="${id}"]`).getBoundingClientRect().top, areaId)) + 12
+    );
+    await page.waitForTimeout(400);
+    const recolored = await page.evaluate(() => {
+      const dot = Array.from(document.querySelectorAll("button")).find((b) =>
+        (b.title || "").includes("Area color — Violet")
+      );
+      if (!dot) return { found: false };
+      dot.click();
+      return { found: true };
+    });
+    await page.waitForTimeout(400);
+    const areaData = await page.evaluate((id) => {
+      const n = window.__dsh.useBoardStore.getState().nodes.find((x) => x.id === id);
+      return n ? { fill: n.data?.fill, border: n.data?.border } : null;
+    }, areaId);
+    check("TA area can be recolored via its picker", recolored.found && areaData?.fill === "#ede9fe", JSON.stringify(areaData));
+
+    // Delete via the selected-area ✕.
+    await page.waitForTimeout(300);
+    await page.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+        (b.title || "").includes("Delete area")
+      );
+      btn && btn.click();
+    });
+    await page.waitForTimeout(500);
+    const gone = await page.evaluate((id) =>
+      !window.__dsh.useBoardStore.getState().nodes.some((n) => n.id === id || n.type === "area")
+    , areaId);
+    check("TA area deleted via ✕", gone);
+  }
+});
+
 // ---------- T7: AI run end-to-end (real backend + Ollama) ----------
 await safe("T7 run flow", async () => {
   // Fill the FIRST idea box and connect it to the FIRST research box, then

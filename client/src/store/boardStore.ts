@@ -114,6 +114,8 @@ interface BoardState {
     position?: { x: number; y: number }
   ) => string;
   updateBoxData: (id: string, patch: Partial<BoxData>) => void;
+  addArea: (rect: { x: number; y: number; width: number; height: number }, fill: string, border: string) => string;
+  setAreaColor: (id: string, fill: string, border: string) => void;
   setBoxName: (id: string, name: string) => void;
   deleteBox: (id: string) => void;
   runBox: (id: string) => Promise<void>;
@@ -208,6 +210,35 @@ export const useBoardStore = create<BoardState>()(
 
         scheduleSave();
         return id;
+      },
+
+      // === Areas (drawn rectangles under the boxes) ===
+
+      addArea: (rect, fill, border) => {
+        const id = makeId().replace("box-", "area-");
+        const node: Node = {
+          id,
+          type: "area",
+          position: { x: rect.x, y: rect.y },
+          style: { width: rect.width, height: rect.height },
+          // Areas render BELOW all boxes (default node z is 0; React Flow
+          // elevates the selected node by 1000 so a selected area's color
+          // dots stay reachable even where boxes overlap it).
+          zIndex: -1,
+          data: { fill, border },
+        };
+        set({ nodes: [...get().nodes, node] });
+        scheduleSave();
+        return id;
+      },
+
+      setAreaColor: (id, fill, border) => {
+        set({
+          nodes: get().nodes.map((n) =>
+            n.id === id ? { ...n, data: { ...n.data, fill, border } } : n
+          ),
+        });
+        scheduleSave();
       },
 
       updateBoxData: (id, patch) => {

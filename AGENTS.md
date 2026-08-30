@@ -27,6 +27,7 @@ to box — from an Idea, through Research, to PRD / Slides / Code / UI Design / 
 | `scripts/deploy.sh` | One-command production deploy (build client, build Functions, deploy Hosting + Functions + rules). |
 | `docs/` | Guides: `OVERVIEW`, `ONBOARDING`, `ARCHITECTURE`, `BOX_TYPES`, `API`, `DEPLOYMENT`, `OSS_READINESS`, plus `docs/course/` teaching materials. |
 | `firebase.json`, `firestore.rules`, `storage.rules` | Firebase config and security rules. |
+| `dsh-plugins/` | Out-of-tree plugins for the DeepSeek Harness Web GUI (not part of the app). See "dsh GUI plugins" below. |
 
 ## Key commands
 
@@ -159,7 +160,7 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   "Missing or insufficient permissions" page error from Part 1's fake user is expected noise.
   Run with `node e2e.mjs` from `client/` while `npm run dev` is up. Playwright clicks inside
   React Flow's transform can misfire (rotated post-its especially) — prefer `page.evaluate` JS
-  clicks/native value setters over coordinate clicks. Result at time of writing: **50/50 passed** (includes the roster popover checks).
+  clicks/native value setters over coordinate clicks. Result at time of writing: **55/55 passed** (roster popover + area-drawing checks included).
 
 ## Conventions & gotchas
 
@@ -176,7 +177,11 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   (see `client/src/lib/timer.ts`) on a per-box 250ms interval — **never write per tick** or the
   save/snapshot machinery will flood. **Editor surfaces inside nodes** (the note textarea, label
   input, idea textarea) must carry the `nodrag` (+ `nowheel` where scrollable) class or React
-  Flow drags the node while the user types.
+  Flow drags the node while the user types. **Canvas zoom vs. box scroll:** the `<ReactFlow>`
+  in `Canvas.tsx` sets `noWheelClassName="react-flow__node"`, so React Flow treats every node as a
+  no-wheel zone — trackpad scroll/pinch over a box never zooms the canvas (it would fight the
+  box's own scrolling); zooming still works over empty canvas space. Keep this prop if you add
+  scrollable surfaces inside nodes.
 - **Role filter (palette profiles):** each box type carries `roles: BoxRole[]`
   (`everyone`/`designer`/`developer`/`product`) in `client/src/types.ts`; the role chips in
   `Sidebar.tsx` filter which boxes appear in the "Add Box" palette. This is a discovery-only label —
@@ -247,6 +252,19 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   for other reasons. When a lazy import misbehaves, verify the resolved chunk export (`c.<named>` is
   `{ default: Comp }`) before assuming you must unwrap by hand — a bare `lazy(() => import("..."))`
   is the safe default.
+- **Areas (drawn rectangles):** the "▭ Area" tool (floating top-left in `Canvas.tsx`) lets users
+  drag a rectangle on empty canvas to create a background grouping region. Areas are React Flow
+  nodes of type `"area"` (`AreaNode.tsx`, registered in `Canvas.tsx` nodeTypes) with **`zIndex: -1`
+  so they render BELOW all boxes** (React Flow honors per-node zIndex; the selected node is
+  elevated +1000, so a selected area's color dots stay reachable). They live in the `nodes` array
+  (color in `node.data.fill/border`) — persistence and cross-user sync come free via the normal
+  board save/snapshot; `deleteBox(id)` deletes them (no boxData entry). While the tool is active,
+  `panOnDrag`/`nodesDraggable` are off and drags on `.react-flow__pane` become a draft rectangle
+  (`lib/areas.ts` `normalizeRect`/`isValidAreaSize`, unit-tested; drags <24 units are ignored).
+  The palette (`AREA_COLORS` in `types.ts`) is intentionally **very light** (Tailwind -100 fills,
+  -200/-300 borders) so areas never compete with boxes on top; the minimap shows areas in their
+  border shade. `noWheelClassName="react-flow__node"` covers area nodes too — scroll over an area
+  zooms the canvas as over any node.
 - **Presence & the board roster:** `boards/{id}/presence/{uid}` docs power live cursors
   (`Cursors.tsx`) and the header roster (`PresenceRoster.tsx`). Cursor moves are throttled to one
   write per 200ms; a **heartbeat in `boardStore.ts` re-stamps `lastActive` every 15s** while a
@@ -263,6 +281,42 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   (`.dsh/skills/ai-canva-deploy/SKILL.md`). Requires Firebase CLI logged in and real API keys
   (Ollama, optionally fal.ai + Google Stitch).
 - **Keep `server/` and `functions/` API logic in sync** — they are intentionally duplicated.
+
+## dsh GUI plugins
+
+`dsh-plugins/` hosts out-of-tree plugins for the **DeepSeek Harness Web GUI** (the harness this
+agent runs in — `dsh web`, profile at `~/.dsh/profiles/web`). These are NOT part of the ai-canva
+app; the directory just lives in this repo so the plugins stay under version control.
+
+- **`dsh-plugins/session-monitor/`** — floating **Sessions Monitor** window (contributed into the
+  harness's additive `shell.overlay` slot): live list of every open session with pulsing blue dots
+  + sweeping underlines for running sessions (subagent sessions included, grouped under their
+  parent — the sidebar hides those), amber pulsing dots for sessions blocked on the user
+  (approval / plan review / question), green pop-in for finished-but-unopened sessions, todo
+  progress bars, a completion chime + attention sound (Web Audio, armed on first click, mutable
+  via the header speaker button), collapse to a status pill, and click-to-open navigation.
+- **Anatomy of a client plugin** (hand-written, no build step): `package.json` with
+  `dsh.client: {platform: "web", inject: [...]}` + `exports["./client"]`; `lib/index.js` = node
+  half (empty `apply()` so the row exists in the host Loader); `lib/client.js` = browser bundle in
+  the `window.__ModuleLoader__.load({id, factory})` classic-script format, requiring only shell
+  externals (`react`, `@deepseek-ai/dsh-client-runtime/client`); zh/en dictionaries registered via
+  `ctx.locale.register(<ns>, {zh, en})` and handed to the component as `t` through the slot
+  register option `locale: <ns>`.
+- **Installation into the web profile** (new plugins need ALL of these):
+  1. symlink the package into `~/.dsh/profiles/node_modules/<pkg>` (the hoisted store the profile
+     resolves from — `baseUrl` anchors at the profile dir);
+  2. add a row to `~/.dsh/profiles/web/cordis.patch.yml` under `- insert:` (`id: ui-session-monitor`,
+     `name: dsh-plugin-session-monitor`);
+  3. **restart `dsh web`** (the launcher used here is `ollama launch dsh`, which runs
+     `dsh web --patch ~/.ollama/launch/dsh/ollama.cordis.yml`) — the client-modules scan caches
+     package verdicts, so plugin-set changes only take effect on restart.
+- **Verify without booting:** `node scripts/smoke.mjs` from the plugin dir (registers the factory
+  like the browser module loader, runs `apply()` against a fake ctx, server-renders with the real
+  React from the dsh install).
+- **Editing an installed plugin:** `lib/client.js` content edits hot-reload into open browsers via
+  the always-on client-plugin reload chain (it stat-polls the served bundle file); a plain page
+  refresh also picks it up (`/plugins/<id>/client.js` is served no-cache). Restart is only for
+  adding/removing plugins or package.json/`dsh.client` changes.
 
 ## Docs to keep in mind
 

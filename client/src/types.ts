@@ -287,3 +287,20 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
 
 /** Preset pill colors for Label boxes (index 0 = default). */
 export const LABEL_COLORS = ["#e2e8f0", "#fde68a", "#fecdd3", "#a5f3fc", "#a7f3d0"];
+
+/**
+ * Preset area colors for drawn rectangular areas: intentionally VERY light
+ * fills (Tailwind -100 shades) with slightly stronger -200/-300 borders, so
+ * areas read as background grouping regions and never compete with boxes,
+ * notes, or edges on top of them.
+ */
+export const AREA_COLORS: { fill: string; border: string; name: string }[] = [
+  { fill: "#fef3c7", border: "#fde68a", name: "Amber" },
+  { fill: "#dbeafe", border: "#bfdbfe", name: "Blue" },
+  { fill: "#d1fae5", border: "#a7f3d0", name: "Emerald" },
+  { fill: "#fce7f3", border: "#fbcfe8", name: "Pink" },
+  { fill: "#ede9fe", border: "#ddd6fe", name: "Violet" },
+  { fill: "#cffafe", border: "#a5f3fc", name: "Cyan" },
+  { fill: "#ffedd5", border: "#fed7aa", name: "Orange" },
+  { fill: "#f1f5f9", border: "#e2e8f0", name: "Slate" },
+];
