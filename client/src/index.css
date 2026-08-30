@@ -11,20 +11,108 @@ body,
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* Box node styling */
+/* Box node styling — quiet enterprise card:
+   1px colored border (set inline per box type), layered soft shadow,
+   and an indigo selection ring instead of a heavier shadow. */
 .box-node {
-  @apply bg-white rounded-xl shadow-lg border-2;
+  @apply bg-white rounded-xl border;
   width: 100%;
   height: 100%;
   font-size: 14px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 8px 20px -6px rgba(15, 23, 42, 0.12);
+  transition: box-shadow 0.15s ease;
 }
 
 .box-node.selected {
-  @apply shadow-2xl;
+  box-shadow:
+    0 0 0 1.5px #4f46e5,
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 14px 30px -8px rgba(79, 70, 229, 0.28);
 }
+
+/* ===== App chrome (header / tools) ===== */
+
+.app-bar {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+/* Brand mark — the single gradient in the chrome. */
+.logo-tile {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  box-shadow:
+    0 1px 3px rgba(79, 70, 229, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* Board save-status indicator (dot + label in the header). */
+.save-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+.save-dot.save-idle { background: #cbd5e1; }
+.save-dot.save-saving {
+  background: #60a5fa;
+  animation: savePulse 1.4s ease-in-out infinite;
+}
+.save-dot.save-saved { background: #34d399; }
+.save-dot.save-error { background: #f87171; }
+@keyframes savePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* React Flow controls + minimap — matched to the chrome. */
+.react-flow__controls {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.12);
+}
+.react-flow__controls-button {
+  background: #fff;
+  border-bottom: 1px solid #eef2f7;
+  color: #475569;
+  width: 26px;
+  height: 26px;
+}
+.react-flow__controls-button:last-child { border-bottom: none; }
+.react-flow__controls-button:hover { background: #f8fafc; }
+.react-flow__controls-button svg { fill: currentColor; }
+
+.react-flow__minimap {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.12);
+}
+
+/* Quiet, thin scrollbars everywhere. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+*::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
 /* ===== Collaboration annotations (visually NOT pipeline boxes) ===== */
 

@@ -17,6 +17,7 @@ import {
 import { useBoardStore } from "../store/boardStore.js";
 import { AREA_COLORS } from "../types.js";
 import { isValidAreaSize, normalizeRect } from "../lib/areas.js";
+import { Button } from "./ui/Button.js";
 import BoxNode from "./BoxNode.js";
 import AreaNode from "./AreaNode.js";
 import Cursors from "./Cursors.js";
@@ -148,7 +149,7 @@ export default function Canvas() {
       fitViewOptions={{ padding: 0.3 }}
       defaultEdgeOptions={{
         animated: true,
-        style: { stroke: "#94a3b8", strokeWidth: 2 },
+        style: { stroke: "#cbd5e1", strokeWidth: 2 },
       }}
       proOptions={{ hideAttribution: true }}
       // Treat every node as a "no wheel" zone: when the cursor is over a box,
@@ -161,18 +162,15 @@ export default function Canvas() {
       <Cursors />
       {/* Area drawing tool */}
       <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
-        <button
+        <Button
+          size="xs"
+          variant={areaTool ? "primary" : "secondary"}
           onClick={() => { setAreaTool((t) => !t); setDraft(null); }}
           title="Draw a rectangular area under the boxes"
-          className={
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium shadow-md border transition " +
-            (areaTool
-              ? "bg-cyan-500 text-white border-cyan-500"
-              : "bg-white/90 backdrop-blur text-slate-600 border-slate-200 hover:bg-slate-50")
-          }
+          className="shadow-md"
         >
           ▭ {areaTool ? "Drawing areas — Esc to stop" : "Area"}
-        </button>
+        </Button>
         {areaTool && (
           <div className="flex items-center gap-1.5 rounded-lg bg-white/90 backdrop-blur px-2 py-1.5 shadow-md border border-slate-200">
             {AREA_COLORS.map((c, i) => (

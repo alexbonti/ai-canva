@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import Canvas from "./components/Canvas.js";
+import Header from "./components/Header.js";
 import Toolbar from "./components/Toolbar.js";
 import Sidebar from "./components/Sidebar.js";
 import NewBoardModal from "./components/NewBoardModal.js";
@@ -9,7 +10,6 @@ import LandingPage from "./components/landing/LandingPage.js";
 import AdminBoard from "./components/AdminBoard.js";
 import FacilitatorBoard from "./components/FacilitatorBoard.js";
 import GuestProfileModal from "./components/GuestProfileModal.js";
-import PresenceRoster from "./components/PresenceRoster.js";
 import { isFacilitator } from "./lib/admin.js";
 import { addBoardMember } from "./lib/firestore.js";
 import { signInWithWorkshopCode } from "./lib/auth.js";
@@ -34,13 +34,12 @@ export default function App() {
   const authLoading = useAuthStore((s) => s.loading);
 
   // Board state
+  // NOTE: boardTitle / saveStatus / boardList are rendered by <Header>, which
+  // subscribes to them itself — App must NOT subscribe, or every keystroke in
+  // the board-title input would re-render the whole Canvas tree.
   const currentBoardId = useBoardStore((s) => s.currentBoardId);
-  const boardTitle = useBoardStore((s) => s.boardTitle);
-  const saveStatus = useBoardStore((s) => s.saveStatus);
-  const boardList = useBoardStore((s) => s.boardList);
   const createNewBoard = useBoardStore((s) => s.createNewBoard);
   const loadBoardFromFirestore = useBoardStore((s) => s.loadBoardFromFirestore);
-  const setBoardTitle = useBoardStore((s) => s.setBoardTitle);
   const refreshBoardList = useBoardStore((s) => s.refreshBoardList);
   const deleteCurrentBoard = useBoardStore((s) => s.deleteCurrentBoard);
   const clearBoard = useBoardStore((s) => s.clearBoard);
@@ -48,7 +47,6 @@ export default function App() {
   const cleanupPresence = useBoardStore((s) => s.cleanupPresence);
   const subscribeToBoardUpdates = useBoardStore((s) => s.subscribeToBoardUpdates);
 
-  const [showBoardList, setShowBoardList] = useState(false);
   const [isFacilitatorUser, setIsFacilitatorUser] = useState(false);
   const [facilitatorView, setFacilitatorView] = useState(false);
   // Guest workshop join: the pending team info awaiting profile completion.
@@ -69,9 +67,6 @@ export default function App() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [adminView, setAdminView] = useState(false);
   const [isAdminUser, setIsAdminUser] = useState(false);
-
-  const totalTokens = useTokenStore((s) => s.totalTokens);
-  const fmtTokens = (n: number) => n.toLocaleString("en-US");
 
   // Initialize auth listener on mount
   useEffect(() => {
@@ -204,40 +199,54 @@ export default function App() {
 
   const handleAddBox = (type: BoxType) => { addBox(type); };
 
-  const handleClearBoard = () => {
+  // Stable callbacks for the memoized <Header> — recreated only when the
+  // underlying store actions change (they never do).
+  const handleClearBoard = useCallback(() => {
     if (!confirm("Clear the entire board? This removes all boxes.")) return;
     useBoardStore.setState({ nodes: [], edges: [], boxData: {} });
     clearBoard();
-  };
+  }, [clearBoard]);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     unsubscribeFromBoard();
     await signOutUser();
-    setShowBoardList(false);
-  };
+  }, [unsubscribeFromBoard]);
 
-  const handleNewBoard = () => {
-    setShowBoardList(false);
+  const handleNewBoard = useCallback(() => {
     setShowNewBoardModal(true);
-  };
+  }, []);
 
   const handleCreateBoard = async (name: string) => {
     await createNewBoard(name);
     setShowNewBoardModal(false);
   };
 
-  const handleLoadBoard = async (boardId: string) => {
+  const handleLoadBoard = useCallback(async (boardId: string) => {
     await loadBoardFromFirestore(boardId);
-    setShowBoardList(false);
-  };
+  }, [loadBoardFromFirestore]);
 
-  const handleDeleteBoard = async () => {
+  const handleDeleteBoard = useCallback(async () => {
     if (!confirm("Delete this board from the cloud? Local cache will remain.")) return;
     await deleteCurrentBoard();
-  };
+  }, [deleteCurrentBoard]);
 
-  const saveLabel = saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Saved" : saveStatus === "error" ? "Save failed" : "Idle";
-  const saveColor = saveStatus === "saving" ? "text-blue-400" : saveStatus === "saved" ? "text-green-400" : saveStatus === "error" ? "text-red-400" : "text-slate-400";
+  const handleShare = useCallback(() => {
+    setShowShareModal(true);
+  }, []);
+
+  const handleToggleSidebar = useCallback(() => {
+    setSidebarOpen((o) => !o);
+  }, []);
+
+  const handleToggleAdminView = useCallback(() => {
+    setFacilitatorView(false);
+    setAdminView((v) => !v);
+  }, []);
+
+  const handleToggleFacilitatorView = useCallback(() => {
+    setAdminView(false);
+    setFacilitatorView((v) => !v);
+  }, []);
 
   // === Render ===
 
@@ -347,144 +356,23 @@ export default function App() {
   // Logged in — show the app
   return (
     <div className="flex flex-col h-full w-full">
-      <header className="flex items-center justify-between px-4 py-2 bg-white border-b border-slate-200 shadow-sm z-20">
-        <div className="flex items-center gap-3">
-          <span className="text-xl">🎨</span>
-          <h1 className="text-lg font-bold text-slate-800">AI Canva</h1>
-          {currentBoardId ? (
-            <input
-              type="text"
-              value={boardTitle}
-              onChange={(e) => setBoardTitle(e.target.value)}
-              className="text-sm font-medium text-slate-600 bg-transparent border-b border-slate-200 focus:outline-none focus:border-blue-400 px-1 w-48"
-              placeholder="Board title..."
-            />
-          ) : (
-            <span className="text-xs text-slate-400">Loading board...</span>
-          )}
-          {currentBoardId && (
-            <span className={"text-xs " + saveColor}>{"💾 " + saveLabel}</span>
-          )}
-          {/* Presence roster + Share button */}
-          {currentBoardId && (
-            <div className="flex items-center gap-1.5">
-              <PresenceRoster />
-              <button
-                onClick={() => setShowShareModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition"
-              >
-                👥 Share
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className={"flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition " + (sidebarOpen ? "bg-slate-200 text-slate-700" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}
-            title="Toggle add-box panel"
-          >
-            {"+ Add " + (sidebarOpen ? "✕" : "☰")}
-          </button>
-          <button
-            onClick={handleClearBoard}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition"
-            title="Clear board"
-          >
-            🗑 Clear
-          </button>
-          <div className="flex items-center gap-1.5 ml-2">
-            <div className="relative">
-              <button
-                onClick={() => {
-                  if (!showBoardList) refreshBoardList();
-                  setShowBoardList(!showBoardList);
-                }}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition"
-              >
-                {"📋 Boards (" + boardList.length + ") ▾"}
-              </button>
-              {showBoardList && (
-                <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-slate-200 w-72 max-h-96 overflow-y-auto z-30">
-                  <button
-                    onClick={handleNewBoard}
-                    className="w-full text-left px-4 py-2.5 text-sm font-medium text-blue-600 hover:bg-blue-50 border-b border-slate-100"
-                  >
-                    ➕ New Board
-                  </button>
-                  {boardList.length === 0 && (
-                    <div className="px-4 py-3 text-xs text-slate-400">No boards yet.</div>
-                  )}
-                  {boardList.map((b) => (
-                    <div
-                      key={b.id}
-                      className={"flex items-center justify-between px-4 py-2.5 text-sm hover:bg-slate-50 cursor-pointer border-b border-slate-50 " + (b.id === currentBoardId ? "bg-blue-50" : "")}
-                      onClick={() => handleLoadBoard(b.id)}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-slate-700 truncate">{b.title}</div>
-                        <div className="text-xs text-slate-400">{new Date(b.updatedAt).toLocaleDateString() + " · " + (Array.isArray(b.nodes) ? b.nodes.length : 0) + " boxes"}</div>
-                      </div>
-                      {b.id === currentBoardId && <span className="text-blue-500 text-xs">current</span>}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            {currentBoardId && (
-              <button
-                onClick={handleDeleteBoard}
-                className="px-2 py-1.5 rounded-lg text-sm text-slate-500 bg-slate-100 hover:bg-red-50 hover:text-red-500 transition"
-                title="Delete current board"
-              >
-                🗑
-              </button>
-            )}
-            {isAdminUser && (
-              <button
-                onClick={() => {
-                  setFacilitatorView(false);
-                  setAdminView(!adminView);
-                }}
-                className={"flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition " + (adminView ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}
-                title="Admin board"
-              >
-                🛠️ Admin
-              </button>
-            )}
-            {(isAdminUser || isFacilitatorUser) && (
-              <button
-                onClick={() => {
-                  setAdminView(false);
-                  setFacilitatorView(!facilitatorView);
-                }}
-                className={"flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition " + (facilitatorView ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}
-                title="Facilitator dashboard — templates, workshops, teams"
-              >
-                🧑‍🏫 Facilitator
-              </button>
-            )}
-            <div
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 text-xs text-slate-500"
-              title={"Your total LLM tokens used: " + fmtTokens(totalTokens)}
-            >
-              ⚡ <span className="font-semibold text-slate-600 tabular-nums">{fmtTokens(totalTokens)}</span> tok
-            </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100">
-              <img src={user.photoURL || ""} alt="" className="w-6 h-6 rounded-full" />
-              <span className="text-xs text-slate-600 max-w-[120px] truncate">{user.email}</span>
-              <button
-                onClick={handleLogout}
-                className="text-xs text-slate-400 hover:text-red-500 ml-1"
-                title="Sign out"
-              >
-                ⏻
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header
+        user={user}
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={handleToggleSidebar}
+        onShare={handleShare}
+        onNewBoard={handleNewBoard}
+        onLoadBoard={handleLoadBoard}
+        onDeleteBoard={handleDeleteBoard}
+        onClearBoard={handleClearBoard}
+        onLogout={handleLogout}
+        isAdmin={isAdminUser}
+        isFacilitator={isFacilitatorUser}
+        adminView={adminView}
+        facilitatorView={facilitatorView}
+        onToggleAdminView={handleToggleAdminView}
+        onToggleFacilitatorView={handleToggleFacilitatorView}
+      />
 
       <div className="flex-1 relative">
         {adminView ? (

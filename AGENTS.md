@@ -78,6 +78,40 @@ npm run deploy         # = bash scripts/deploy.sh (production Firebase deploy)
   `input`, `worker`, `collab` (standalone annotation tools: no AI, no Run, no handles), and
   `custom` (the user's saved templates). See `docs/BOX_TYPES.md`.
 
+## UI design system
+
+The app chrome (header, sidebar, canvas tools) follows a consistent "enterprise but
+modern" language, built on two shared primitives:
+
+- **`client/src/components/ui/Button.tsx`** — the only button styling in the chrome.
+  Variants: `primary` (indigo-600 — the single loud color, used for Share and the
+  area tool's active state), `secondary` (white + 1px slate border — the default),
+  `ghost` (transparent, for role-gated views), `danger`; sizes `xs/sm/md`; `active`
+  renders the pressed state (dark). Every button gets a keyboard focus ring. Use it
+  instead of hand-rolled Tailwind button class strings.
+- **`client/src/components/ui/Menu.tsx`** — dropdown primitive (`Menu` + `MenuItem`
+  + `MenuDivider`/`MenuLabel`). Closes on outside click + Escape; pass children as
+  a function `(close) => …` so items can dismiss the menu after acting. Used by the
+  Boards menu and the account menu; the presence roster popover follows the same
+  outside-click/Escape contract.
+
+Design rules: one accent (indigo) over slate neutrals; 1px borders + layered soft
+shadows (no `border-2`/`shadow-lg` in the chrome); h-14 app bar (`.app-bar`, blurred
+white); box cards are `.box-node` (1px type-colored border set inline, indigo
+selection ring); `.logo-tile` is the only gradient; `.save-dot` states map
+`saveStatus`; thin scrollbars and rounded React Flow controls/minimap styling live
+in `client/src/index.css`. Palette rows use a 28×28 icon tile tinted with the box
+color at ~12% alpha (`color + "1F"`) instead of the old left border-rail.
+
+**`components/Header.tsx` owns its store subscriptions** (boardTitle, saveStatus,
+boardList, currentBoardId) and is `memo`-ized. App must NOT subscribe to those
+slices — otherwise every keystroke in the board-title input re-renders the whole
+Canvas tree (this was the case before the header extraction). App passes only
+stable `useCallback` handlers across the memo boundary. Destructive/rare actions
+(Clear/Delete board, Sign out) live inside the header menus, not on the bar; the
+visible bar is ~5 controls for a regular user (roster, Share, + Add Box, Boards,
+account) plus role-gated Admin/Facilitator buttons.
+
 ## Admin board
 
 Admins can view system-wide usage (total users, active users, new users/boards in 7 days, storage
@@ -166,6 +200,16 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   firebase-tools), then drives the dashboard (workshop → template → team → seat codes), joins as
   a guest in a fresh context (code → profile modal → team board → own board → team board visible
   in the list), and cleans everything up. Result at time of writing: **75/75 passed**.
+- **UI text markers the E2E clicks by** (keep these EXACT strings when restyling — the suite
+  finds buttons by `textContent`, not selectors): header `Boards (` and `New Board` (capital B)
+  and `🧑‍🏫 Facilitator`; palette rows keep the box label as the button's trailing text
+  (`textContent.trim().endsWith(label)` — a leading icon tile is fine); the help card keeps the
+  text `How to use` inside a div whose class includes `rounded-xl`; canvas buttons `▶ Run`,
+  `▶ Start`, `⏹ Stop`, and `▭ Area` (exact suffix match when inactive); the join modal's `Join`
+  button (`trim() === "Join"`), the landing pill `Have a workshop code?`, and `Join my team`;
+  the roster test ids `roster-popover`/`roster-row`/`you-chip`; the idea textarea placeholder
+  contains `your idea`; the box footer token text contains `tok`. All were re-verified after the
+  enterprise UI makeover (76/75-equivalent behavior — header extraction kept every marker).
 
 ## Conventions & gotchas
 
