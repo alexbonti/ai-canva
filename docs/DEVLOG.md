@@ -64,8 +64,12 @@ current state).
   pdfjs-dist) was wrong, it was the concurrent Agent-box session. (3) `npm install <pkg>`
   pruned `playwright-core` (never in package.json) — now a devDependency. Final state on the
   combined tree (Documents + Agent boxes): **build ✓, unit 128 ✓, E2E 80/80 ✓**.
-- **Next steps:** Deploy storage rules (`firebase deploy --only storage`) so signed-in uploads
-  work in production; consider a per-document preview/expand in the box UI.
+- **Next steps:** consider a per-document preview/expand in the box UI.
+- **Shipped:** committed as `81b0752` (Documents + Agent boxes together) and deployed via
+  `scripts/deploy.sh` — hosting + storage rules (documents path live) + firestore rules
+  released; functions unchanged (both features are client-only). Verified live:
+  `https://carbondocs.web.app` 200, `/api/health` all keys configured, `/api/generate`
+  returns real output, and the deployed bundle contains the Documents box code.
 
 ## 2026-08-30 — DEVLOG created
 
