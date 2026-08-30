@@ -195,3 +195,15 @@ Collection `stitchJobs/{jobId}` *(production only, server-side)*:
 5. `runBox` post-processes it (parse slides JSON, extract code, etc.) and writes it into
    `boxData` with `status: "done"`.
 6. `scheduleSave()` triggers a debounced Firestore write; collaborators see it via `onSnapshot`.
+
+### Workshops (facilitators, teams, guests)
+
+A permission layer parallel to admins: `facilitators/{uid}` docs (granted via the admin
+`/api/admin/roles` endpoint). The Facilitator Dashboard (admins + facilitators) manages
+**workshops** (`workshops/{id}`), **template boards** (ordinary boards flagged `isTemplate`,
+copied when a team is created), and **teams** (`teams/{id}`, max 5 seats, facilitator-created).
+Each seat is a code at top-level `codes/{code}`; the `/api/workshop/join` Cloud Function redeems a
+code for a Firebase **custom token** bound to a durable per-code guest uid — guests join without
+login, pick a name, land on their team board (via the board's `memberUids`), and can create their
+own boards. The local dev server proxies the join endpoint to the deployed function.
+

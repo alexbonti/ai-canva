@@ -282,3 +282,23 @@ via `auth.updateUser`. An admin cannot block their own account.
 
 Copy the templates from `server/.env.example` / `functions/.env.example` into `.env` and fill in
 real values.
+
+## Workshops (facilitator & guests)
+
+### `POST /api/workshop/join` — `{ code }`
+
+Redeems a workshop seat code for a guest — **no login required**. The first redemption creates a
+dedicated guest auth user and binds it to the code; every later redemption returns a fresh Firebase
+custom token for the SAME uid, so guests keep their identity and boards on any device. Codes are
+8 characters (A–Z, 2–9). Capacity (max 5 per team) is enforced server-side.
+
+- **Response:** `{ token, isNew, teamId, workshopId, teamName, workshopName, boardId }`
+- **Errors:** `400` invalid code format · `404` unknown code / team gone · `409` team full (5/5)
+- **Only in the Cloud Function** — the local dev server proxies this endpoint to the deployed
+  function (custom-token minting needs the Admin SDK).
+
+### `POST /api/admin/roles` — `{ uid, role: "facilitator", grant }`
+
+Admin-only (Bearer ID token + `admins/{uid}`). Grants or revokes the facilitator role by
+writing/deleting `facilitators/{uid}`. Cloud Function only (501 locally).
+
