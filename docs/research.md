@@ -132,7 +132,7 @@ The research will consider five qualities:
 
 **User:** Jordan, a senior cloud security engineer at a 250-person online retailer. Jordan is comfortable with Azure architecture, Microsoft Entra ID, network controls, vulnerability reports, security requirements, and NIST CSF assessments, but does not have a dedicated governance, risk, and compliance platform.
 
-**Goal:** Reduce the manual effort needed to identify potential vulnerabilities and control gaps, convert them into traceable security requirements, identify coverage and gaps and determine the appropriate next step before a new cloud platform goes live.
+**Goal:** Reduce the manual effort needed to convert an unstructured Azure description into traceable security requirements, assess NIST CSF coverage and gaps, and determine the appropriate next box or next step before production.
 
 **Context:** The retailer is preparing an Azure-hosted customer portal for production. The fictional retail-prod subscription contains an Azure App Service, Azure SQL Database, Storage account, Key Vault, Log Analytics workspace, virtual network, and a Windows administration VM. A sanitized configuration export describes several intentional weaknesses: the administration VM has a public IP and an NSG rule allowing inbound RDP on TCP/3389 from Internet; the Storage account permits public network traffic from all networks; the App Service uses a long-lived service-principal secret rather than a managed identity to reach Key Vault; and some diagnostic logs are missing or retained for only 30 days despite a 90-day internal requirement. Jordan has an architecture diagram, Azure Resource Graph inventory, selected resource configuration exports, NSG rule JSON, and internal security standards. The case is fictional and deliberately vulnerable so that every run can be repeated safely.
 
@@ -153,7 +153,8 @@ The Security Advisor then interviews Jordan: Is public RDP an approved exception
 - Assess only applicable NIST CSF 2.0 functions and categories.
 - Compare required outcomes with declared current controls and supplied evidence.
 - Distinguish implemented, partial, not implemented, not applicable, and unknown states.
-- Produce prioritized gaps, recommended actions, and evidence requests.
+- Produce NIST CSF coverage, gap findings, and evidence requests through the Checker.
+- Interview the practitioner and recommend the next box or next step through the Advisor.
 - Provide confidence and limitation statements for AI-generated mappings and advice.
 - Support one end-to-end canvas flow using the shared `{{inputs}}` mechanism.
 
@@ -183,7 +184,7 @@ The Security Advisor then interviews Jordan: Is public RDP an approved exception
 - Evidence items use stable EVID-* identifiers.
 - Security requirements use stable REQ-* identifiers.
 - Security gaps use stable GAP-* identifiers.
-- Remediation recommendations use stable NEXT-* identifiers.
+- Advisor guidance uses stable NEXT-* identifiers.
 - Downstream boxes retain, rather than replace, upstream identifiers.
 - Every important current-state claim identifies its evidence, provenance, capture date when known, and confidence.
 - Recommended evidence labels are user_reported, documented, tool_reported and human_verified. The AI cannot assign human_verified unless a named qualified reviewer or recorded external verification is supplied.
@@ -234,11 +235,11 @@ If essential information is missing or ambiguous, the box returns:
 - Missing evidence and suggested evidence sources or owners
 - Explicit assumptions awaiting confirmation
 
-The user may choose to continue anyway if they don't have access to this information.
+Non-essential unknowns may remain visible in a completed package. If essential information is unavailable, the package remains `clarification_required`, and the NIST CSF Checker must not run.
 
 After essential information is resolved, the box returns:
 
-- `status: complete`, a unique `profile_id`, and the confirmed assessment boundary
+- `status: complete`, and the confirmed assessment boundary
 - An `AST-*` inventory of in-scope assets, environments, applications, repositories, data, owners, and third parties
 - Important relationships, trust boundaries, data flows, and CIA impact classifications
 - A structured description of current security and software-development practices
@@ -260,9 +261,8 @@ After essential information is resolved, the box returns:
 
 Input:
 
-```yaml
-prompt: Our company operates a customer-facing web application in Microsoft Azure. It runs on Azure App Service, stores customer account and order information in Azure SQL Database, and uses Azure Storage for uploaded documents. A management VM has a public IP, and its NSG allows inbound RDP on port 3389 from any Internet address. Administrators use a shared local account, and we are not sure whether MFA is enforced for all privileged Azure accounts. Some application credentials and connection strings are stored in App Service settings. Public blob access may be enabled. Logs are not collected centrally, and database restores have not recently been tested. We need testable security requirements before production approval.
-```
+> Our company operates a customer-facing web application in Microsoft Azure. It runs on Azure App Service, stores customer account and order information in Azure SQL Database, and uses Azure Storage for uploaded documents. A management VM has a public IP, and its NSG allows inbound RDP on port 3389 from any Internet address. Administrators use a shared local account, and we are not sure whether MFA is enforced for all privileged Azure accounts. Some application credentials and connection strings are stored in App Service settings. Public blob access may be enabled. Logs are not collected centrally, and database restores have not recently been tested. We need testable security requirements before production approval.
+
 
 Output:
 
@@ -332,7 +332,7 @@ limitations:
   - The package derives requirements from supplied information and does not inspect Azure.
 ```
 
-The complete output of the Security Requirements Elicitor (including boundary, evidence, assumtions and unknowns) is passed to the NIST CSF checker.
+The complete output of the Security Requirements Elicitor (including boundary, evidence, assumptions and unknowns) is passed to the NIST CSF checker.
 
 #### 2. NIST CSF Checker
 
@@ -344,7 +344,7 @@ The exact completed `RequirementsPackage` returned by the Security Requirements 
 
 A gap-analysis report mapped to NIST CSF 2.0 containing:
 
-- A unique `report_id`, the assessed `profile_id`, assessment date, and NIST CSF version
+- A unique `report_id`, assessment date, and NIST CSF version
 - The assessment boundary, exclusions, and overall limitations
 - Applicable NIST CSF 2.0 Functions, Categories, and Subcategories, including why each outcome applies
 - Coverage for each of the six CSF 2.0 Functions, using `not_applicable` with a rationale where appropriate, plus an overall summary calculated only across applicable and assessable outcomes
@@ -361,13 +361,13 @@ A gap-analysis report mapped to NIST CSF 2.0 containing:
 - Unassessed areas, missing evidence, and validation activities needed to complete them
 - A warning that AI-generated framework mappings do not establish compliance
 
-The NIST Gap Checker identifies and explains gaps. It must not produce the final remediation plan, treat a vendor, scanner or tool recommendation as automatic proof of a  NIST outcome or treat missing information as evidence of implementation or non-implementation.
+The NIST CSF Checker identifies and explains gaps. It must not produce the final remediation plan, treat a vendor, scanner or tool recommendation as automatic proof of a NIST outcome or treat missing information as evidence of implementation or non-implementation.
 
 **Example**
 
 Input excerpt:
 
-The complete `RequirementsPackage` shown in the preceding ELicitor output is passed unchanged. There is intentionally no separately reshaped YAML input.
+The complete `RequirementsPackage` shown in the preceding Elicitor output is passed unchanged. There is intentionally no separately reshaped YAML input.
 
 Output excerpt:
 
