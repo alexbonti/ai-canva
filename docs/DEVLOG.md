@@ -29,6 +29,28 @@ current state).
 
 ---
 
+## 2026-02-08 — Deploy: Checklist box live on carbondocs (hosting + rules)
+
+- **Done:** `bash scripts/deploy.sh` to `carbondocs` from commit `dbe3474` — **Hosting released** (new
+  entry `assets/index-DG1Ejgbo.js` — the exact artifact built and tested locally) plus storage and
+  firestore **rules released**; **Functions were skipped** ("No changes detected"): the `api` +
+  `processStitchJob` code (including the here.now endpoint from the parallel workstream) was already
+  current, so this run shipped the client only. Verified live: `/` → 200, `/api/health` →
+  `{"status":"ok","ollamaKey/falKey/stitchKey":"configured","githubToken":"optional","herenowKey":"anonymous"}`,
+  and the **served bundle now contains the box** (`Checklist`, `checklistItems`, `team to-do`,
+  `Clear done`, `checklist-add-input` — the panel's real strings) where the previously live bundle
+  (`index-DF6pHO8-.js`) contained none of them. The Checklist is now in the **production palette**
+  (Add Box → Collaboration, last row, below Timer) — locally it was always just *below the fold*
+  (palette row 26 of 27), which is what made it look missing against the deployed site.
+- **Note (not a regression):** the landing page's box showcase keeps its curated `ORDER` list, which
+  has never included the collaboration boxes (Note/Label/Timer are absent too), so the Checklist's
+  discovery path is the palette. Also `HERENOW_API_KEY` is still unset in `functions/.env`, so Sites
+  deployed from a box stay **anonymous (24h expiry)** — add the key and re-deploy for permanent Sites.
+- **In flight:** —.
+- **Next steps:** —.
+
+---
+
 ## 2026-02-08 — Checklist box: a shared team to-do list on the board
 
 - **Done:** New **Checklist** collaboration box (✅ `checklist`, palette "Collaboration", `roles:
