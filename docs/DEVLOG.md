@@ -29,6 +29,23 @@ current state).
 
 ---
 
+## 2026-10-26 — Prompt evals in CI (current app prompts only)
+
+- **Done:** `node evals/run.mjs --app` evaluates the security boxes' live prompts, read from
+  `client/src/types.ts` by `evals/app-prompts.mjs` (no copied prompt files). New workflow
+  `.github/workflows/prompt-evals.yml` runs it 3× on every PR and push to `main`, report only: GitHub
+  step summary + `prompt-eval-report` artifact; fails only when an output can't be scored. The user
+  message is each box's `defaultPrompt` (what a newly added box sends). Self-check gained `--app`
+  and step-summary tests. Removed the version comparison (`--all`/`--version`,
+  `evals/prompt-versions.yaml`); old runs in `.runs/` still render in the report.
+- **Baseline (main's prompts, 1 run, gpt-5.6-terra):** Elicitor 93.75, NIST 100, Advisor 98.75.
+  The Elicitor still sometimes writes lowercase "shall" (fails the `SHALL` field check), and the
+  judge penalises its `asvs_applicability` field although the system prompt allows ASVS references.
+- **In flight:** uncommitted on `feat/evals`, now rebased onto `origin/main` (user asked to test
+  locally before any git add).
+- **Next steps:** commit + push after review; confirm the `VAL_API_KEY` repo secret exists; open a
+  PR and check the summary/artifact render and that a second push cancels the first run.
+
 ## 2026-10-22 — Prepare demo reliability fixes for PR publication
 
 - **Done:** Collected the existing routing, timeout/recovery and structured-security prompt fixes on `fix/security-demo-reliability` without changing provider code, schemas, strict validation or saved boards. Updated the Hosting workflow to read the public `VITE_AI_API_BASE_URL` Actions variable and check the configured VAL backend before deploying. The repository variable contains the existing working tunnel origin; no credentials or temporary hostname were added to source. Corrected the runbook's obsolete runtime-override advice.
