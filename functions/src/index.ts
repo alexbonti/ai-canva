@@ -65,18 +65,32 @@ async function requireAdmin(req: Request): Promise<{ uid: string } | { status: n
 
 const app = express();
 app.use(cors({ origin: true }));
-app.use(express.json({ limit: "10mb" }));
+// >= the documented here.now deploy cap (400 files / 25 MB total, docs/API.md);
+// a 10mb limit rejected legitimate deploys before the route ran (413 HTML).
+app.use(express.json({ limit: "30mb" }));
 
 app.post("/api/generate", async (req, res) => {
   try {
-    const { systemPrompt, userPrompt } = req.body as { systemPrompt?: string; userPrompt?: string };
+    const { systemPrompt, userPrompt, think } = req.body as {
+      systemPrompt?: string;
+      userPrompt?: string;
+      /** Optional provider reasoning toggle (the UI Design box turns it off). */
+      think?: boolean;
+    };
     if (!userPrompt || typeof userPrompt !== "string") {
       return res.status(400).json({ error: "userPrompt is required" });
     }
-    const result = await generateContent(systemPrompt || "You are a helpful assistant.", userPrompt);
+    const result = await generateContent(
+      systemPrompt || "You are a helpful assistant.",
+      userPrompt,
+      typeof think === "boolean" ? { think } : {}
+    );
     res.json({
       content: result.content,
       model: result.model,
+      // True when the model hit its output cap; the client uses it to explain
+      // a cut-off JSX reply instead of blaming a missing App component.
+      truncated: result.truncated,
       usage: {
         promptTokens: result.promptTokens,
         completionTokens: result.completionTokens,
@@ -385,7 +399,13 @@ app.post("/api/admin/users/:uid/status", async (req, res) => {
     if (uid === auth.uid) {
       return res.status(400).json({ error: "You cannot block your own account" });
     }
-    const disabled = Boolean(req.body?.disabled);
+    // Require a real boolean: `Boolean(undefined)` is false, so a bodyless or
+    // malformed POST silently UNBLOCKED the account (and the string "false"
+    // disabled it). Reject instead of guessing.
+    if (typeof req.body?.disabled !== "boolean") {
+      return res.status(400).json({ error: "disabled must be a boolean" });
+    }
+    const disabled = req.body.disabled;
     await getAuth().updateUser(uid, { disabled });
     res.json({ uid, disabled });
   } catch (err: any) {
@@ -413,6 +433,11 @@ app.post("/api/admin/roles", async (req, res) => {
     }
     if (typeof uid !== "string" || !uid) {
       return res.status(400).json({ error: "Missing uid" });
+    }
+    // Same trap as the status route: `if (grant)` treats a MISSING grant as
+    // revoke and the string "false" as grant. Require an explicit boolean.
+    if (typeof grant !== "boolean") {
+      return res.status(400).json({ error: "grant must be a boolean" });
     }
     const ref = getFirestore().doc(`facilitators/${uid}`);
     if (grant) {
@@ -471,14 +496,19 @@ app.post("/api/workshop/join", async (req, res) => {
 
     // Enforce team capacity: count already-claimed codes for this team.
     // Single-field query (teamId) + client-side filter on claimed — avoids a
-    // composite index; teams have at most 5 codes, so this is trivially cheap.
+    // composite index; teams have at most maxMembers codes, so this is cheap.
+    // NOTE: this read-then-write is not transactional — two simultaneous
+    // redemptions of the last seat can overfill a team by one. Low impact for a
+    // workshop (the extra guest is legitimate-looking); a transaction would fix
+    // it if it ever matters.
+    const maxMembers = team.maxMembers ?? 5;
     const teamCodesSnap = await db.collection("codes").where("teamId", "==", teamId).get();
     const claimedCount = teamCodesSnap.docs.filter((d) => d.data()?.claimed).length;
     let guestUid = codeData.uid;
 
     if (!guestUid) {
-      if (claimedCount >= (team.maxMembers ?? 5)) {
-        return res.status(409).json({ error: "This team is full (5/5)" });
+      if (claimedCount >= maxMembers) {
+        return res.status(409).json({ error: `This team is full (${claimedCount}/${maxMembers})` });
       }
       guestUid = `guest-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
       try {
@@ -519,7 +549,29 @@ app.post("/api/workshop/join", async (req, res) => {
   }
 });
 
-export const api = onRequest({ maxInstances: 5, timeoutSeconds: 120, memory: "512MiB" }, app);
+// Unknown routes must answer JSON, not Express' HTML page: the client parses
+// every API response as JSON and an HTML 404 becomes an opaque "HTTP 404".
+app.use((_req, res) => {
+  res.status(404).json({ error: "Not found." });
+});
+
+// Malformed JSON (400), oversized bodies (413) and unexpected throws become a
+// JSON message instead of an HTML stack trace that leaks absolute paths.
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const status = typeof err?.status === "number" ? err.status : 500;
+  const message =
+    status === 413
+      ? "Request body too large (limit: 30 MB)."
+      : status === 400
+        ? "Malformed JSON request body."
+        : "Internal server error.";
+  if (status >= 500) console.error("[api] unhandled route error:", err?.message);
+  res.status(status).json({ error: message });
+});
+
+// 300s: a verbose UI Design / Code reply can run 1-2 min of generation; the old
+// 120s limit would kill it mid-flight and the client would report a generic failure.
+export const api = onRequest({ maxInstances: 5, timeoutSeconds: 300, memory: "512MiB" }, app);
 
 // Re-export the async Stitch Cloud Task worker so Firebase deploys it.
 export { processStitchJob } from "./stitchJobs.js";

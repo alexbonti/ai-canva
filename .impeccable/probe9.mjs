@@ -1,0 +1,22 @@
+import { chromium } from "/Users/alessiobonti/dev/ai-canva/client/node_modules/playwright-core/index.mjs";
+const browser = await chromium.launch({ executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless: true });
+const ctx = await browser.newContext({ viewport: { width: 1200, height: 800 } });
+await ctx.addInitScript(() => localStorage.clear());
+const page = await ctx.newPage();
+page.on("console", (m) => { if (/\[store\]|\[sync\]|\[firestore\]/.test(m.text())) console.log("LOG:", m.text().slice(0, 160)); });
+await page.goto("http://127.0.0.1:5183", { waitUntil: "load" });
+await page.waitForFunction(() => !!window.__dsh, null, { timeout: 30000 });
+await page.evaluate(() => window.__dsh.useAuthStore.setState({ user: { uid: "u", email: "a@b.c", displayName: "A", photoURL: "" }, loading: false }));
+await page.waitForTimeout(2500);
+await page.evaluate(() => { const b = Array.from(document.querySelectorAll("button")).find((x) => x.textContent.trim() === "Research"); b?.click(); });
+await page.waitForTimeout(500);
+const snap = async (tag) => {
+  const v = await page.evaluate(() => { const s = window.__dsh.useBoardStore.getState(); return { nodes: s.nodes.length, boxData: Object.keys(s.boxData).length, id: s.currentBoardId, title: s.boardTitle }; });
+  console.log(tag, JSON.stringify(v));
+};
+await snap("after-add");
+await page.evaluate(() => { const st = window.__dsh.useBoardStore; st.setState({ currentBoardId: "demo-board", boardTitle: "Q3 Product Line", saveStatus: "saved" }); });
+await page.waitForTimeout(300); await snap("t+300");
+await page.waitForTimeout(700); await snap("t+1000");
+await page.waitForTimeout(1500); await snap("t+2500");
+await browser.close();

@@ -16,7 +16,11 @@ Over the next **3 sprints (8 weeks)**, you'll be working on **AI Canva** — a r
 
 1. 📖 **What is AI Canva?** — read `docs/course/01_what_is_ai_canva.md` first to understand the tool
 2. 📋 **Your project brief** — read the one assigned to you:
-   - **Individual:** `docs/course/02_student_brief_one_box.md`
+   - **Individual:** start with the step-by-step workbook
+     `docs/course/individual-project/sdlc-step-by-step.html` (study the problem → design → build → test). It is
+     also where you **record your work** — research, diagrams, prompts, test results, reflection — then
+     ⬇ Download answers as Markdown. Brief: `docs/course/individual-project/brief.md`, with the sprint tasks in
+     the same folder
    - **Cybersecurity & Compliance:** `docs/course/03_cyber_group_brief.md`
    - **UX for Telstra Health:** `docs/course/04_ux_health_group_brief.md`
    - **Telstra Innovation Lab:** `docs/course/06_telstra_innovation_brief.md`

@@ -93,6 +93,14 @@ const MAX_TEST_FILES = 2;
 /** Files fetched in parallel. */
 const FETCH_CONCURRENCY = 5;
 const REQUEST_TIMEOUT_MS = 15_000;
+/**
+ * Overall budget for building a digest. In production /api/** is a Firebase
+ * Hosting rewrite with a ~60s ceiling, so a slow GitHub (or a monorepo with many
+ * batches) must return a PARTIAL digest inside that window instead of leaving
+ * the browser with an opaque Hosting 502 (the same failure class the async
+ * Stitch redesign removed). The partial result says so in `notes`.
+ */
+const TOTAL_BUDGET_MS = 45_000;
 
 /** GitHub names: letters, digits, `-`, `_`, `.` — no slashes, no spaces. */
 const NAME = /^[A-Za-z0-9_.-]+$/;
@@ -486,6 +494,7 @@ export async function fetchRepoDigest(
 ): Promise<RepoDigest> {
   const token = opts.token || undefined;
   const notes: string[] = [];
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
   const apiBase = `https://api.github.com/repos/${ref.owner}/${ref.repo}`;
 
   let branch = ref.branch;
@@ -563,10 +572,20 @@ export async function fetchRepoDigest(
       notes.push(`Digest stopped at the ${Math.round(maxChars / 1000)}k character cap after ${files.length} file(s).`);
       break;
     }
+    if (Date.now() > deadline) {
+      truncated = true;
+      notes.push(
+        `Digest stopped at the ${Math.round(TOTAL_BUDGET_MS / 1000)}s time budget after ${files.length} file(s) — it is NOT the whole repository (slow network or very large repository).`
+      );
+      break;
+    }
     const batch = fetchable.slice(i, i + FETCH_CONCURRENCY);
     const results = await Promise.all(
       batch.map(async (path) => {
-        const url = `https://raw.githubusercontent.com/${ref.owner}/${ref.repo}/${encodeURIComponent(branch)}/${path}`;
+        // Encode each path segment: a filename with a space, `#`, `?` or `%`
+        // used to mis-resolve (or silently fetch a different file).
+        const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+        const url = `https://raw.githubusercontent.com/${ref.owner}/${ref.repo}/${encodeURIComponent(branch)}/${encodedPath}`;
         try {
           const res = await get(url, token, "text/plain");
           if (!res.ok) return { path, error: describeHttpError(res.status, token) as string };

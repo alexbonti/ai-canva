@@ -17,6 +17,8 @@ import {
   type Team,
   type Workshop,
 } from "../lib/workshop.js";
+import { Button } from "./ui/Button.js";
+import { Icon } from "./ui/Icon.js";
 
 type Tab = "templates" | "workshops" | "teams";
 
@@ -27,12 +29,21 @@ interface FacilitatorBoardProps {
   onOpenBoard: (boardId: string) => void;
 }
 
+/** Shared field styling: card stock, hairline rule, 13px ink. */
+const FIELD =
+  "h-8 min-w-0 rounded-sm border border-rule bg-card px-2.5 text-[12.5px] text-ink " +
+  "placeholder:text-ink-muted disabled:opacity-45";
+
 /**
  * Facilitator Dashboard — for facilitators and admins. Three tabs:
  *  - Templates: workshop board templates (ordinary boards flagged isTemplate)
  *  - Workshops: create/manage workshops
  *  - Teams: workshop-scoped teams of up to 5 guests, created from templates,
  *    with per-seat join codes
+ *
+ * Styling follows "The Printed Line": a card-stock header, small-caps tabs with
+ * an ink underline, ruled lists instead of stacked cards, and mono codes, counts
+ * and timestamps. Each tab keeps a real empty state.
  */
 export default function FacilitatorBoard({ user, onBack, onOpenBoard }: FacilitatorBoardProps) {
   const [tab, setTab] = useState<Tab>("workshops");
@@ -130,29 +141,34 @@ export default function FacilitatorBoard({ user, onBack, onOpenBoard }: Facilita
   };
 
   return (
-    <div className="flex h-full w-full flex-col bg-slate-50">
+    <div className="flex h-full w-full flex-col bg-paper">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3 shadow-sm">
-        <h1 className="flex items-center gap-2 text-lg font-bold text-slate-800">
-          🧑‍🏫 Facilitator Dashboard
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-rule bg-card px-5 py-3">
+        <h1 className="flex items-center gap-2 text-[15px] font-bold leading-tight tracking-tight text-ink">
+          <Icon name="facilitator" size={16} className="text-pine" />
+          Facilitator Dashboard
         </h1>
-        <button
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={onBack}
-          className="rounded-lg bg-slate-100 px-3.5 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-200"
+          icon={<Icon name="arrowRight" size={14} className="rotate-180" />}
         >
-          ← Back to board
-        </button>
+          Back to board
+        </Button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-slate-200 bg-white px-5 py-2">
+      {/* Tabs — small caps, ink underline on the active one */}
+      <div className="flex items-center gap-5 border-b border-rule bg-card px-5">
         {(["workshops", "teams", "templates"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={
-              "rounded-lg px-3.5 py-1.5 text-sm font-medium capitalize transition " +
-              (tab === t ? "bg-slate-800 text-white" : "text-slate-600 hover:bg-slate-100")
+              "label-caps -mb-px border-b-2 px-0.5 pb-2 pt-2.5 transition-colors " +
+              (tab === t
+                ? "border-ink text-ink"
+                : "border-transparent text-ink-muted hover:border-rule-strong hover:text-ink")
             }
           >
             {t}
@@ -161,31 +177,36 @@ export default function FacilitatorBoard({ user, onBack, onOpenBoard }: Facilita
       </div>
 
       {error && (
-        <div className="mx-5 mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-          {error}
+        <div className="mx-5 mt-3 flex items-start gap-2 rounded-sm border border-[rgba(179,58,43,0.28)] bg-[rgba(179,58,43,0.06)] px-3 py-2 text-[12px] leading-snug text-state-error">
+          <Icon name="alert" size={13} className="mt-[1px]" />
+          <span className="flex-1">{error}</span>
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-5">
+      <div className="flex-1 overflow-y-auto px-5 py-5">
         {/* ===== WORKSHOPS ===== */}
         {tab === "workshops" && (
           <div className="mx-auto max-w-3xl space-y-4">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="mb-3 text-sm font-bold text-slate-700">New workshop</h2>
-              <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="overflow-hidden rounded-md border border-rule bg-card">
+              <div className="border-b border-rule bg-paper-raised px-3.5 py-2">
+                <h2 className="label-caps text-ink-muted">New workshop</h2>
+              </div>
+              <div className="flex flex-col gap-2 p-3.5 sm:flex-row">
                 <input
-                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  className={FIELD + " flex-1"}
                   placeholder="Workshop name (e.g. Design Thinking 101)"
                   value={workshopName}
                   onChange={(e) => setWorkshopName(e.target.value)}
                 />
                 <input
-                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  className={FIELD + " flex-1"}
                   placeholder="Description (optional)"
                   value={workshopDesc}
                   onChange={(e) => setWorkshopDesc(e.target.value)}
                 />
-                <button
+                <Button
+                  variant="primary"
+                  size="sm"
                   disabled={!workshopName.trim() || workshopsLoading}
                   onClick={() =>
                     run(async () => {
@@ -195,91 +216,111 @@ export default function FacilitatorBoard({ user, onBack, onOpenBoard }: Facilita
                       await loadWorkshops();
                     })
                   }
-                  className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:opacity-50"
                 >
                   Create
-                </button>
+                </Button>
               </div>
             </div>
 
-            {workshops.map((w) => (
-              <div key={w.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-800">{w.name}</h3>
-                    <p className="text-xs text-slate-500">{w.description || "No description"}</p>
-                    <p className="mt-1 text-[11px] text-slate-400">
+            <div className="overflow-hidden rounded-md border border-rule bg-card">
+              <div className="flex items-center justify-between gap-2 border-b border-rule bg-paper-raised px-3.5 py-2">
+                <span className="label-caps text-ink-muted">Workshops</span>
+                <span className="data-mono text-ink-muted">{workshops.length}</span>
+              </div>
+              {workshops.map((w) => (
+                <div
+                  key={w.id}
+                  className="flex flex-wrap items-start justify-between gap-3 border-b border-rule px-3.5 py-2.5 last:border-b-0"
+                >
+                  <div className="min-w-0">
+                    <h3 className="text-[13px] font-semibold leading-tight text-ink">{w.name}</h3>
+                    <p className="text-[12px] leading-snug text-ink-soft">{w.description || "No description"}</p>
+                    <p className="data-mono mt-1 text-ink-muted">
                       Created {new Date(w.createdAt).toLocaleDateString()}
                     </p>
                   </div>
-                  <div className="flex gap-1.5">
-                    <button
+                  <div className="flex flex-shrink-0 items-center gap-1.5">
+                    <Button
+                      variant="secondary"
+                      size="xs"
                       onClick={() => {
                         setSelectedWorkshopId(w.id);
                         setTab("teams");
                       }}
-                      className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-200"
+                      icon={<Icon name="arrowRight" size={11} />}
                     >
-                      Teams →
-                    </button>
-                    <button
+                      Teams
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="xs"
                       onClick={() =>
                         run(async () => {
                           await deleteWorkshop(w.id);
                           await loadWorkshops();
                         })
                       }
-                      className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-100"
                       title="Delete workshop (teams must be deleted first)"
                     >
                       Delete
-                    </button>
+                    </Button>
                   </div>
                 </div>
-              </div>
-            ))}
-            {!workshopsLoading && workshops.length === 0 && (
-              <p className="text-center text-sm text-slate-400">No workshops yet — create one above.</p>
-            )}
+              ))}
+              {!workshopsLoading && workshops.length === 0 && (
+                <p className="px-3.5 py-6 text-center text-[12px] text-ink-muted">
+                  No workshops yet — create one above.
+                </p>
+              )}
+            </div>
           </div>
         )}
 
         {/* ===== TEAMS ===== */}
         {tab === "teams" && (
           <div className="mx-auto max-w-4xl space-y-4">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="mb-1 text-sm font-bold text-slate-700">Create a team</h2>
-              <p className="mb-3 text-xs text-slate-500">
-                Teams copy a template board and get {MAX_TEAM_MEMBERS} seat codes for guests.
-              </p>
-              <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="overflow-hidden rounded-md border border-rule bg-card">
+              <div className="border-b border-rule bg-paper-raised px-3.5 py-2">
+                <h2 className="label-caps text-ink-muted">Create a team</h2>
+                <p className="mt-1 text-[11px] leading-snug text-ink-muted">
+                  Teams copy a template board and get{" "}
+                  <span className="data-mono text-ink-soft">{MAX_TEAM_MEMBERS}</span> seat codes for guests.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 p-3.5 sm:flex-row">
                 <select
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none"
+                  className={FIELD}
                   value={selectedWorkshopId}
                   onChange={(e) => setSelectedWorkshopId(e.target.value)}
                 >
                   <option value="">Select workshop…</option>
                   {workshops.map((w) => (
-                    <option key={w.id} value={w.id}>{w.name}</option>
+                    <option key={w.id} value={w.id}>
+                      {w.name}
+                    </option>
                   ))}
                 </select>
                 <select
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none"
+                  className={FIELD}
                   value={teamTemplateId}
                   onChange={(e) => setTeamTemplateId(e.target.value)}
                 >
                   <option value="">Select template…</option>
                   {templates.map((t) => (
-                    <option key={t.id} value={t.id}>{t.title}</option>
+                    <option key={t.id} value={t.id}>
+                      {t.title}
+                    </option>
                   ))}
                 </select>
                 <input
-                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  className={FIELD + " flex-1"}
                   placeholder="Team name (e.g. Team Alpha)"
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}
                 />
-                <button
+                <Button
+                  variant="primary"
+                  size="sm"
                   disabled={!selectedWorkshopId || !teamTemplateId || !teamName.trim()}
                   onClick={() =>
                     run(async () => {
@@ -298,10 +339,9 @@ export default function FacilitatorBoard({ user, onBack, onOpenBoard }: Facilita
                       await loadTeams(selectedWorkshopId);
                     })
                   }
-                  className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:opacity-50"
                 >
                   Create team
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -309,87 +349,100 @@ export default function FacilitatorBoard({ user, onBack, onOpenBoard }: Facilita
               const codes = codesByTeam[t.id] || [];
               const claimed = codes.filter((c) => c.claimed).length;
               return (
-                <div key={t.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-800">{t.name}</h3>
-                      <p className="text-xs text-slate-500">
-                        Seats: {claimed}/{t.maxMembers} claimed
+                <div key={t.id} className="overflow-hidden rounded-md border border-rule bg-card">
+                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-rule bg-paper-raised px-3.5 py-2.5">
+                    <div className="min-w-0">
+                      <h3 className="text-[13px] font-semibold leading-tight text-ink">{t.name}</h3>
+                      <p className="mt-0.5 text-[11px] leading-snug text-ink-muted">
+                        Seats:{" "}
+                        <span className="data-mono text-ink-soft">
+                          {claimed}/{t.maxMembers}
+                        </span>{" "}
+                        claimed
                       </p>
                     </div>
-                    <div className="flex gap-1.5">
+                    <div className="flex flex-shrink-0 items-center gap-1.5">
                       {t.boardId && (
-                        <button
-                          onClick={() => onOpenBoard(t.boardId)}
-                          className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-200"
-                        >
+                        <Button variant="secondary" size="xs" onClick={() => onOpenBoard(t.boardId)}>
                           Open board
-                        </button>
+                        </Button>
                       )}
-                      <button
+                      <Button
+                        variant="danger"
+                        size="xs"
                         onClick={() =>
                           run(async () => {
                             await deleteTeam(t);
                             await loadTeams(selectedWorkshopId);
                           })
                         }
-                        className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-100"
                         title="Delete the team, its board, and its codes"
                       >
                         Delete
-                      </button>
+                      </Button>
                     </div>
                   </div>
-                  <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
-                    {codes.map((c) => (
-                      <div
-                        key={c.code}
-                        className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
-                      >
-                        <div className="min-w-0">
-                          <code className="text-sm font-bold tracking-wider text-slate-800">
-                            {c.code}
-                          </code>
-                          <span className="ml-2 text-[11px] text-slate-400">
-                            {c.claimed ? "claimed" : "unclaimed"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => copyCode(c.code)}
-                            className="rounded-md bg-white px-2 py-1 text-[11px] font-medium text-slate-600 border border-slate-200 hover:bg-slate-100 transition"
-                            title="Copy code"
-                          >
-                            {copied === c.code ? "✓ Copied" : "Copy"}
-                          </button>
-                          {!c.claimed && (
-                            <button
-                              onClick={() =>
-                                run(async () => {
-                                  await regenerateCode(t.id, t.workshopId, c.code);
-                                  await loadTeams(selectedWorkshopId);
-                                })
+                  {codes.length > 0 && (
+                    <div>
+                      {codes.map((c) => (
+                        <div
+                          key={c.code}
+                          className="flex items-center justify-between gap-2 border-b border-rule px-3.5 py-1.5 last:border-b-0"
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
+                            <code className="data-mono text-[11px] font-medium tracking-[0.12em] text-ink">
+                              {c.code}
+                            </code>
+                            <span
+                              className={
+                                "inline-flex h-[16px] items-center rounded-xs border px-1 data-mono uppercase " +
+                                (c.claimed
+                                  ? "border-[rgba(46,125,79,0.28)] bg-[rgba(46,125,79,0.10)] text-state-ok"
+                                  : "border-rule bg-card text-ink-muted")
                               }
-                              className="rounded-md bg-white px-2 py-1 text-[11px] font-medium text-slate-500 border border-slate-200 hover:bg-slate-100 transition"
-                              title="Replace this unused code"
                             >
-                              ↺
-                            </button>
-                          )}
+                              {c.claimed ? "claimed" : "unclaimed"}
+                            </span>
+                          </div>
+                          <div className="flex flex-shrink-0 items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              onClick={() => copyCode(c.code)}
+                              title="Copy code"
+                              icon={<Icon name={copied === c.code ? "check" : "copy"} size={11} />}
+                            >
+                              {copied === c.code ? "Copied" : "Copy"}
+                            </Button>
+                            {!c.claimed && (
+                              <button
+                                onClick={() =>
+                                  run(async () => {
+                                    await regenerateCode(t.id, t.workshopId, c.code);
+                                    await loadTeams(selectedWorkshopId);
+                                  })
+                                }
+                                className="box-icon-btn"
+                                title="Replace this unused code"
+                              >
+                                <Icon name="rotate" size={12} />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
             {selectedWorkshopId && !teamsLoading && teams.length === 0 && (
-              <p className="text-center text-sm text-slate-400">
+              <p className="text-center text-[12px] text-ink-muted">
                 No teams in this workshop yet — create one above.
               </p>
             )}
             {!selectedWorkshopId && (
-              <p className="text-center text-sm text-slate-400">Select a workshop to manage its teams.</p>
+              <p className="text-center text-[12px] text-ink-muted">Select a workshop to manage its teams.</p>
             )}
           </div>
         )}
@@ -397,19 +450,23 @@ export default function FacilitatorBoard({ user, onBack, onOpenBoard }: Facilita
         {/* ===== TEMPLATES ===== */}
         {tab === "templates" && (
           <div className="mx-auto max-w-3xl space-y-4">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="mb-1 text-sm font-bold text-slate-700">New template board</h2>
-              <p className="mb-3 text-xs text-slate-500">
-                Templates are ordinary boards — build them with any box types, then create teams from them.
-              </p>
-              <div className="flex gap-2">
+            <div className="overflow-hidden rounded-md border border-rule bg-card">
+              <div className="border-b border-rule bg-paper-raised px-3.5 py-2">
+                <h2 className="label-caps text-ink-muted">New template board</h2>
+                <p className="mt-1 text-[11px] leading-snug text-ink-muted">
+                  Templates are ordinary boards — build them with any box types, then create teams from them.
+                </p>
+              </div>
+              <div className="flex gap-2 p-3.5">
                 <input
-                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  className={FIELD + " flex-1"}
                   placeholder="Template name (e.g. Empathy Map Exercise)"
                   value={templateName}
                   onChange={(e) => setTemplateName(e.target.value)}
                 />
-                <button
+                <Button
+                  variant="primary"
+                  size="sm"
                   disabled={!templateName.trim()}
                   onClick={() =>
                     run(async () => {
@@ -419,59 +476,67 @@ export default function FacilitatorBoard({ user, onBack, onOpenBoard }: Facilita
                       onOpenBoard(id);
                     })
                   }
-                  className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:opacity-50"
                 >
-                  Create & open
-                </button>
+                  Create &amp; open
+                </Button>
               </div>
             </div>
 
-            {templates.map((t) => (
-              <div key={t.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-800">{t.title}</h3>
-                    <p className="text-xs text-slate-500">
-                      {(t.nodes as unknown[]).length} boxes · updated {new Date(t.updatedAt).toLocaleDateString()}
+            <div className="overflow-hidden rounded-md border border-rule bg-card">
+              <div className="flex items-center justify-between gap-2 border-b border-rule bg-paper-raised px-3.5 py-2">
+                <span className="label-caps text-ink-muted">Templates</span>
+                <span className="data-mono text-ink-muted">{templates.length}</span>
+              </div>
+              {templates.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex flex-wrap items-start justify-between gap-3 border-b border-rule px-3.5 py-2.5 last:border-b-0"
+                >
+                  <div className="min-w-0">
+                    <h3 className="text-[13px] font-semibold leading-tight text-ink">{t.title}</h3>
+                    <p className="data-mono mt-1 text-ink-muted">
+                      {(t.nodes as unknown[]).length} boxes · updated{" "}
+                      {new Date(t.updatedAt).toLocaleDateString()}
                     </p>
                   </div>
-                  <div className="flex gap-1.5">
-                    <button
-                      onClick={() => onOpenBoard(t.id)}
-                      className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-200"
-                    >
+                  <div className="flex flex-shrink-0 items-center gap-1.5">
+                    <Button variant="secondary" size="xs" onClick={() => onOpenBoard(t.id)}>
                       Open
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="xs"
                       onClick={() =>
                         run(async () => {
                           await setBoardTemplate(t.id, false);
                           await loadTemplates();
                         })
                       }
-                      className="rounded-lg bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100 border border-slate-200"
                       title="Turn back into a regular board"
                     >
                       Unlist
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="xs"
                       onClick={() =>
                         run(async () => {
                           await deleteBoard(t.id);
                           await loadTemplates();
                         })
                       }
-                      className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-100"
                     >
                       Delete
-                    </button>
+                    </Button>
                   </div>
                 </div>
-              </div>
-            ))}
-            {!templatesLoading && templates.length === 0 && (
-              <p className="text-center text-sm text-slate-400">No templates yet — create one above.</p>
-            )}
+              ))}
+              {!templatesLoading && templates.length === 0 && (
+                <p className="px-3.5 py-6 text-center text-[12px] text-ink-muted">
+                  No templates yet — create one above.
+                </p>
+              )}
+            </div>
           </div>
         )}
       </div>

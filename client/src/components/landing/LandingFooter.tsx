@@ -1,22 +1,39 @@
+const LINKS = [
+  { href: "#how-it-works", label: "How it works" },
+  { href: "#features", label: "Features" },
+  { href: "#boxes", label: "Boxes" },
+  { href: "#for-teams", label: "For teams" },
+];
+
+/** Quiet, ruled footer with a mono colophon. */
 export default function LandingFooter() {
   return (
-    <footer className="border-t border-white/10 bg-slate-950/60 py-10">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-5 md:flex-row">
-        <div className="flex items-center gap-2.5">
-          <span className="text-2xl">🎨</span>
-          <span className="text-base font-bold text-white">AI Canva</span>
+    <footer className="lp-footer">
+      <div className="lp-shell">
+        <div className="lp-footer-grid">
+          <div>
+            <div className="lp-footer-brand">
+              <span className="lp-footer-mark" aria-hidden />
+              <span className="lp-footer-word">AI Canva</span>
+            </div>
+            <p className="lp-footer-tag">
+              A collaborative AI whiteboard. The board is the record.
+            </p>
+          </div>
+
+          <nav className="lp-footer-nav" aria-label="Footer sections">
+            {LINKS.map((link) => (
+              <a key={link.href} href={link.href}>
+                {link.label}
+              </a>
+            ))}
+          </nav>
+
+          <div className="lp-footer-meta">
+            <span>© {new Date().getFullYear()} AI Canva</span>
+            <span>React · Firebase · Ollama</span>
+          </div>
         </div>
-
-        <nav className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-400">
-          <a href="#how-it-works" className="transition hover:text-white">How it works</a>
-          <a href="#features" className="transition hover:text-white">Features</a>
-          <a href="#boxes" className="transition hover:text-white">Boxes</a>
-          <a href="#for-teams" className="transition hover:text-white">For teams</a>
-        </nav>
-
-        <p className="text-xs text-slate-500">
-          © {new Date().getFullYear()} AI Canva · Built with React, Firebase & Ollama
-        </p>
       </div>
     </footer>
   );

@@ -1,0 +1,934 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SDLC Step-by-Step Workbook — Build Your Box from Problem to Tested</title>
+<style>
+  :root { --ink:#1c1c1a; --green:#3F6B2A; --green-dark:#2F5220; --green-light:#EAF5DF; --cream:#f4efe6; --card:#fff; --grey:#6b6b60; --line:#e0d6c8; --blue:#2c3e50; --red:#c0392b; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Plus Jakarta Sans',-apple-system,system-ui,sans-serif; background:var(--cream); color:var(--ink); line-height:1.55; }
+  .wrap { max-width:880px; margin:0 auto; padding:48px 48px 80px; }
+  .kicker { font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--green); margin-bottom:10px; }
+  h1 { font-size:32px; font-weight:800; line-height:1.12; letter-spacing:-.02em; }
+  .sub { font-size:16px; color:var(--grey); margin-top:10px; }
+  .meta { display:flex; gap:20px; flex-wrap:wrap; margin:18px 0 26px; }
+  .meta div { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:8px 14px; font-size:13px; }
+  .meta b { color:var(--green); }
+  h2 { font-size:21px; font-weight:800; margin:34px 0 12px; padding-top:22px; border-top:1px solid var(--line); }
+  h2 .n { color:var(--green); }
+  h3 { font-size:16px; font-weight:800; margin:18px 0 8px; color:var(--green-dark); }
+  p { margin:10px 0; font-size:15px; }
+  ul,ol { margin:10px 0 10px 22px; }
+  li { margin:6px 0; font-size:15px; }
+  table { width:100%; border-collapse:collapse; margin:14px 0; background:var(--card); font-size:14px; }
+  th { background:var(--ink); color:#fff; text-align:left; padding:8px 12px; }
+  td { border:1px solid var(--line); padding:8px 12px; vertical-align:top; }
+  tr:nth-child(even) td { background:#faf8f3; }
+  code { background:#eef0f2; font-family:ui-monospace,monospace; font-size:12.5px; padding:2px 6px; border-radius:5px; }
+  .callout { background:var(--green-light); border-left:4px solid var(--green); border-radius:10px; padding:13px 16px; margin:16px 0; font-size:14px; }
+  .callout b { color:var(--green-dark); }
+  .warn { background:#fdf0df; border-left:4px solid #d97706; border-radius:10px; padding:13px 16px; margin:16px 0; font-size:14px; }
+  .warn b { color:#a06a00; }
+  pre.block { background:#1f2933; color:#e6edf3; border-radius:10px; padding:14px 16px; margin:12px 0; font-family:ui-monospace,SFMono-Regular,monospace; font-size:12px; line-height:1.7; white-space:pre-wrap; }
+  .footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--line); color:var(--grey); font-size:13px; }
+  @media print { body{background:#fff} .wrap{max-width:100%;padding:16mm} h2{break-before:auto} tr,pre.block{break-inside:avoid} }
+
+  /* ---------- workbook: fillable fields, diagrams, work tables ---------- */
+  .field { margin:14px 0 18px; }
+  .flabel { font-weight:700; font-size:14px; margin-bottom:6px; }
+  .fhint { color:var(--grey); font-style:italic; font-weight:400; }
+  .finput { background:var(--card); border:1px dashed var(--line); border-radius:10px; padding:12px; min-height:96px; line-height:1.55; font-size:15px; outline:none; }
+  .finput:focus, .drawarea:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(63,107,42,.15); }
+  .finput:empty:before { content:attr(data-hint); color:#a9a99e; }
+  .finput.mono { font-family:ui-monospace,monospace; font-size:13px; }
+  .drawarea { background:var(--card); border:1px dashed var(--line); border-radius:10px; min-height:260px; padding:12px; font-size:15px; outline:none;
+    background-image:repeating-linear-gradient(0deg, rgba(28,28,26,.06) 0 1px, transparent 1px 24px), repeating-linear-gradient(90deg, rgba(28,28,26,.06) 0 1px, transparent 1px 24px); }
+  .drawarea:empty:before { content:attr(data-hint); color:#a9a99e; }
+  table[data-work-table] td { min-height:34px; }
+  table[data-work-table] td[contenteditable="true"] { cursor:text; }
+  table[data-work-table] td[contenteditable="true"]:focus { background:#fffdf3; box-shadow:inset 0 0 0 2px var(--green-light); outline:none; }
+  .checklist { list-style:none; margin:10px 0 10px 0; }
+  .checklist li { margin:6px 0; }
+  .checklist label { display:flex; gap:8px; align-items:flex-start; font-size:15px; cursor:pointer; }
+  .checklist input[type=checkbox] { margin-top:4px; flex:0 0 auto; }
+  .toolbar { position:fixed; right:20px; bottom:20px; z-index:50; display:flex; gap:8px; align-items:center; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:8px 10px; box-shadow:0 6px 20px rgba(28,28,26,.10); }
+  .toolbar button { font:inherit; font-size:12.5px; font-weight:600; color:var(--green-dark); background:var(--green-light); border:1px solid var(--line); border-radius:8px; padding:7px 10px; cursor:pointer; }
+  .toolbar button:hover { background:#dcefcc; }
+  .toolbar button:focus-visible { outline:2px solid var(--green); outline-offset:1px; }
+  .chip { font-size:11.5px; color:var(--grey); white-space:nowrap; }
+  .chip.warn-chip { color:#a06a00; font-weight:700; }
+  @media print {
+    .toolbar { display:none !important; }
+    .finput, .drawarea, table[data-work-table] td { border:1px solid var(--line) !important; }
+    .finput { min-height:96px; }
+    .drawarea { min-height:240px; }
+    table[data-work-table] td { min-height:34px; }
+    .field, tr, pre.block { break-inside:avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">AI-Assisted Software Project · Individual Project · Step-by-step guide</div>
+  <h1>SDLC Step-by-Step Workbook — Build Your Box from Problem to Tested</h1>
+  <div class="sub">Study the problem → Design the solution → Implement the box → Test it: the four phases of "One Student, One Box", in the order a project is really built. <b>This is also your workbook</b> — every <b>✍️ Your work</b> section is yours to fill in: research, diagrams, prompts, test results, report drafts, reflection.</div>
+  <div class="meta">
+    <div>Phases: <b>Four</b></div>
+    <div>Budget: <b>30 hours</b></div>
+    <div>Weighting: <b>Research 70% · Build 30%</b></div>
+    <div>Assumes: <b><code>npm run dev</code> works</b></div>
+    <div>Workbook: <b>✍️ fill in as you go</b></div>
+  </div>
+
+  <p><b>Start here.</b> This document tells you <b>what to do and in what order</b> — and it is where you <b>write your work</b>. You do not need to invent a process: follow the four phases, do the tasks, fill in the ✍️ sections.</p>
+
+  <table>
+    <tr><th>Document</th><th>What it gives you</th></tr>
+    <tr><td><code>brief.md</code></td><td><b>What you are marked on</b> — the box menu, the deliverables, the rubric</td></tr>
+    <tr><td><code>sdlc-step-by-step.md</code> <i>(this file)</i></td><td><b>The order of work + your workbook</b> — 4 phases, 34 tasks with "done when", and the ✍️ sections you fill in</td></tr>
+    <tr><td><code>sprint-tasks.md</code></td><td><b>The 3-week schedule</b> — the same 30 hours cut into weeks with checkpoints and deadlines</td></tr>
+    <tr><td><code>../05_how_to_build_a_box.md</code></td><td><b>The code, file by file</b> — how to add a box to AI Canva (used in Phase 3)</td></tr>
+  </table>
+
+  <p><b>How to use it:</b> open your board → <b>+ Add Box → Collaboration → Checklist</b> → paste one phase block (from §8) into <b>Add a task…</b>. Tick tasks as you finish them and tick as you go.</p>
+
+  <div class="callout">
+    <b>The one rule that matters:</b> <b>finish a phase before you start the next.</b> Students who skip Phase 1 (the research) and start coding lose the 70% half of the mark. Coding is only 30%.
+  </div>
+
+  <h2>How to use this workbook</h2>
+
+  <div class="field">
+    <div class="flabel">My name / student ID</div>
+    <div class="finput" contenteditable="true" data-key="wb-name" data-hint="Write here."></div>
+  </div>
+
+  <p>You have three ways to use it — pick one and stay with it:</p>
+
+  <table>
+    <tr><th>If you are…</th><th>Use</th><th>What happens to your answers</th></tr>
+    <tr><td>Working in a <b>browser</b></td><td><code>sdlc-step-by-step.html</code></td><td>Type straight into the grey boxes: they <b>save themselves in that browser</b> as you type, and <b>⬇ Download answers (.md)</b> gives you a Markdown file you can paste into your report</td></tr>
+    <tr><td>Working on <b>paper</b></td><td><code>sdlc-step-by-step.html</code> printed (🖨 Print / PDF)</td><td>Every ✍️ box prints as a blank space to write in</td></tr>
+    <tr><td>Working in the <b>repo</b></td><td><code>sdlc-step-by-step.md</code></td><td>Edit the file and write under each ✍️ heading — your answers live with your code and go into the PR</td></tr>
+  </table>
+
+  <div class="warn">
+    ⚠️ <b>Autosave is per-browser, not a cloud.</b> Your answers live in that one browser on that one computer and are <b>not</b> shared with your instructor or your teammates. <b>Download the <code>.md</code> (or print the PDF) at the end of every session</b> — that file is your submission, and it is the only copy that survives a browser reset. Never clear your browser data without exporting first.
+  </div>
+
+  <p><b>Where your answers go</b> — each phase ends with a ✍️ section that collects that phase's evidence:</p>
+
+  <table>
+    <tr><th>Phase</th><th>✍️ Section</th><th>What you record there</th></tr>
+    <tr><td><b>1. Study the problem</b></td><td>§2 → <i>Your work — Phase 1</i></td><td>Box choice · problem statement · user + success criteria · research question · annotated bibliography (3 sources) · problem diagram · report §1–2 draft</td></tr>
+    <tr><td><b>2. Design the solution</b></td><td>§3 → <i>Your work — Phase 2</i></td><td>Inputs/outputs · both prompts · the two design diagrams · guardrails · design-decisions table · build plan</td></tr>
+    <tr><td><b>3. Implement the box</b></td><td>§4 → <i>Your work — Phase 3</i></td><td>Build record · branch + PR link · what broke and how you fixed it · demo evidence</td></tr>
+    <tr><td><b>4. Test it</b></td><td>§5 → <i>Your work — Phase 4</i></td><td>Fixes after user testing · report §5–6 · reflection (the 6 scenarios and 3 user tests are recorded in §6)</td></tr>
+    <tr><td><b>Hand-in</b></td><td>§12 → <i>Submission</i></td><td>Links to report, PR and board, plus the final checklist</td></tr>
+  </table>
+
+  <p>Your ✍️ answers <b>are</b> your report in pieces: §1–2 in Phase 1, §3–4 material in Phase 2, §5–6 in Phase 4. Assemble them at the end — that is what makes the 70% research mark easy instead of a last-night panic.</p>
+
+  <h2><span class="n">1.</span> The four phases at a glance</h2>
+
+  <table>
+    <tr><th>Phase</th><th>The question it answers</th><th>What you produce</th><th>Hours</th><th>Lands in</th></tr>
+    <tr><td><b>1. Study the problem</b></td><td>What problem, for whom, and is it real?</td><td>Problem statement · research question · 3 annotated sources · problem diagram · report §1–2 draft</td><td><b>9</b></td><td>Week 1</td></tr>
+    <tr><td><b>2. Design the solution</b></td><td>What exactly will the box do — and why this way?</td><td>Pipeline sketch · input/output table · prompt draft · 2 design diagrams · guardrails · design-decisions table</td><td><b>6</b></td><td>Week 1–2</td></tr>
+    <tr><td><b>3. Implement the box</b></td><td>Does it actually work in AI Canva?</td><td>A registered box that runs, survives bad input, is clean, and is in a PR</td><td><b>7</b></td><td>Week 2</td></tr>
+    <tr><td><b>4. Test it</b></td><td>Do <b>real users</b> get value from it?</td><td>Test log · 3 user tests · 2 fixes · report §5–6 · demo rehearsal</td><td><b>8</b></td><td>Week 3</td></tr>
+  </table>
+
+  <p><b>30 hours total.</b> Markers: 🔴 <b>must</b> · 🟡 <b>should</b> · 🔵 <b>stretch</b>.</p>
+
+  <pre class="block">   PHASE 1            PHASE 2             PHASE 3            PHASE 4
+ Study the   ──▶   Design the   ──▶   Implement the  ──▶   Test it
+  problem           solution             box                (real users)
+      │                 │                  │                   │
+      └── report §1–2   └── report §3–4    └── the 30% build   └── report §5–6
+                                                                   + demo
+                          └────── every phase feeds the 70% report ──────┘</pre>
+
+  <h2><span class="n">2.</span> Phase 1 — Study the problem (9 h)</h2>
+
+  <p><b>Why this phase exists:</b> 70% of your mark is the research. Before you build anything, you must be able to say — in one sentence — <i>who</i> has a problem, <i>what</i> goes wrong today, and <i>why</i> an AI box would help.</p>
+
+  <table>
+    <tr><th>ID</th><th>Task</th><th>Hrs</th><th></th><th>Done when</th></tr>
+    <tr><td>P1-01</td><td>Read <code>brief.md</code> and the rubric end-to-end; note the 3 rubric rows you are weakest on</td><td>1</td><td style="text-align:center">🔴</td><td>You can name your 3 weakest rubric rows</td></tr>
+    <tr><td>P1-02</td><td>Shortlist 3 boxes from the brief's menu that fit a problem you actually care about; write a one-line research question for each</td><td>1</td><td style="text-align:center">🟡</td><td>3 candidate boxes, each with a one-line question</td></tr>
+    <tr><td>P1-03</td><td>Lock <b>one</b> box and write the problem statement: who has the problem, what goes wrong today, why it matters</td><td>1</td><td style="text-align:center">🔴</td><td>3–5 sentences, written on your board where the instructor can read them</td></tr>
+    <tr><td>P1-04</td><td>Find 3 credible sources; write a ~150-word annotated entry for each (what it says, why it matters to your question)</td><td>3</td><td style="text-align:center">🔴</td><td>An annotated bibliography with 3 full references</td></tr>
+    <tr><td>P1-05</td><td>Name your <b>user</b> and your 3 <b>success criteria</b> — what a "good output" must contain to be useful</td><td>0.5</td><td style="text-align:center">🔴</td><td>One user + 3 criteria you can test against in Phase 4</td></tr>
+    <tr><td>P1-06</td><td>Draw the <b>problem diagram</b>: what happens today, step by step, without your box</td><td>0.5</td><td style="text-align:center">🔴</td><td>One labelled diagram (see §7)</td></tr>
+    <tr><td>P1-07</td><td>Write your research question as <b>one sentence</b> + the evidence that would answer it</td><td>0.5</td><td style="text-align:center">🟡</td><td>A question in the "For [user]… does…" form (§7)</td></tr>
+    <tr><td>P1-08</td><td>Write-up: report §1 (problem &amp; motivation) + §2 (domain context), ~800 words, cited</td><td>1.5</td><td style="text-align:center">🟡</td><td>Draft in your report, citations in the reference list</td></tr>
+  </table>
+
+  <p><b>You hand in (Phase 1):</b> problem statement · research question · annotated bibliography (3 sources) · problem diagram · report §1–2 draft.</p>
+
+  <p><b>Phase 1 is done when you can answer all four, in one sentence each:</b></p>
+
+  <ul class="checklist" data-checklist-key="p1-done" data-checklist-label="Phase 1 is done when you can answer all four, in one sentence each">
+    <li><label><input type="checkbox" data-key="p1-done-1"> <span>Who is the user, and where do they hit the problem?</span></label></li>
+    <li><label><input type="checkbox" data-key="p1-done-2"> <span>What do they do today instead — and what is wrong with that?</span></label></li>
+    <li><label><input type="checkbox" data-key="p1-done-3"> <span>What would "better" look like, measurably? (your 3 success criteria)</span></label></li>
+    <li><label><input type="checkbox" data-key="p1-done-4"> <span>What is your research question, and what evidence would answer it?</span></label></li>
+  </ul>
+
+  <h3>✍️ Your work — Phase 1 (fill this in)</h3>
+
+  <p>In the HTML workbook these are type-in boxes that save themselves as you type; on paper they are the space to write. Write these as <b>proper sentences</b> — this section <i>is</i> your report §1–2, not notes to yourself.</p>
+
+  <div class="field">
+    <div class="flabel">1. The box I chose <span class="fhint">(and why, in 1–2 lines)</span></div>
+    <div class="finput" contenteditable="true" data-key="p1-f1" data-hint="Write here."></div>
+  </div>
+
+  <div class="field">
+    <div class="flabel">2. Problem statement <span class="fhint">(3–5 sentences: who has the problem, what goes wrong today, why it matters)</span></div>
+    <div class="finput" contenteditable="true" data-key="p1-f2" data-hint="Write here."></div>
+  </div>
+
+  <div class="field">
+    <div class="flabel">3. My user <span class="fhint">(be specific — "a student with a rough project idea", not "users")</span></div>
+    <div class="finput" contenteditable="true" data-key="p1-f3" data-hint="Write here."></div>
+  </div>
+
+  <p><b>4. Success criteria</b> — how I will know a "good output" when I see one. Each one must be checkable in Phase 4.</p>
+
+  <table data-work-table data-table-key="p1-t1" data-table-label="4. Success criteria">
+    <tr><th>#</th><th>Criterion (what the output must contain or do)</th><th>How I will check it</th></tr>
+    <tr><td contenteditable="true">1</td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+    <tr><td contenteditable="true">2</td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+    <tr><td contenteditable="true">3</td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+  </table>
+
+  <div class="field">
+    <div class="flabel">5. Research question <span class="fhint">(one sentence — use the form in §7)</span></div>
+    <div class="finput" contenteditable="true" data-key="p1-f4" data-hint="Write here."></div>
+  </div>
+
+  <div class="field">
+    <div class="flabel">6. The evidence that would answer it <span class="fhint">(what you would have to see to say yes, no, or mixed)</span></div>
+    <div class="finput" contenteditable="true" data-key="p1-f5" data-hint="Write here."></div>
+  </div>
+
+  <p><b>7. Annotated bibliography</b> — 3 credible sources, ~150 words each: what it says, and why it matters to <i>your</i> question. (Add rows if you use more sources.)</p>
+
+  <table data-work-table data-table-key="p1-t2" data-table-label="7. Annotated bibliography">
+    <tr><th>#</th><th>Full reference (author, year, title, source, link)</th><th>What it says + why it matters to my question</th></tr>
+    <tr><td contenteditable="true">1</td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+    <tr><td contenteditable="true">2</td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+    <tr><td contenteditable="true">3</td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+  </table>
+
+  <p><b>8. Problem diagram</b> — what happens today, without your box. Draw it by hand and photograph it, or build it on your AI Canva board and paste a screenshot.</p>
+
+  <div class="field" data-field-label="8. Problem diagram">
+    <div class="drawarea" contenteditable="true" data-key="p1-d1" data-hint="Draw here — or paste a screenshot of your board."></div>
+  </div>
+
+  <div class="field" data-field-label="Caption — my problem diagram (what it shows)">
+    <div class="flabel"><span class="fhint">(Caption — what this diagram shows:)</span></div>
+    <div class="finput" contenteditable="true" data-key="p1-f6" data-hint="Write here."></div>
+  </div>
+
+  <div class="field">
+    <div class="flabel">9. Report §1 — Problem &amp; motivation <span class="fhint">(draft, ~400 words, with citations)</span></div>
+    <div class="finput" contenteditable="true" data-key="p1-f7" data-hint="Write here."></div>
+  </div>
+
+  <div class="field">
+    <div class="flabel">10. Report §2 — Domain context <span class="fhint">(draft, ~400 words, with citations)</span></div>
+    <div class="finput" contenteditable="true" data-key="p1-f8" data-hint="Write here."></div>
+  </div>
+
+  <h2><span class="n">3.</span> Phase 2 — Design the solution (6 h)</h2>
+
+  <p><b>Why this phase exists:</b> design is where the marks for <i>rationale</i> and <i>alternatives</i> (25% of the report) are earned. It is also much cheaper to change a drawing than to change working code.</p>
+
+  <table>
+    <tr><th>ID</th><th>Task</th><th>Hrs</th><th></th><th>Done when</th></tr>
+    <tr><td>P2-01</td><td>Sketch the demo pipeline on your board: 💡 Idea → <b>your box</b> → 🔍 Summarize, connected</td><td>0.5</td><td style="text-align:center">🔴</td><td>3 boxes and their edges on the canvas</td></tr>
+    <tr><td>P2-02</td><td>Define the inputs and the output in a table: input name / where it comes from / which output section it feeds</td><td>0.5</td><td style="text-align:center">🔴</td><td>A filled input–output table</td></tr>
+    <tr><td>P2-03</td><td>Draft the <code>defaultPrompt</code> and <code>defaultSystemPrompt</code> using <code>{{inputs}}</code> / <code>{{input_1}}</code> / <code>{{Box Name}}</code></td><td>1</td><td style="text-align:center">🔴</td><td>Prompts readable by someone else; every variable explained</td></tr>
+    <tr><td>P2-04</td><td>Draw <b>two design diagrams</b>: (a) the box in the pipeline, (b) the decision/data flow — input → prompt → model → output contract → guardrail → what the user sees</td><td>1.5</td><td style="text-align:center">🔴</td><td>2 labelled diagrams (§7)</td></tr>
+    <tr><td>P2-05</td><td>Decide the <b>guardrails</b>: what the box must refuse, flag or warn about — and how the user sees it</td><td>0.5</td><td style="text-align:center">🔴</td><td>A list of <i>trigger → what the box does → what the user sees</i></td></tr>
+    <tr><td>P2-06</td><td>Fill the <b>design-decisions table</b>: choice / why / what you rejected (this is report §3 + §4)</td><td>1</td><td style="text-align:center">🟡</td><td>At least 4 rows, each with a rejected alternative</td></tr>
+    <tr><td>P2-07</td><td>Plan the build: the exact files you will touch, in the order you will touch them</td><td>0.5</td><td style="text-align:center">🟡</td><td>A 5-line build plan</td></tr>
+    <tr><td>P2-08</td><td>Show your design to one classmate for a 5-minute sanity check</td><td>0.5</td><td style="text-align:center">🔵</td><td>One thing you changed because of their question</td></tr>
+  </table>
+
+  <p><b>You hand in (Phase 2):</b> the board with the demo pipeline · input/output table · prompt draft · 2 design diagrams · guardrail list · design-decisions table · build plan.</p>
+
+  <p><b>A design-decisions table looks like this</b> — it becomes report §3 and §4 almost word for word:</p>
+
+  <table>
+    <tr><th>Decision</th><th>What I chose</th><th>Why</th><th>What I rejected, and why</th></tr>
+    <tr><td>Output format</td><td>Fixed 4-section Markdown with a verdict line</td><td>Users must act on it in under a minute</td><td>Free-form prose — too hard to scan</td></tr>
+    <tr><td>Provider</td><td>The app's existing text model</td><td>One extra provider = one more failure point</td><td>A second model + a merge step — too complex for one box</td></tr>
+    <tr><td>No input</td><td>Refuse with a clear message</td><td>A blank answer looks like a bug</td><td>Letting the model guess — dishonest</td></tr>
+  </table>
+
+  <h3>✍️ Your work — Phase 2 (fill this in)</h3>
+
+  <p><b>1. Inputs and outputs</b> — what goes in and what comes out. One row per input; start with the main one.</p>
+
+  <table data-work-table data-table-key="p2-t1" data-table-label="1. Inputs and outputs">
+    <tr><th>Input (what it is)</th><th>Where it comes from (which box)</th><th>Which output section it feeds</th></tr>
+    <tr><td contenteditable="true"><i>e.g. the idea text</i></td><td contenteditable="true"><i>💡 Idea box</i></td><td contenteditable="true"><i>Verdict</i></td></tr>
+    <tr><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+    <tr><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+  </table>
+
+  <div class="field">
+    <div class="flabel">2. My <code>defaultPrompt</code> <span class="fhint">(the final text, with <code>{{inputs}}</code> / <code>{{input_1}}</code> / <code>{{Box Name}}</code> where they belong)</span></div>
+    <div class="finput mono" contenteditable="true" data-key="p2-f1" data-hint="Write here."></div>
+  </div>
+
+  <div class="field">
+    <div class="flabel">3. My <code>defaultSystemPrompt</code> <span class="fhint">(the role, the tone, the rules it must follow)</span></div>
+    <div class="finput mono" contenteditable="true" data-key="p2-f2" data-hint="Write here."></div>
+  </div>
+
+  <p><b>4. Design diagram A — my box in the pipeline</b> <i>(draw it, or paste a screenshot of your board)</i></p>
+
+  <div class="field" data-field-label="4. Design diagram A — my box in the pipeline">
+    <div class="drawarea" contenteditable="true" data-key="p2-d1" data-hint="Draw here — or paste a screenshot of your board."></div>
+  </div>
+
+  <div class="field" data-field-label="Caption — design diagram A (my box in the pipeline)">
+    <div class="flabel"><span class="fhint">(Caption:)</span></div>
+    <div class="finput" contenteditable="true" data-key="p2-f3" data-hint="Write here."></div>
+  </div>
+
+  <p><b>5. Design diagram B — the decision / data flow inside my box</b> <i>(input → prompt → model → output contract → guardrail → what the user sees)</i></p>
+
+  <div class="field" data-field-label="5. Design diagram B — the decision / data flow inside my box">
+    <div class="drawarea" contenteditable="true" data-key="p2-d2" data-hint="Draw here — or paste a screenshot of your board."></div>
+  </div>
+
+  <div class="field" data-field-label="Caption — design diagram B (the decision / data flow inside my box)">
+    <div class="flabel"><span class="fhint">(Caption:)</span></div>
+    <div class="finput" contenteditable="true" data-key="p2-f4" data-hint="Write here."></div>
+  </div>
+
+  <p><b>6. My guardrails</b> — the box must not answer everything. One row per guardrail.</p>
+
+  <table data-work-table data-table-key="p2-t2" data-table-label="6. My guardrails">
+    <tr><th>Trigger (what goes wrong)</th><th>What the box does</th><th>What the user sees</th></tr>
+    <tr><td contenteditable="true"><i>e.g. nothing connected</i></td><td contenteditable="true"><i>refuses, does not call the model</i></td><td contenteditable="true"><i>"Connect an Idea box first."</i></td></tr>
+    <tr><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+    <tr><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+  </table>
+
+  <p><b>7. Design decisions</b> — at least 4 rows. This table becomes report §3 + §4, almost word for word.</p>
+
+  <table data-work-table data-table-key="p2-t3" data-table-label="7. Design decisions">
+    <tr><th>Decision</th><th>What I chose</th><th>Why</th><th>What I rejected, and why</th></tr>
+    <tr><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+    <tr><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+    <tr><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+    <tr><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+  </table>
+
+  <div class="field">
+    <div class="flabel">8. Build plan <span class="fhint">(the files I will touch, in the order I will touch them)</span></div>
+    <div class="finput" contenteditable="true" data-key="p2-f5" data-hint="Write here."></div>
+  </div>
+
+  <h2><span class="n">4.</span> Phase 3 — Implement the box on AI Canva (7 h)</h2>
+
+  <p><b>Why this phase exists:</b> this is the 30% build mark. A box is <b>three touchpoints</b> in the code: <code>types.ts</code> (it exists) · <code>runBox</code> in <code>boardStore.ts</code> (it runs) · optionally <code>BoxNode.tsx</code> (it looks good). <b>The file-by-file code steps are in <a href="../05_how_to_build_a_box.md"><code>../05_how_to_build_a_box.md</code></a></b> — keep it open next to this page.</p>
+
+  <table>
+    <tr><th>ID</th><th>Task</th><th>Hrs</th><th></th><th>Done when</th></tr>
+    <tr><td>P3-01</td><td><code>git pull</code> on <code>main</code>, then create your branch <code>feature/&lt;your-box&gt;</code> — never work on <code>main</code></td><td>0.5</td><td style="text-align:center">🔴</td><td><code>git status</code> is clean and you are on your branch</td></tr>
+    <tr><td>P3-02</td><td>Register the box in <code>types.ts</code>: <code>BoxType</code> + a <code>BOX_TYPES</code> entry (label, icon, colour, category, both prompts)</td><td>1</td><td style="text-align:center">🔴</td><td>The box appears in <b>+ Add Box</b> and drops onto the canvas</td></tr>
+    <tr><td>P3-03</td><td>Wire the <code>runBox</code> branch: gather connected inputs → call the backend → shape the reply into your output format</td><td>2</td><td style="text-align:center">🔴</td><td>▶ Run produces real model output in the format you designed</td></tr>
+    <tr><td>P3-04</td><td>Handle the empty-input and error paths so the box <b>never</b> shows a blank output</td><td>1</td><td style="text-align:center">🔴</td><td>No input, and a forced error, both show a useful message</td></tr>
+    <tr><td>P3-05</td><td>Run the demo pipeline end-to-end and fix what breaks</td><td>1</td><td style="text-align:center">🔴</td><td>The pipeline runs with no manual fix-up</td></tr>
+    <tr><td>P3-06</td><td>Clean the code: clear names, comments that explain <i>why</i>, no debug leftovers; commit in small chunks</td><td>0.5</td><td style="text-align:center">🟡</td><td>The diff is small and readable by someone else</td></tr>
+    <tr><td>P3-07</td><td>Open the PR: what changed, why, a screenshot of real output, the branch explained in 5 lines</td><td>0.5</td><td style="text-align:center">🟡</td><td>The PR is readable by someone who has never seen your box</td></tr>
+    <tr><td>P3-08</td><td><i>Optional:</i> a custom render in <code>BoxNode.tsx</code> (score bars, cards, a verdict banner)</td><td>0.5</td><td style="text-align:center">🔵</td><td>Someone can read the output at a glance without being told what it means</td></tr>
+  </table>
+
+  <p><b>You hand in (Phase 3):</b> an open PR with the <code>types.ts</code> entry + the <code>runBox</code> branch · a screenshot of real output · the working demo pipeline on your board.</p>
+
+  <div class="callout">
+    <b>Start plain, then decorate.</b> Get the text to work first (P3-02 → P3-05). Only then spend time on P3-08. A working simple box beats a broken clever one — that is the brief's own advice.
+  </div>
+
+  <h3>✍️ Your work — Phase 3 (fill this in)</h3>
+
+  <div class="field">
+    <div class="flabel">1. My branch <span class="fhint">(never work on <code>main</code>)</span></div>
+    <div class="finput" contenteditable="true" data-key="p3-f1" data-hint="Write here."></div>
+  </div>
+
+  <p><b>2. Build record</b> — what I actually changed, file by file.</p>
+
+  <table data-work-table data-table-key="p3-t1" data-table-label="2. Build record">
+    <tr><th>File</th><th>What I changed there</th></tr>
+    <tr><td contenteditable="true"><code>client/src/types.ts</code></td><td contenteditable="true"></td></tr>
+    <tr><td contenteditable="true"><code>client/src/store/boardStore.ts</code></td><td contenteditable="true"></td></tr>
+    <tr><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+    <tr><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+  </table>
+
+  <p><b>3. What broke, and how I fixed it</b> — a failure you found and fixed is evidence of testing, not embarrassment.</p>
+
+  <table data-work-table data-table-key="p3-t2" data-table-label="3. What broke, and how I fixed it">
+    <tr><th>What went wrong</th><th>What I changed</th></tr>
+    <tr><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+    <tr><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+    <tr><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+  </table>
+
+  <div class="field">
+    <div class="flabel">4. My PR <span class="fhint">(link)</span></div>
+    <div class="finput" contenteditable="true" data-key="p3-f2" data-hint="Write here."></div>
+  </div>
+
+  <div class="field">
+    <div class="flabel">5. Proof it works <span class="fhint">(where the screenshot / screen recording lives — or paste it here)</span></div>
+    <div class="finput" contenteditable="true" data-key="p3-f3" data-hint="Write here."></div>
+  </div>
+
+  <h2><span class="n">5.</span> Phase 4 — Test it: technical tests + user testing (8 h)</h2>
+
+  <p><b>Why this phase exists:</b> <i>you</i> know how your box is supposed to work — your users don't. Testing is where you find out whether the box is actually usable, and it gives you the evidence for report §5 and §6.</p>
+
+  <p>There are <b>two kinds of testing</b>, and you must do both:</p>
+
+  <ol>
+    <li><b>Technical testing</b> (P4-01, P4-02) — does it survive bad input? Six scenarios in §6.</li>
+    <li><b>User testing</b> (P4-03 → P4-06) — can three real people use it without you explaining it?</li>
+  </ol>
+
+  <table>
+    <tr><th>ID</th><th>Task</th><th>Hrs</th><th></th><th>Done when</th></tr>
+    <tr><td>P4-01</td><td>Technical self-test: run the <b>6 scenarios</b> in §6 and tick every one</td><td>1</td><td style="text-align:center">🔴</td><td>All 6 run, and you wrote down what happened</td></tr>
+    <tr><td>P4-02</td><td>Record every failure: what you saw, what you changed</td><td>0.5</td><td style="text-align:center">🔴</td><td>A test log covering the failures you found</td></tr>
+    <tr><td>P4-03</td><td>Write the <b>user-test plan</b>: 3 users, ONE realistic task, what you will watch, what counts as success</td><td>0.5</td><td style="text-align:center">🔴</td><td>A one-page plan including the exact words you will say</td></tr>
+    <tr><td>P4-04</td><td>Run <b>3 user sessions</b> (15–20 min each): say nothing, help only after 2 minutes of being stuck, take notes + exact quotes</td><td>1.5</td><td style="text-align:center">🔴</td><td>Notes for U1, U2, U3</td></tr>
+    <tr><td>P4-05</td><td>Log the results in the user-test table (§6): what they did, where they hesitated, what they expected</td><td>0.5</td><td style="text-align:center">🔴</td><td>The table filled in for 3 users</td></tr>
+    <tr><td>P4-06</td><td>Fix the <b>top 2 problems</b> users hit, then re-test with at least 1 user</td><td>1.5</td><td style="text-align:center">🔴</td><td>Before/after evidence for both fixes</td></tr>
+    <tr><td>P4-07</td><td>Write-up: report §5 (ethics &amp; limits) — include what users misunderstood and what the box must never be used for</td><td>0.5</td><td style="text-align:center">🟡</td><td>Section drafted with your <b>own</b> test evidence</td></tr>
+    <tr><td>P4-08</td><td>Write-up: report §6 — answer your research question, using your test results as evidence</td><td>1</td><td style="text-align:center">🟡</td><td>A clear yes / no / mixed answer with evidence</td></tr>
+    <tr><td>P4-09</td><td>Final check: your box runs inside the class <b>mega-pipeline</b>; clean diff; write the 200–300 word reflection</td><td>0.5</td><td style="text-align:center">🟡</td><td>Box runs in the assembled class pipeline; reflection written</td></tr>
+    <tr><td>P4-10</td><td>Rehearse the 5-minute demo once, end to end, with no fix-ups</td><td>0.5</td><td style="text-align:center">🔵</td><td>One clean run-through</td></tr>
+  </table>
+
+  <p><b>You hand in (Phase 4):</b> test log · 3 user-test records · 2 fixes with before/after · report §5–6 · reflection · a rehearsed demo.</p>
+
+  <div class="callout">
+    <b>Say this, then stop talking:</b> <i>"I'm testing the box, not you. There are no wrong answers — please think aloud as you go. I won't help unless you're stuck for two minutes."</i><br>
+    Then watch and write. Every time you explain your box, you hide a bug from yourself.<br><br>
+    <b>Be fair to your users:</b> ask permission first, record results as <b>U1 / U2 / U3</b> (no real names), keep no personal data in your report, and delete any recordings when the project is marked.
+  </div>
+
+  <h3>✍️ Your work — Phase 4 (fill this in)</h3>
+
+  <p>Fill the two tables in <b>§6</b> first — your <b>6 technical scenarios</b> (§6a) and your <b>3 user tests</b> (§6b) — then complete the rest here.</p>
+
+  <p><b>1. What I changed after user testing</b> — the top 2 problems users hit, and the before/after.</p>
+
+  <table data-work-table data-table-key="p4-t1" data-table-label="1. What I changed after user testing">
+    <tr><th>Problem users hit (from §6b)</th><th>What I changed</th><th>Evidence it is better (re-test result)</th></tr>
+    <tr><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+    <tr><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+  </table>
+
+  <div class="field">
+    <div class="flabel">2. Report §5 — Ethics &amp; limits <span class="fhint">(draft: harms, bias, what the box must never be used for, what users misunderstood)</span></div>
+    <div class="finput" contenteditable="true" data-key="p4-f1" data-hint="Write here."></div>
+  </div>
+
+  <div class="field">
+    <div class="flabel">3. Report §6 — My answer to the research question <span class="fhint">(restate the question, give a clear yes / no / mixed answer, then the evidence from your own tests)</span></div>
+    <div class="finput" contenteditable="true" data-key="p4-f2" data-hint="Write here."></div>
+  </div>
+
+  <div class="field">
+    <div class="flabel">4. Reflection <span class="fhint">(200–300 words: what you learned, what the AI got right and wrong, what you would change)</span></div>
+    <div class="finput" contenteditable="true" data-key="p4-f3" data-hint="Write here."></div>
+  </div>
+
+  <h2><span class="n">6.</span> The test pack (copy these tables into your report)</h2>
+
+  <h3>6a. The 6 technical scenarios (P4-01)</h3>
+
+  <table>
+    <tr><th>#</th><th>Scenario</th><th>What you do</th><th>Pass looks like</th></tr>
+    <tr><td>1</td><td><b>Happy path</b></td><td>An Idea box with a real input → ▶ Run</td><td>Output contains every section your design promised</td></tr>
+    <tr><td>2</td><td><b>No input</b></td><td>Run the box with nothing connected</td><td>A clear message — not a blank box, not a crash</td></tr>
+    <tr><td>3</td><td><b>Huge input</b></td><td>Paste a whole document (a few thousand words)</td><td>It still answers, or says it is too long — it never hangs</td></tr>
+    <tr><td>4</td><td><b>Off-topic input</b></td><td>Feed it something unrelated (e.g. a recipe)</td><td>It says it is out of scope, or handles it gracefully</td></tr>
+    <tr><td>5</td><td><b>Two upstream boxes</b></td><td>Connect a second input</td><td>Both inputs are used, and you can tell which is which</td></tr>
+    <tr><td>6</td><td><b>Run twice</b></td><td>Run, change the input, Run again</td><td>The output updates — no stale leftovers</td></tr>
+  </table>
+
+  <table data-work-table data-table-key="w4-scenarios" data-table-label="6a. The 6 technical scenarios — results (P4-01)">
+    <tr><th>#</th><th>Result (pass / fail)</th><th>What I saw</th><th>What I changed</th></tr>
+    <tr><td>1</td><td></td><td></td><td></td></tr>
+    <tr><td>2</td><td></td><td></td><td></td></tr>
+    <tr><td>3</td><td></td><td></td><td></td></tr>
+    <tr><td>4</td><td></td><td></td><td></td></tr>
+    <tr><td>5</td><td></td><td></td><td></td></tr>
+    <tr><td>6</td><td></td><td></td><td></td></tr>
+  </table>
+
+  <h3>6b. The user-test record (P4-04, P4-05)</h3>
+
+  <p>The task you give the user: <i>"Here is an idea. Use this box, then tell me what you'd do next."</i></p>
+
+  <table data-work-table data-table-key="w4-users" data-table-label="6b. The user-test record (P4-04, P4-05)">
+    <tr><th>User</th><th>Finished the task?</th><th>Where they hesitated (what they said or did)</th><th>What they expected instead</th><th>What I changed</th></tr>
+    <tr><td>U1</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>U2</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>U3</td><td></td><td></td><td></td><td></td></tr>
+  </table>
+
+  <p><b>Count it as success only if</b> the user can use the box and act on the output <b>without you explaining anything</b>. If you had to explain, write down the sentence you said — that sentence is your next fix (P4-06).</p>
+
+  <h2><span class="n">7.</span> The three diagrams (and how to draw them simply)</h2>
+
+  <p>You need <b>three diagrams</b> in total. Draw them on your <b>AI Canva board</b> (it is a whiteboard — boxes and arrows <i>are</i> a diagram), or on paper and photograph them. One page each, maximum.</p>
+
+  <p><b>Rules for every diagram:</b> a title · boxes are <b>nouns</b> · arrows are <b>verbs</b>, labelled · a legend if you use colour · readable at a glance.</p>
+
+  <p><b>1. Problem diagram (P1-06)</b> — what happens today, without your box:</p>
+
+  <pre class="block">   TODAY (no box)                          WITH YOUR BOX
+   ─────────────────                       ─────────────────
+   idea in someone's head                  idea ──▶ [ YOUR BOX ] ──▶ a decision
+        │                                                              they can act on
+        ▼
+   pasted into a general chatbot
+        │
+        ▼
+   generic answer → they still don't know what to do</pre>
+
+  <p><b>2. Box flow diagram (P2-04a)</b> — where your box sits in a pipeline:</p>
+
+  <pre class="block">   ┌──────────┐        ┌──────────────┐        ┌──────────────┐
+   │ 💡 Idea  │ ─────▶ │  YOUR BOX    │ ─────▶ │ 🔍 Summarize │
+   │ (input)  │        │ (does what?) │        │ (next step)  │
+   └──────────┘        └──────────────┘        └──────────────┘
+        user's            THE THING              proof it
+        problem           YOU BUILD              composes</pre>
+
+  <p><b>3. Decision / data flow (P2-04b)</b> — what happens <i>inside</i> the box:</p>
+
+  <pre class="block">   inputs ──▶ prompt template ──▶ model ──▶ output contract ──▶ guardrail ──▶ shown to user
+   (which?)    (what it says)     (which?)   (exact format)      (what if    (where in
+                                                                 it's wrong?) the box?)</pre>
+
+  <p><b>Your research question, in one sentence (P1-07)</b> — fill in the blanks:</p>
+
+  <div class="callout">
+    For <b>[user]</b> who <b>[situation]</b>, does <b>[your box's approach]</b> produce <b>[outcome]</b>, better than <b>[what they do today]</b>?
+  </div>
+
+  <p><i>Example:</i> "For <b>a student with a rough project idea</b> who <b>needs to know if it is worth pursuing</b>, does <b>an LLM scoring it on desirability/feasibility/viability</b> produce <b>a judgement they trust</b>, better than <b>asking a general chatbot for an opinion</b>?"</p>
+
+  <h2><span class="n">8.</span> Paste-ready task blocks (one per phase)</h2>
+
+  <p>Paste a whole block into a <b>Checklist box</b>'s <b>Add a task…</b> field on your board — a multi-line paste imports one task per line. At the end of a phase: <b>📋 Copy</b> (that export is your evidence), then <b>🧹 Clear done</b> and paste the next phase.</p>
+
+  <h3>Phase 1 — Study the problem</h3>
+
+  <pre class="block">- [ ] P1-01 (1h) Read brief.md + the rubric end-to-end; name your 3 weakest rubric rows
+- [ ] P1-02 (1h) Shortlist 3 boxes you'd care about + a one-line research question for each
+- [ ] P1-03 (1h) Lock ONE box + write the problem statement: who, what goes wrong today, why it matters
+- [ ] P1-04 (3h) Find 3 credible sources + a ~150-word annotated entry for each
+- [ ] P1-05 (0.5h) Name your user + 3 success criteria for a "good output"
+- [ ] P1-06 (0.5h) Draw the problem diagram: what happens today without your box
+- [ ] P1-07 (0.5h) Write the research question as ONE sentence + the evidence that would answer it
+- [ ] P1-08 (1.5h) Write-up: report sections 1-2 (problem &amp; motivation, domain context), ~800 words, cited</pre>
+
+  <h3>Phase 2 — Design the solution</h3>
+
+  <pre class="block">- [ ] P2-01 (0.5h) Sketch the demo pipeline: Idea -&gt; your box -&gt; Summarize, connected
+- [ ] P2-02 (0.5h) Define inputs + output: input name / where it comes from / which output section
+- [ ] P2-03 (1h) Draft defaultPrompt + defaultSystemPrompt with {{inputs}} / {{input_1}} / {{Box Name}}
+- [ ] P2-04 (1.5h) Draw 2 design diagrams: (a) the box in the pipeline, (b) the decision/data flow inside it
+- [ ] P2-05 (0.5h) Decide the guardrails: trigger -&gt; what the box does -&gt; what the user sees
+- [ ] P2-06 (1h) Fill the design-decisions table: choice / why / what you rejected (report 3-4)
+- [ ] P2-07 (0.5h) Plan the build: the exact files you'll touch, in order
+- [ ] P2-08 (0.5h) Show the design to one classmate for a 5-minute sanity check</pre>
+
+  <h3>Phase 3 — Implement the box</h3>
+
+  <pre class="block">- [ ] P3-01 (0.5h) Pull main + branch feature/&lt;your-box&gt; (never work on main)
+- [ ] P3-02 (1h) Register the box in types.ts: BoxType + BOX_TYPES entry (label, icon, colour, category, prompts)
+- [ ] P3-03 (2h) Wire the runBox branch: gather inputs -&gt; call the backend -&gt; shape the reply
+- [ ] P3-04 (1h) Handle the empty-input and error paths: the box must never show a blank output
+- [ ] P3-05 (1h) Run the demo pipeline end-to-end and fix what breaks
+- [ ] P3-06 (0.5h) Clean the code: names, why-comments, no debug leftovers; commit in small chunks
+- [ ] P3-07 (0.5h) Open the PR: what/why, a screenshot of real output, the branch in 5 lines
+- [ ] P3-08 (0.5h, optional) Custom render in BoxNode.tsx: score bars, cards or a verdict banner</pre>
+
+  <h3>Phase 4 — Test it</h3>
+
+  <pre class="block">- [ ] P4-01 (1h) Technical self-test: run the 6 scenarios (happy, no input, huge, off-topic, 2 inputs, re-run)
+- [ ] P4-02 (0.5h) Record every failure: what you saw, what you changed
+- [ ] P4-03 (0.5h) Write the user-test plan: 3 users, ONE task, what you'll watch, what counts as success
+- [ ] P4-04 (1.5h) Run 3 user sessions (15-20 min): say nothing, help after 2 min, take notes + exact quotes
+- [ ] P4-05 (0.5h) Log the results: what they did, where they hesitated, what they expected
+- [ ] P4-06 (1.5h) Fix the top 2 problems users hit, then re-test with at least 1 user
+- [ ] P4-07 (0.5h) Write-up: report section 5 (ethics &amp; limits), using what users misunderstood
+- [ ] P4-08 (1h) Write-up: report section 6 - answer your research question with your test evidence
+- [ ] P4-09 (0.5h) Final check: box in the class mega-pipeline, clean diff, 200-300 word reflection
+- [ ] P4-10 (0.5h) Rehearse the 5-minute demo once, end to end, no fix-ups</pre>
+
+  <h2><span class="n">9.</span> Where each phase feeds the report (70% of your mark)</h2>
+
+  <p>Nothing here is extra work: the report is written <b>while</b> you work, not at the end. Every section below has a <b>✍️ box</b> in the phase where you produce its evidence — fill it in as you go, then assemble the report from your own answers.</p>
+
+  <table>
+    <tr><th>Phase</th><th>Report sections it feeds</th><th>Rubric rows it earns</th></tr>
+    <tr><td><b>1. Study the problem</b></td><td>§1 Problem &amp; motivation · §2 Domain context</td><td>Problem &amp; motivation 15% · Research &amp; sources 15%</td></tr>
+    <tr><td><b>2. Design the solution</b></td><td>§3 Design rationale · §4 Alternatives &amp; trade-offs</td><td>Design rationale 15% · Alternatives 10%</td></tr>
+    <tr><td><b>3. Implement the box</b></td><td>evidence for §3 (the build proves the design)</td><td>Functionality 15% · Scaffold integration 10%</td></tr>
+    <tr><td><b>4. Test it</b></td><td>§5 Ethics &amp; limits · §6 Answer to the research question</td><td>Ethics &amp; limits 10% · Question answered 5% · Demo 5% (= inside Build)</td></tr>
+  </table>
+
+  <p>Your <b>diagrams</b> go in the report (or an appendix). Your <b>test log, user-test table and user quotes</b> are the evidence that makes §5 and §6 credible — a report that says "users liked it" and shows nothing is worth less than one that says "2 of 3 users could not find the Run button; I fixed the label".</p>
+
+  <h2><span class="n">10.</span> How this fits the 3-week sprint (<code>sprint-tasks.md</code>)</h2>
+
+  <p>Both documents describe the <b>same 30 hours and the same deliverables</b> — this one in the order a project is really built (problem → design → build → test), the sprint pack in three 10-hour weeks with Wednesday and Friday checkpoints. <b>Use the pack for your deadlines and this guide for the order of work.</b></p>
+
+  <table>
+    <tr><th>Phase</th><th>Hours</th><th>Sprint week</th><th>The sprint pack's own rows</th></tr>
+    <tr><td>1. Study the problem</td><td>9</td><td>Week 1</td><td><code>IP-W1-01</code>…<code>IP-W1-05</code>, plus the report §1–2 writing moved here</td></tr>
+    <tr><td>2. Design the solution</td><td>6</td><td>Week 1–2</td><td><code>IP-W1-05</code> (pipeline sketch), <code>IP-W2-01</code> (prompt), design work new</td></tr>
+    <tr><td>3. Implement the box</td><td>7</td><td>Week 2</td><td><code>IP-W2-01</code>…<code>IP-W2-03</code>, <code>IP-W2-06</code></td></tr>
+    <tr><td>4. Test it</td><td>8</td><td>Week 3</td><td>guardrail tests (<code>IP-W2-04</code>) + writing/demo rows from <code>IP-W3-*</code></td></tr>
+    <tr><td><b>Total</b></td><td><b>30</b></td><td>3 weeks</td><td>6 h 🔴 · 3 h 🟡 · 1 h 🔵 per week</td></tr>
+  </table>
+
+  <div class="warn">
+    ⚠️ <b>One deliberate difference — user testing.</b> This guide spends <b>4 h</b> on user testing (P4-03 → P4-06: plan, 3 sessions, logging, 2 fixes + re-test). The sprint pack does not contain those hours; it spends them on <i>peer review</i> (1.5 h) + <i>output polish</i> (1.5 h) + part of the report hour. If your cohort runs the pack as written, treat the pack's <b>peer review</b> and <b>output polish</b> rows as optional and use that time for user testing — or budget ~31.5 h if you want both. Decide which document is authoritative before you hand the project out, so students don't see two different totals.
+  </div>
+
+  <p><i>The other two known discrepancies (the brief's 130% weighting and the Week-8 vs Week-10 timeline) are listed in <code>README.md</code> §3 — they are unchanged by this guide.</i></p>
+
+  <h2><span class="n">11.</span> Five rules that keep this simple</h2>
+
+  <ol>
+    <li><b>Finish a phase before starting the next.</b> Design before you build; understand the problem before you design. Skipping Phase 1 is how the 70% gets lost.</li>
+    <li><b>One box, no extras.</b> A working, well-researched simple box beats a broken complex one.</li>
+    <li><b>Write while you work.</b> Every phase produces report material — Phase 1 §1–2, Phase 2 §3–4, Phase 4 §5–6.</li>
+    <li><b>Test with people, not just by yourself.</b> You know how the box is <i>supposed</i> to work; your users don't, and that gap is the most valuable finding in the whole project.</li>
+    <li><b>Keep everything.</b> Diagrams, screenshots, test logs, user quotes — they are your evidence, and evidence is what turns an opinion into research.</li>
+  </ol>
+
+  <div class="callout">
+    <b>The finish line.</b> Your box runs in the class mega-pipeline, your three diagrams are in the report, your test log and user table show it was tested on real people, and your research question has an evidence-based answer. That is the whole project — and it is exactly what the rubric rewards.
+  </div>
+
+  <h2><span class="n">12.</span> Submission — fill this in and hand it over</h2>
+
+  <p><b>Links</b></p>
+
+  <table data-work-table data-table-key="w5-links" data-table-label="Links">
+    <tr><th>What</th><th>Where</th></tr>
+    <tr><td contenteditable="true">Written report</td><td contenteditable="true"></td></tr>
+    <tr><td contenteditable="true">Pull request</td><td contenteditable="true"></td></tr>
+    <tr><td contenteditable="true">Board (demo pipeline)</td><td contenteditable="true"></td></tr>
+  </table>
+
+  <p><b>Final checklist</b> — tick every line before you submit.</p>
+
+  <ul class="checklist" data-checklist-key="w5-check" data-checklist-label="Final checklist">
+    <li><label><input type="checkbox" data-key="w5-check-1"> <span>Report complete (2,000–2,500 words), every claim cited, my research question answered</span></label></li>
+    <li><label><input type="checkbox" data-key="w5-check-2"> <span>Every report section came from a ✍️ section I filled in (nothing written from scratch on the last night)</span></label></li>
+    <li><label><input type="checkbox" data-key="w5-check-3"> <span>All 6 technical scenarios recorded in §6a, including the ones that failed</span></label></li>
+    <li><label><input type="checkbox" data-key="w5-check-4"> <span>3 user tests recorded in §6b, with exact quotes and what I changed</span></label></li>
+    <li><label><input type="checkbox" data-key="w5-check-5"> <span>The top 2 user problems fixed, and the fixes re-tested</span></label></li>
+    <li><label><input type="checkbox" data-key="w5-check-6"> <span>Box registered in <code>types.ts</code>, <code>runBox</code> branch wired, empty and error paths handled</span></label></li>
+    <li><label><input type="checkbox" data-key="w5-check-7"> <span>PR open, reviewed, with a screenshot of real output</span></label></li>
+    <li><label><input type="checkbox" data-key="w5-check-8"> <span>Box runs inside the class mega-pipeline</span></label></li>
+    <li><label><input type="checkbox" data-key="w5-check-9"> <span>5-minute demo rehearsed, with no fix-ups</span></label></li>
+    <li><label><input type="checkbox" data-key="w5-check-10"> <span>All three diagrams in the report, each with a caption</span></label></li>
+    <li><label><input type="checkbox" data-key="w5-check-11"> <span>Reflection (200–300 words) written</span></label></li>
+    <li><label><input type="checkbox" data-key="w5-check-12"> <span>Workbook exported (⬇ Download answers / 🖨 Print) and stored with my submission</span></label></li>
+  </ul>
+
+  <div class="field">
+    <div class="flabel">Anything my instructor should know <span class="fhint">(optional)</span></div>
+    <div class="finput" contenteditable="true" data-key="w5-f1" data-hint="Write here."></div>
+  </div>
+
+  <div class="footer">AI Canva · <code>docs/course/individual-project/sdlc-step-by-step.md</code> — the Markdown version is the source and the repo workbook; <code>sdlc-step-by-step.html</code> is the fillable print/type workbook (autosave + ⬇ Download answers). Brief: <code>brief.md</code> · schedule: <code>sprint-tasks.md</code> · code steps: <code>../05_how_to_build_a_box.md</code>.</div>
+</div>
+
+<div class="toolbar" role="toolbar" aria-label="Workbook actions">
+  <button type="button" id="btn-print">🖨 Print / PDF</button>
+  <button type="button" id="btn-download">⬇ Download answers (.md)</button>
+  <button type="button" id="btn-clear">🗑 Clear answers</button>
+  <span class="chip" id="wb-status">not saved yet</span>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var STORAGE_KEY = 'ai-canva-sdlc-workbook-v1';
+  var MAX_CHARS = 4 * 1024 * 1024; /* ~4 MB of innerHTML — a pasted screenshot blows past this */
+
+  var statusEl = document.getElementById('wb-status');
+  var saveTimer = null;
+  var storageOK = true;
+  var store = null;
+
+  function chip(text, warn) {
+    if (!statusEl) return;
+    statusEl.textContent = text;
+    statusEl.className = warn ? 'chip warn-chip' : 'chip';
+  }
+
+  function clock() {
+    var d = new Date();
+    return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+  }
+
+  function noStorage(reason) {
+    storageOK = false;
+    chip('⚠️ ' + reason + ' — download your answers', true);
+  }
+
+  /* Every storage access is guarded: blocked storage or a full quota must never break the page. */
+  function openStore() {
+    try {
+      var s = window.localStorage;
+      if (!s) return null;
+      s.getItem(STORAGE_KEY); /* probe — throws where storage is blocked */
+      return s;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /* Work tables: give every data cell a stable key so save/restore/export stay generic. */
+  function initWorkTables() {
+    var tables = document.querySelectorAll('table[data-work-table]');
+    for (var t = 0; t < tables.length; t++) {
+      var table = tables[t];
+      var key = table.getAttribute('data-table-key') || ('work-table-' + (t + 1));
+      if (!table.getAttribute('data-table-key')) table.setAttribute('data-table-key', key);
+      var rows = table.rows;
+      for (var r = 0; r < rows.length; r++) {
+        var cells = rows[r].cells;
+        var col = 0;
+        for (var c = 0; c < cells.length; c++) {
+          var cell = cells[c];
+          if (cell.tagName !== 'TD') continue; /* header cells stay non-editable */
+          cell.setAttribute('contenteditable', 'true');
+          if (!cell.getAttribute('data-key')) {
+            cell.setAttribute('data-key', key + '-r' + r + 'c' + col);
+          }
+          col++;
+        }
+      }
+    }
+  }
+
+  function answerEls() { return document.querySelectorAll('[contenteditable][data-key]'); }
+  function checkEls() { return document.querySelectorAll('input[type=checkbox][data-key]'); }
+
+  function collect() {
+    var data = {}, i, el, k;
+    var a = answerEls();
+    for (i = 0; i < a.length; i++) { el = a[i]; k = el.getAttribute('data-key'); data[k] = el.innerHTML; }
+    var b = checkEls();
+    for (i = 0; i < b.length; i++) { el = b[i]; k = el.getAttribute('data-key'); data[k] = !!el.checked; }
+    return data;
+  }
+
+  function apply(data) {
+    var i, el, k, v;
+    var a = answerEls();
+    for (i = 0; i < a.length; i++) {
+      el = a[i]; k = el.getAttribute('data-key'); v = data[k];
+      if (typeof v === 'string') el.innerHTML = v;
+    }
+    var b = checkEls();
+    for (i = 0; i < b.length; i++) {
+      el = b[i]; k = el.getAttribute('data-key');
+      if (typeof data[k] === 'boolean') el.checked = data[k];
+    }
+  }
+
+  function save() {
+    var payload;
+    try { payload = JSON.stringify(collect()); }
+    catch (e) { noStorage('Could not read your answers'); return; }
+    if (payload.length > MAX_CHARS) { noStorage('Answers too big to autosave (pasted image?)'); return; }
+    try {
+      store.setItem(STORAGE_KEY, payload);
+      chip('saved ✓ ' + clock(), false);
+    } catch (e) {
+      noStorage('Autosave failed (storage full or blocked)');
+    }
+  }
+
+  function scheduleSave() {
+    if (!storageOK || !store) return;
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () { saveTimer = null; save(); }, 400);
+  }
+
+  function clearAll() {
+    if (!window.confirm('Clear every answer in this workbook? This cannot be undone — download your answers first.')) return;
+    var i;
+    var a = answerEls();
+    for (i = 0; i < a.length; i++) a[i].innerHTML = '';
+    var b = checkEls();
+    for (i = 0; i < b.length; i++) b[i].checked = false;
+    if (store) { try { store.removeItem(STORAGE_KEY); } catch (e) {} }
+    chip(storageOK ? 'not saved yet' : '⚠️ Autosave unavailable — download your answers', !storageOK);
+  }
+
+  /* ---------- Markdown export (built from the live DOM, in document order) ---------- */
+  function flat(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
+
+  function mdEscape(s) { return flat(s).replace(/\|/g, '\\|'); }
+
+  function valueOf(el) {
+    var text = (el.innerText || el.textContent || '').replace(/\u00a0/g, ' ').trim();
+    if (!text && el.querySelector && el.querySelector('img')) {
+      return '_(pasted image — print/PDF keeps it, Markdown cannot)_';
+    }
+    return text;
+  }
+
+  function fieldLabel(el) {
+    var forced = el.getAttribute('data-field-label');
+    if (forced) return forced;
+    var labelEl = el.querySelector('.flabel');
+    if (!labelEl) return el.querySelector('.drawarea') ? 'Diagram' : 'Answer';
+    var clone = labelEl.cloneNode(true);
+    var hints = clone.querySelectorAll('.fhint');
+    for (var i = 0; i < hints.length; i++) hints[i].parentNode.removeChild(hints[i]);
+    return flat(clone.textContent) || flat(labelEl.textContent);
+  }
+
+  function fieldBlock(el) {
+    var input = el.querySelector('[contenteditable][data-key]');
+    var text = input ? valueOf(input) : '';
+    return '### ' + fieldLabel(el) + '\n\n' + (text || '_empty_') + '\n';
+  }
+
+  function tableBlock(table) {
+    var lines = ['### ' + (table.getAttribute('data-table-label') || 'Table'), ''];
+    var rows = table.rows;
+    for (var r = 0; r < rows.length; r++) {
+      var cells = rows[r].cells, out = [], c;
+      for (c = 0; c < cells.length; c++) {
+        if (r > 0 && cells[c].tagName !== 'TD') continue;
+        out.push(mdEscape(cells[c].textContent));
+      }
+      if (!out.length) continue;
+      lines.push('| ' + out.join(' | ') + ' |');
+      if (r === 0) {
+        var sep = [];
+        for (c = 0; c < out.length; c++) sep.push('---');
+        lines.push('| ' + sep.join(' | ') + ' |');
+      }
+    }
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  function checklistBlock(ul) {
+    var lines = ['### ' + (ul.getAttribute('data-checklist-label') || ul.getAttribute('data-checklist-key') || 'Checklist'), ''];
+    var inputs = ul.querySelectorAll('input[type=checkbox]');
+    for (var i = 0; i < inputs.length; i++) {
+      var span = inputs[i].parentNode ? inputs[i].parentNode.querySelector('span') : null;
+      lines.push('- [' + (inputs[i].checked ? 'x' : ' ') + '] ' + flat(span ? span.textContent : ''));
+    }
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  function workbookMarkdown() {
+    var nameEl = document.querySelector('[data-key="wb-name"]');
+    var name = nameEl ? flat(nameEl.innerText || nameEl.textContent) : '';
+    var today = new Date().toISOString().slice(0, 10);
+    var out = ['# SDLC Workbook — ' + (name || 'Student'), '', '_Exported ' + today + ' · AI Canva · SDLC Step-by-Step Workbook_', ''];
+    var nodes = document.querySelectorAll('.field, table[data-work-table], ul[data-checklist-key]');
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      if (n.tagName === 'TABLE') out.push(tableBlock(n));
+      else if (n.tagName === 'UL') out.push(checklistBlock(n));
+      else out.push(fieldBlock(n));
+    }
+    out.push('---', '', '_End of workbook export._');
+    return out.join('\n');
+  }
+
+  function downloadMarkdown() {
+    var nameEl = document.querySelector('[data-key="wb-name"]');
+    var raw = nameEl ? flat(nameEl.innerText || nameEl.textContent) : '';
+    var slug = raw.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+    var today = new Date().toISOString().slice(0, 10);
+    var filename = 'sdlc-workbook-' + (slug || 'student') + '-' + today + '.md';
+    var blob = new Blob([workbookMarkdown()], { type: 'text/markdown;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+  }
+
+  /* ---------- boot ---------- */
+  initWorkTables();
+
+  store = openStore();
+  if (!store) {
+    storageOK = false;
+    noStorage('Autosave unavailable in this browser');
+  } else {
+    var raw = null;
+    try { raw = store.getItem(STORAGE_KEY); } catch (e) { raw = null; }
+    if (raw) {
+      try { apply(JSON.parse(raw)); } catch (e) {}
+      chip('saved ✓ ' + clock(), false);
+    } else {
+      chip('not saved yet', false);
+    }
+  }
+
+  document.addEventListener('input', function (e) {
+    var t = e.target;
+    if (!t || !t.getAttribute || t.getAttribute('data-key') === null) return;
+    if (t.isContentEditable || t.type === 'checkbox') scheduleSave();
+  }, true);
+
+  document.addEventListener('blur', function (e) {
+    var t = e.target;
+    if (!t || !t.getAttribute || t.getAttribute('contenteditable') !== 'true') return;
+    var text = (t.innerText || '').replace(/\u00a0/g, ' ').trim();
+    if (!text && !(t.querySelector && t.querySelector('img'))) t.innerHTML = '';
+  }, true);
+
+  var printBtn = document.getElementById('btn-print');
+  if (printBtn) printBtn.addEventListener('click', function () { window.print(); });
+  var dlBtn = document.getElementById('btn-download');
+  if (dlBtn) dlBtn.addEventListener('click', function () { downloadMarkdown(); });
+  var clrBtn = document.getElementById('btn-clear');
+  if (clrBtn) clrBtn.addEventListener('click', function () { clearAll(); });
+})();
+</script>
+</body>
+</html>

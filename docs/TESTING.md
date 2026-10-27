@@ -40,6 +40,19 @@ npm test --prefix client
 - `slides.test.ts` — `parseSlidesResponse` (plain JSON, fenced, prose-wrapped, malformed)
 - `serialization.test.ts` — `cleanBoxDataForFirestore` (strips `undefined` and base64 `imageData`)
 
+## Live browser suites (need `npm run dev` up)
+
+Not part of `npm test` — these drive the real app with playwright-core + system Chrome:
+
+| Suite | What it proves | Needs |
+|---|---|---|
+| `client/ui-smoke.mjs` (84 checks) | SDLC gates, Code Map, Code Edit, code change requests, deploys, downloads — all mocked at the page level | dev app only |
+| `client/demo-scripts.mjs` (40 checks) | the seven demo workflows in `docs/DEMOS.md` still produce what the guide promises | dev app only |
+| `client/e2e.mjs` (106 checks) | real auth, real Firestore, cross-user sync, facilitator/guest flows | dev app + Firebase (Email/Password provider, fresh firebase-tools token) |
+
+Run them from `client/`, e.g. `node demo-scripts.mjs` or `node ui-smoke.mjs`. See
+`docs/DEMOS.md` → *Keeping the demos current* for what the demo suite asserts.
+
 ## Writing tests
 
 - **Add a client test** next to the module, e.g. `client/src/lib/<name>.test.ts`. Keep it to pure

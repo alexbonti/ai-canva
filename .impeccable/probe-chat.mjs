@@ -1,0 +1,23 @@
+import { chromium } from "/Users/alessiobonti/dev/ai-canva/client/node_modules/playwright-core/index.mjs";
+const browser = await chromium.launch({ executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless: true });
+const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+await ctx.addInitScript(() => { try { localStorage.clear(); } catch {} });
+const page = await ctx.newPage();
+await page.goto("http://127.0.0.1:5183", { waitUntil: "load" });
+await page.waitForFunction(() => !!window.__dsh && window.__dsh.useAuthStore.getState().loading === false, null, { timeout: 20000 });
+await page.evaluate(() => window.__dsh.useAuthStore.setState({ user: { uid: "a", email: "a@b.c", displayName: "A", photoURL: "" }, loading: false }));
+await page.waitForFunction(() => !!document.querySelector(".app-bar"), null, { timeout: 15000 });
+await page.waitForTimeout(2000);
+await page.evaluate(() => { const b = Array.from(document.querySelectorAll("button")).find((y) => y.textContent.trim().endsWith("Chatbot")); b?.click(); });
+await page.waitForTimeout(800);
+const info = await page.evaluate(() => {
+  const el = document.querySelector(".chatbot-node");
+  if (!el) return { none: true };
+  const r = el.getBoundingClientRect();
+  const svg = el.querySelector("svg");
+  return { rect: { x: r.x, y: r.y, w: r.width, h: r.height }, html: el.outerHTML.slice(0, 900), svgRect: svg ? (() => { const s = svg.getBoundingClientRect(); return { w: s.width, h: s.height }; })() : null };
+});
+console.log(JSON.stringify(info, null, 1));
+const el = await page.$(".chatbot-node");
+if (el) await el.screenshot({ path: ".impeccable/review/line-chatbot.png" });
+await browser.close();

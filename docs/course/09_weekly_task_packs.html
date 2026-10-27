@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weekly Task Packs — the Group Tracks (10 Hours per Student, Week 1)</title>
+<style>
+  :root { --ink:#1c1c1a; --green:#3F6B2A; --green-dark:#2F5220; --green-light:#EAF5DF; --cream:#f4efe6; --card:#fff; --grey:#6b6b60; --line:#e0d6c8; --blue:#2c3e50; --red:#c0392b; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Plus Jakarta Sans',-apple-system,system-ui,sans-serif; background:var(--cream); color:var(--ink); line-height:1.55; }
+  .wrap { max-width:880px; margin:0 auto; padding:48px 48px 80px; }
+  .kicker { font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--green); margin-bottom:10px; }
+  h1 { font-size:32px; font-weight:800; line-height:1.12; letter-spacing:-.02em; }
+  .sub { font-size:16px; color:var(--grey); margin-top:10px; }
+  .meta { display:flex; gap:20px; flex-wrap:wrap; margin:18px 0 26px; }
+  .meta div { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:8px 14px; font-size:13px; }
+  .meta b { color:var(--green); }
+  h2 { font-size:21px; font-weight:800; margin:34px 0 12px; padding-top:22px; border-top:1px solid var(--line); }
+  h2 .n { color:var(--green); }
+  h3 { font-size:16px; font-weight:800; margin:18px 0 8px; color:var(--green-dark); }
+  p { margin:10px 0; font-size:15px; }
+  ul,ol { margin:10px 0 10px 22px; }
+  li { margin:6px 0; font-size:15px; }
+  table { width:100%; border-collapse:collapse; margin:14px 0; background:var(--card); font-size:14px; }
+  th { background:var(--ink); color:#fff; text-align:left; padding:8px 12px; }
+  td { border:1px solid var(--line); padding:8px 12px; vertical-align:top; }
+  tr:nth-child(even) td { background:#faf8f3; }
+  code { background:#eef0f2; font-family:ui-monospace,monospace; font-size:12.5px; padding:2px 6px; border-radius:5px; }
+  .callout { background:var(--green-light); border-left:4px solid var(--green); border-radius:10px; padding:13px 16px; margin:16px 0; font-size:14px; }
+  .callout b { color:var(--green-dark); }
+  .warn { background:#fdf0df; border-left:4px solid #d97706; border-radius:10px; padding:13px 16px; margin:16px 0; font-size:14px; }
+  .warn b { color:#a06a00; }
+  pre.block { background:#1f2933; color:#e6edf3; border-radius:10px; padding:14px 16px; margin:12px 0; font-family:ui-monospace,SFMono-Regular,monospace; font-size:12px; line-height:1.7; white-space:pre-wrap; }
+  .footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--line); color:var(--grey); font-size:13px; }
+  @media print { body{background:#fff} .wrap{max-width:100%;padding:16mm} h2{break-before:auto} tr,pre.block{break-inside:avoid} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">AI-Assisted Software Project · Week 1 task pack</div>
+  <h1>This Week's Tasks — the Group Tracks</h1>
+  <div class="sub">The first 10 of Sprint 1's 20 hours, 10 hours per student. The project already runs on every machine, so no setup or clone time is budgeted anywhere below. Individual students follow <code>individual-project/</code> instead.</div>
+  <div class="meta">
+    <div>Per student: <b>10 h</b></div>
+    <div>Must-do: <b>6 h</b></div>
+    <div>Group split: <b>3 h shared + 7 h role</b></div>
+    <div>Tracks: <b>5</b></div>
+  </div>
+
+  <div class="callout"><b>Week exit:</b> the plan is locked and the scaffold is real — boxes registered in <code>types.ts</code>, research questions written, demo pipeline drawn on the board. Companion doc: <code>08_sprint_task_plan.md</code> (the per-role tasks for all three sprints); this is the this-week cut of it, with the hours spent explicitly.</div>
+
+  <h2><span class="n">1.</span> How every task below is budgeted</h2>
+  <table>
+    <tr><th>Marker</th><th>Meaning</th></tr>
+    <tr><td>🔴</td><td><b>Must</b> — the week is a failure without it (≈6 h)</td></tr>
+    <tr><td>🟡</td><td><b>Should</b> — finish these with a normal 10 h week (≈9 h)</td></tr>
+    <tr><td>🔵</td><td><b>Stretch</b> — the last hour (10 h)</td></tr>
+  </table>
+  <div class="warn"><b>The cut line:</b> if a student only gets ~6 hours this week, they do the 🔴 rows and nothing else. Say that out loud when you hand the pack out — it stops "I ran out of time" from being a judgement call.</div>
+  <p>Per student, everywhere in this file: <b>3 h shared team work + 7 h role work = 10 h</b> — group tracks only. Individual students follow <code>individual-project/sprint-tasks.md</code>.</p>
+
+  <h2><span class="n">2.</span> Individual project — it has its own folder</h2>
+  <p>The individual "One Student, One Box" project is not covered here any more: it has its own <b>3-week sprint pack</b> (30 h) with the brief — <code>individual-project/README.md</code>, <code>individual-project/brief.md</code> and <code>individual-project/sprint-tasks.md</code>. This file is the <b>group tracks'</b> week pack.</p>
+
+  <h2><span class="n">3.</span> Group tracks — every member (3 h shared, then 7 h by role)</h2>
+  <p>The four group tracks (cyber <code>03</code>, UX/Telstra Health <code>04</code>, Telstra Innovation <code>06</code>, NBN <code>07</code>) get the <b>same shape</b> this week; only the Domain row differs.</p>
+
+  <h3>3.1 Shared — all members (3 h)</h3>
+  <table>
+    <tr><th>#</th><th>Task</th><th>Hrs</th><th></th><th>Done when</th></tr>
+    <tr><td>S1</td><td>Read your brief end-to-end (overview, roles, feature menu, deliverables, sprints, rubric)</td><td>1</td><td>🔴</td><td>Every member knows the 3 roles and the minimum viable tool</td></tr>
+    <tr><td>S2</td><td>Team meeting #1: lock roles (one owner each), agree the meeting rhythm, and agree that the <b>board is the task tracker</b></td><td>1</td><td>🔴</td><td>Role table on the board has real names against every role</td></tr>
+    <tr><td>S3</td><td>Choose your <b>3+ boxes (one per role)</b> and draw the demo pipeline on the team board (boxes, edges, one-line purpose each)</td><td>1</td><td>🔴</td><td>Pipeline visible on the board and the box list agreed by everyone</td></tr>
+  </table>
+
+  <h3>3.2 Role work (7 h each)</h3>
+  <h4>UX — 7 h</h4>
+  <table>
+    <tr><th>#</th><th>Task</th><th>Hrs</th><th></th></tr>
+    <tr><td>U1</td><td>Sketch the canvas/box experience: how a non-expert moves through the pipeline, where each box's output gets read, empty/error states</td><td>3</td><td>🔴</td></tr>
+    <tr><td>U2</td><td>Write a one-page UX brief for the 3 chosen boxes: who the user is, what they see, what a <i>good</i> output looks like</td><td>3</td><td>🟡</td></tr>
+    <tr><td>U3</td><td>Research question + 3 sources for your angle</td><td>1</td><td>🔵</td></tr>
+  </table>
+  <h4>Business Analyst — 7 h</h4>
+  <table>
+    <tr><th>#</th><th>Task</th><th>Hrs</th><th></th></tr>
+    <tr><td>B1</td><td>Requirements skeleton: user needs → chosen boxes → what each box must output (a traceable table)</td><td>3</td><td>🔴</td></tr>
+    <tr><td>B2</td><td>Research question + 3 annotated sources for the report's problem/domain section</td><td>3</td><td>🟡</td></tr>
+    <tr><td>B3</td><td>Review the Dev's <code>types.ts</code> PR: does every registered box answer a stated need?</td><td>1</td><td>🔵</td></tr>
+  </table>
+  <h4>Developer — 7 h</h4>
+  <table>
+    <tr><th>#</th><th>Task</th><th>Hrs</th><th></th></tr>
+    <tr><td>D1</td><td>Register the 3 chosen boxes in <code>types.ts</code> — label, icon, colour, category, default prompt, system prompt — branch + PR</td><td>4</td><td>🔴</td></tr>
+    <tr><td>D2</td><td>Write the <code>runBox</code> plan per box in the PR: input gathered, <code>{{variables}}</code> used, output shape, failure behaviour</td><td>2</td><td>🟡</td></tr>
+    <tr><td>D3</td><td>Run one existing box end-to-end and walk the team through where the model call happens</td><td>1</td><td>🔵</td></tr>
+  </table>
+  <h4>Domain role — 7 h</h4>
+  <table>
+    <tr><th>#</th><th>Task</th><th>Hrs</th><th></th></tr>
+    <tr><td>X1</td><td>Shortlist the frameworks for each <i>check</i> box, with 2 sources each (start from the brief's framework table)</td><td>3</td><td>🔴</td></tr>
+    <tr><td>X2</td><td>Write the <b>guardrails list</b>: what the tool must never claim, and what disclaimer each output needs</td><td>3</td><td>🟡</td></tr>
+    <tr><td>X3</td><td>Verify the chosen boxes really cover author → check → guide (no role missing, no box doing two roles badly)</td><td>1</td><td>🔵</td></tr>
+  </table>
+
+  <p><b>The Domain row, per track:</b></p>
+  <table>
+    <tr><th>Track</th><th>X1 — frameworks to shortlist with sources</th></tr>
+    <tr><td>🛡️ Cyber</td><td>NIST CSF / 800-30 / 800-53, ISO 27001, OWASP ASVS + Top 10, GDPR, STRIDE, FAIR</td></tr>
+    <tr><td>🩺 UX (Telstra Health)</td><td>Nielsen's 10 heuristics, WCAG 2.2, cognitive load/COGA, patient safety, Australian health regulation &amp; privacy</td></tr>
+    <tr><td>💡 Telstra Innovation</td><td>JTBD, RICE/ICE, The Mom Test, feasibility &amp; build-vs-buy, pre-mortems, FTO/IP basics</td></tr>
+    <tr><td>🤝 NBN</td><td>INVEST + user stories, WCAG 2.2 (POUR), plain language/readability, traceability, ubiquitous language</td></tr>
+  </table>
+
+  <p><b>Wednesday checkpoint (≈5 h in):</b> S1–S3 done, and <b>every</b> member has their research question written.</p>
+  <p><b>Friday deliverable:</b> team board (roles + boxes + pipeline) · PR with <code>types.ts</code> entries + <code>runBox</code> plan · each member's 3 annotated sources · the role artefact (UX brief / BA requirements skeleton / Dev PR / Domain framework shortlist + guardrails).</p>
+
+  <h2><span class="n">4.</span> Paste-ready blocks for this week</h2>
+  <p>Paste the block for the track into a <b>Checklist box</b> on that team's board (a multi-line paste imports one task per line). Each member's 10 hours = the <b>shared rows</b> + <b>their own role's rows</b>. Then use <b>＋ assign</b> to put a name on every row.</p>
+
+  <h3>4.1 Individual project — its Week 1 block is in its own folder</h3>
+  <p>Use <code>individual-project/sprint-tasks.md</code> §7 (Week 1 block) for individual students.</p>
+
+  <h3>4.2 Any group track — Week 1 shared (3 h per member)</h3>
+  <pre class="block">- [ ] W1-S1 (1h, ALL) Read your brief end-to-end: overview, roles, feature menu, deliverables, sprints, rubric
+- [ ] W1-S2 (1h, ALL) Team meeting #1: lock roles with real names, set the meeting rhythm, agree the board is the task tracker
+- [ ] W1-S3 (1h, ALL) Choose 3+ boxes (one per role) and draw the demo pipeline on the team board
+- [ ] W1-U1 (3h, UX) Sketch the canvas/box experience: navigation, where each output is read, empty/error states
+- [ ] W1-U2 (3h, UX) One-page UX brief for the 3 chosen boxes: user, what they see, what a good output looks like
+- [ ] W1-U3 (1h, UX) Research question + 3 sources for your angle
+- [ ] W1-B1 (3h, BA) Requirements skeleton: user needs -> chosen boxes -> required outputs (traceable table)
+- [ ] W1-B2 (3h, BA) Research question + 3 annotated sources for the problem/domain section
+- [ ] W1-B3 (1h, BA) Review the Dev's types.ts PR: does every box answer a stated need?
+- [ ] W1-D1 (4h, DEV) Register the 3 chosen boxes in types.ts (label, icon, colour, category, prompts) — branch + PR
+- [ ] W1-D2 (2h, DEV) Write the runBox plan per box in the PR: inputs, {{variables}}, output shape, failure behaviour
+- [ ] W1-D3 (1h, DEV) Run one existing box end-to-end and show the team where the model call happens
+- [ ] W1-X1 (3h, DOMAIN) Shortlist the frameworks for each check box, 2 sources each
+- [ ] W1-X2 (3h, DOMAIN) Write the guardrails list: what the tool must never claim + each output's disclaimer
+- [ ] W1-X3 (1h, DOMAIN) Verify the boxes cover author -> check -> guide (no role missing)</pre>
+
+  <h3>4.3 🛡️ Cybersecurity — Domain row only (paste in place of W1-X1)</h3>
+  <pre class="block">- [ ] W1-X1 (3h, DOMAIN) Shortlist NIST CSF/800-30/800-53, ISO 27001, OWASP ASVS + Top 10, GDPR, STRIDE, FAIR — 2 sources each</pre>
+
+  <h3>4.4 🩺 UX Support Tool (Telstra Health) — Domain row only</h3>
+  <pre class="block">- [ ] W1-X1 (3h, DOMAIN) Shortlist Nielsen heuristics, WCAG 2.2, cognitive load/COGA, patient safety, Australian health regulation — 2 sources each</pre>
+
+  <h3>4.5 💡 Telstra Innovation Lab — Domain row only</h3>
+  <pre class="block">- [ ] W1-X1 (3h, DOMAIN) Shortlist JTBD, RICE/ICE, The Mom Test, feasibility &amp; build-vs-buy, pre-mortems, FTO/IP basics — 2 sources each</pre>
+
+  <h3>4.6 🤝 NBN Collaboration Tool — Domain row only</h3>
+  <pre class="block">- [ ] W1-X1 (3h, DOMAIN) Shortlist INVEST + user stories, WCAG 2.2 POUR, plain language/readability, traceability, ubiquitous language — 2 sources each</pre>
+
+  <h2><span class="n">5.</span> What you check on Friday (and the hour-count reality check)</h2>
+  <table>
+    <tr><th>Track</th><th>Evidence you look for</th><th>Fail signal</th></tr>
+    <tr><td>All group tracks</td><td>Team board with named roles + 3+ boxes + drawn pipeline</td><td>Role table empty or duplicated roles</td></tr>
+    <tr><td>All group tracks</td><td>PR containing <code>types.ts</code> entries <b>and</b> the per-box <code>runBox</code> plan</td><td>"We'll register the boxes next week"</td></tr>
+    <tr><td>All group tracks</td><td>3 annotated sources <b>per member</b> (not 3 per team)</td><td>3 sources total across 4 people</td></tr>
+    <tr><td>All group tracks</td><td>One role artefact each (UX brief / BA skeleton / Dev PR / Domain shortlist + guardrails)</td><td>Domain artefact missing — the check boxes then have no framework behind them</td></tr>
+  </table>
+  <div class="warn"><b>Hour-count reality check:</b> this pack is 6 h of 🔴 work and 10 h of total work. If a team reports "everyone did 10 hours" but the 🔴 rows aren't all ticked, the hours went somewhere else — ask which task they traded off rather than accepting the total.</div>
+
+  <h2><span class="n">6.</span> Repeating this pack next week</h2>
+  <p>Week 2 (the second 10 h of Sprint 1) in the same shape, from <code>08_sprint_task_plan.md</code> §4.1:</p>
+  <ul>
+    <li><b>Shared (3 h):</b> prompt drafts for the chosen boxes · finalise the demo pipeline · prepare the Sprint 1 demo (plan + scaffolded repo).</li>
+    <li><b>UX (7 h):</b> empty/error-state designs · first look at how the boxes' outputs will be laid out.</li>
+    <li><b>BA (7 h):</b> finish the traceable requirements table · draft the report's problem &amp; motivation section.</li>
+    <li><b>Dev (7 h):</b> draft prompts with <code>{{inputs}}</code> / <code>{{input_1}}</code> / <code>{{Box Name}}</code> · one box's <code>runBox</code> branch started end-to-end.</li>
+    <li><b>Domain (7 h):</b> per-box guardrail text inside the prompts · framework citations formatted for the report.</li>
+    <li><b>Sprint 1 exit on Friday of Week 2:</b> facilitator signs off on the plan and the pipelined repo, then the Sprint 2 block (<code>08</code>, §5.6) goes on the board.</li>
+  </ul>
+
+  <div class="footer">AI Canva · <code>docs/course/09_weekly_task_packs.md</code> — the Markdown version is the source; keep both in sync when a brief or rubric changes.</div>
+</div>
+</body>
+</html>

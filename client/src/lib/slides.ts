@@ -36,7 +36,10 @@ export function parseSlidesResponse(text: string): Slide[] {
           bullets: Array.isArray(s.bullets)
             ? s.bullets.map((b: unknown) => String(b))
             : [],
-          notes: s.notes ? String(s.notes) : undefined,
+          // Always a string, never `undefined`: the slide objects are stored
+          // in boxData.slides and Firestore rejects `undefined` nested inside a
+          // document value — one notes-less slide used to break every board save.
+          notes: s.notes ? String(s.notes) : "",
         }));
     }
   } catch {

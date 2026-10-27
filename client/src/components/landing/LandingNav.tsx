@@ -1,3 +1,5 @@
+import { Icon } from "../ui/Icon.js";
+
 interface LandingNavProps {
   onSignIn: () => void;
   signingIn: boolean;
@@ -10,40 +12,42 @@ const LINKS = [
   { href: "#for-teams", label: "For teams" },
 ];
 
+/** Pine signage bar — the same roundel and small-caps language as the app. */
 export default function LandingNav({ onSignIn, signingIn }: LandingNavProps) {
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/70 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3.5">
-        <a href="#top" className="flex items-center gap-2.5">
-          <span className="text-2xl">🎨</span>
-          <span className="text-lg font-bold tracking-tight text-white">AI Canva</span>
+    <header className="lp-nav">
+      <div className="lp-shell lp-nav-inner">
+        <a href="#top" className="lp-brand" aria-label="AI Canva — top of page">
+          <span className="logo-roundel" aria-hidden />
+          <span className="logo-word">AI Canva</span>
         </a>
 
-        <nav className="hidden items-center gap-7 md:flex">
+        <nav className="lp-nav-links" aria-label="Page sections">
           {LINKS.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              className="text-sm text-slate-300 transition hover:text-white"
-            >
+            <a key={l.href} href={l.href} className="lp-nav-link">
               {l.label}
             </a>
           ))}
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="lp-nav-actions">
           <button
+            type="button"
             onClick={onSignIn}
-            className="rounded-lg px-3.5 py-2 text-sm font-medium text-slate-300 transition hover:text-white"
+            disabled={signingIn}
+            className="lp-btn lp-btn--ghost-cream"
           >
             Sign in
           </button>
           <button
+            type="button"
             onClick={onSignIn}
             disabled={signingIn}
-            className="rounded-lg bg-gradient-to-r from-indigo-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:opacity-90 disabled:opacity-60"
+            aria-busy={signingIn}
+            className="lp-btn lp-btn--signal lp-nav-cta"
           >
-            {signingIn ? "Connecting…" : "Get started"}
+            {signingIn ? "Connecting…" : "Start a board"}
+            {!signingIn && <Icon name="arrowRight" size={13} />}
           </button>
         </div>
       </div>

@@ -73,9 +73,16 @@ export function wrapUIInHtml(code: string): string {
 export function extractCode(raw: string): string {
   let code = raw.trim();
   // Remove markdown code block wrapper (```jsx ... ```)
-  const codeBlockMatch = code.match(/```(?:jsx?|javascript|react)?\s*([\s\S]*?)```/);
+  const codeBlockMatch = code.match(/```(?:jsx?|javascript|react|tsx?)?\s*([\s\S]*?)```/);
   if (codeBlockMatch) {
-    code = codeBlockMatch[1].trim();
+    return codeBlockMatch[1].trim();
+  }
+  // Unterminated fence = the reply was cut off before the closing ```.
+  // Strip the opening line anyway so callers can inspect (and reject) the
+  // partial code instead of seeing a leading "```jsx" as its first statement.
+  const openFence = code.match(/^```[^\n]*\n/);
+  if (openFence) {
+    code = code.slice(openFence[0].length).trim();
   }
   return code;
 }

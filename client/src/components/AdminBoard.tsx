@@ -8,6 +8,8 @@ import {
   type AdminStats,
   type AdminUser,
 } from "../lib/admin.js";
+import { Button } from "./ui/Button.js";
+import { Icon } from "./ui/Icon.js";
 
 function formatBytes(bytes: number): string {
   if (!bytes) return "0 B";
@@ -31,24 +33,41 @@ interface StatCardProps {
   value: string;
   sub?: string;
   icon: string;
-  accent: string;
+  /** Fills the rest of the grid row (the totals strip); keeps the hairline grid closed. */
+  wide?: boolean;
 }
 
-function StatCard({ label, value, sub, icon, accent }: StatCardProps) {
+/**
+ * One figure in the printed stat grid: a small-caps caption with its glyph, the
+ * number at Archivo display scale, and a mono caption for the qualifying fact.
+ * The grid itself draws the hairlines (gap-px over the rule colour), so the cells
+ * carry no borders of their own.
+ */
+function StatCard({ label, value, sub, icon, wide = false }: StatCardProps) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col gap-1">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">{label}</span>
-        <span className="text-lg">{icon}</span>
+    <div className={"bg-card px-4 py-3" + (wide ? " col-span-2 md:col-span-3" : "")}>
+      <div className="flex items-center gap-1.5 text-ink-muted">
+        <Icon name={icon} size={12} />
+        <span className="label-caps">{label}</span>
       </div>
-      <div className="text-3xl font-bold" style={{ color: accent }}>{value}</div>
-      {sub && <div className="text-xs text-slate-400">{sub}</div>}
+      <div className="mt-1.5 text-[30px] font-bold leading-none tracking-tight text-ink tabular-nums">
+        {value}
+      </div>
+      {sub && <div className="data-mono mt-1.5 text-ink-muted">{sub}</div>}
     </div>
   );
 }
 
 type Tab = "overview" | "users";
 
+/**
+ * Admin Board — system-wide usage and user management.
+ *
+ * Styling follows "The Printed Line": paper ground, hairline-ruled stat grid,
+ * lead figures in Archivo with mono captions, and one table with uppercase mono
+ * column headers, tabular numerals and zebra-free ruled rows. Tabs are small-caps
+ * buttons with an ink underline for the active one.
+ */
 export default function AdminBoard({ user, onBack }: { user: User; onBack: () => void }) {
   const [tab, setTab] = useState<Tab>("overview");
 
@@ -130,33 +149,54 @@ export default function AdminBoard({ user, onBack }: { user: User; onBack: () =>
     }
   };
 
+  const chip = (tone: "ok" | "error" | "pine" | "muted") =>
+    "inline-flex h-[18px] items-center rounded-xs border px-1.5 data-mono uppercase " +
+    (tone === "ok"
+      ? "border-[rgba(46,125,79,0.28)] bg-[rgba(46,125,79,0.10)] text-state-ok"
+      : tone === "error"
+        ? "border-[rgba(179,58,43,0.28)] bg-[rgba(179,58,43,0.10)] text-state-error"
+        : tone === "pine"
+          ? "border-[rgba(18,50,41,0.22)] bg-[rgba(18,50,41,0.06)] text-pine"
+          : "border-rule bg-card text-ink-muted");
+
   return (
-    <div className="h-full w-full overflow-y-auto bg-slate-100">
-      <div className="max-w-5xl mx-auto p-6">
+    <div className="h-full w-full overflow-y-auto bg-paper">
+      <div className="mx-auto max-w-5xl px-6 py-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b border-rule pb-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">🛠️ Admin Board</h1>
-            <p className="text-sm text-slate-500">System-wide management for AI Canva</p>
+            <p className="label-caps text-ink-muted">System</p>
+            <h1 className="mt-1 flex items-center gap-2 text-2xl font-bold leading-tight tracking-tight text-ink">
+              <Icon name="admin" size={20} className="text-pine" />
+              Admin Board
+            </h1>
+            <p className="mt-1 text-[12.5px] text-ink-muted">System-wide management for AI Canva</p>
           </div>
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={onBack}
-            className="px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-slate-800 hover:bg-slate-700 transition"
+            icon={<Icon name="arrowRight" size={14} className="rotate-180" />}
           >
-            ← Back to canvas
-          </button>
+            Back to canvas
+          </Button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex items-center gap-2 mb-6">
+        {/* Tabs — small caps with an ink underline, never pills */}
+        <div className="mb-5 flex items-center gap-5 border-b border-rule">
           {(["overview", "users"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={"px-4 py-1.5 rounded-lg text-sm font-medium transition capitalize " +
-                (tab === t ? "bg-slate-800 text-white" : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50")}
+              className={
+                "label-caps -mb-px flex items-center gap-1.5 border-b-2 px-0.5 pb-2 pt-1 transition-colors " +
+                (tab === t
+                  ? "border-ink text-ink"
+                  : "border-transparent text-ink-muted hover:border-rule-strong hover:text-ink")
+              }
             >
-              {t === "overview" ? "📊 Overview" : "👥 Users"}
+              <Icon name={t === "overview" ? "panel" : "users"} size={12} />
+              {t === "overview" ? "Overview" : "Users"}
             </button>
           ))}
         </div>
@@ -164,43 +204,73 @@ export default function AdminBoard({ user, onBack }: { user: User; onBack: () =>
         {tab === "overview" && (
           <>
             {statsError && (
-              <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
-                <span className="font-medium">Could not load stats:</span> {statsError}
+              <div className="mb-5 flex items-start gap-2 rounded-sm border border-[rgba(179,58,43,0.28)] bg-[rgba(179,58,43,0.06)] px-3 py-2 text-[12px] leading-snug text-state-error">
+                <Icon name="alert" size={13} className="mt-[1px]" />
+                <span>
+                  <span className="font-semibold">Could not load stats:</span> {statsError}
+                </span>
               </div>
             )}
 
             {statsLoading && !stats && (
-              <div className="flex items-center justify-center py-20 text-slate-400">
-                <span className="animate-spin mr-2">⏳</span> Loading stats...
+              <div className="flex items-center justify-center gap-2 border-t border-rule py-20 text-[12px] text-ink-muted">
+                <Icon name="loader" size={14} className="animate-spin" />
+                Loading stats…
               </div>
             )}
 
             {stats && (
               <>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-                  <StatCard label="Total Users" value={String(stats.users.total)} icon="👥" accent="#3b82f6" />
-                  <StatCard label="Active Now" value={String(stats.users.activeLast5m)} sub="last 5 minutes" icon="🟢" accent="#22c55e" />
-                  <StatCard label="New Users" value={String(stats.users.newLast7d)} sub="last 7 days" icon="✨" accent="#8b5cf6" />
-                  <StatCard label="Total Boards" value={String(stats.boards.total)} icon="📋" accent="#f59e0b" />
-                  <StatCard label="New Boards" value={String(stats.boards.newLast7d)} sub="last 7 days" icon="🆕" accent="#ec4899" />
-                  <StatCard label="Storage Used" value={formatBytes(stats.storage.bytes)} sub={stats.storage.files + " files"} icon="💾" accent="#14b8a6" />
+                <div className="mb-4 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-rule bg-rule md:grid-cols-3">
+                  <StatCard label="Total Users" value={String(stats.users.total)} icon="users" />
+                  <StatCard
+                    label="Active Now"
+                    value={String(stats.users.activeLast5m)}
+                    sub="last 5 minutes"
+                    icon="station"
+                  />
+                  <StatCard
+                    label="New Users"
+                    value={String(stats.users.newLast7d)}
+                    sub="last 7 days"
+                    icon="plus"
+                  />
+                  <StatCard label="Total Boards" value={String(stats.boards.total)} icon="boards" />
+                  <StatCard
+                    label="New Boards"
+                    value={String(stats.boards.newLast7d)}
+                    sub="last 7 days"
+                    icon="plus"
+                  />
+                  <StatCard
+                    label="Storage Used"
+                    value={formatBytes(stats.storage.bytes)}
+                    sub={stats.storage.files + " files"}
+                    icon="file"
+                  />
                   <StatCard
                     label="LLM Tokens Used"
                     value={formatNum(stats.tokens.totalTokens)}
-                    sub={formatNum(stats.tokens.promptTokens) + " in · " + formatNum(stats.tokens.completionTokens) + " out"}
-                    icon="⚡"
-                    accent="#6366f1"
+                    sub={
+                      formatNum(stats.tokens.promptTokens) + " in · " + formatNum(stats.tokens.completionTokens) + " out"
+                    }
+                    icon="zap"
+                    wide
                   />
                 </div>
-                <div className="flex items-center justify-between text-xs text-slate-400 mb-4">
-                  <span>Last updated {new Date(stats.generatedAt).toLocaleString()}</span>
-                  <button
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-rule pb-3">
+                  <span className="data-mono text-ink-muted">
+                    Last updated {new Date(stats.generatedAt).toLocaleString()}
+                  </span>
+                  <Button
+                    variant="secondary"
+                    size="xs"
                     onClick={() => loadStats(true)}
                     disabled={statsLoading}
-                    className="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition disabled:opacity-60"
+                    icon={<Icon name="rotate" size={12} />}
                   >
-                    {statsLoading ? "Refreshing..." : "↻ Refresh"}
-                  </button>
+                    {statsLoading ? "Refreshing…" : "Refresh"}
+                  </Button>
                 </div>
               </>
             )}
@@ -208,124 +278,167 @@ export default function AdminBoard({ user, onBack }: { user: User; onBack: () =>
         )}
 
         {tab === "users" && (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
-              <span className="text-sm font-medium text-slate-700">Registered Users ({users.length})</span>
-              <button
+          <div className="overflow-hidden rounded-md border border-rule bg-card">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule bg-paper-raised px-4 py-2.5">
+              <span className="label-caps flex items-center gap-1.5 text-ink-muted">
+                <Icon name="users" size={12} />
+                Registered users
+                <span className="data-mono normal-case text-ink-muted">({users.length})</span>
+              </span>
+              <Button
+                variant="secondary"
+                size="xs"
                 onClick={() => loadUsers()}
                 disabled={usersLoading}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition disabled:opacity-60"
+                icon={<Icon name="rotate" size={12} />}
               >
-                {usersLoading ? "Loading..." : "↻ Refresh"}
-              </button>
+                {usersLoading ? "Loading…" : "Refresh"}
+              </Button>
             </div>
 
             {usersError && (
-              <div className="p-4 text-sm text-red-700 bg-red-50 border-b border-red-200">{usersError}</div>
+              <div className="flex items-start gap-2 border-b border-[rgba(179,58,43,0.28)] bg-[rgba(179,58,43,0.06)] px-4 py-2 text-[12px] leading-snug text-state-error">
+                <Icon name="alert" size={13} className="mt-[1px]" />
+                <span className="flex-1">{usersError}</span>
+              </div>
             )}
 
             {usersLoading && users.length === 0 && (
-              <div className="flex items-center justify-center py-16 text-slate-400">
-                <span className="animate-spin mr-2">⏳</span> Loading users...
+              <div className="flex items-center justify-center gap-2 py-16 text-[12px] text-ink-muted">
+                <Icon name="loader" size={14} className="animate-spin" />
+                Loading users…
               </div>
             )}
 
             {!usersLoading && usersError && users.length === 0 && (
-              <div className="py-16 text-center text-slate-400 text-sm">Could not load users.</div>
+              <div className="py-16 text-center text-[12px] text-ink-muted">Could not load users.</div>
+            )}
+
+            {!usersLoading && !usersError && users.length === 0 && (
+              <div className="py-16 text-center text-[12px] text-ink-muted">
+                No users yet — accounts appear here after their first sign-in.
+              </div>
             )}
 
             {users.length > 0 && (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs text-slate-500 border-b border-slate-100">
-                    <th className="px-5 py-2.5">User</th>
-                    <th className="px-4 py-2.5">Status</th>
-                    <th className="px-4 py-2.5 text-right hidden md:table-cell">Tokens ⬆</th>
-                    <th className="px-4 py-2.5 text-right hidden md:table-cell">Tokens ⬇</th>
-                    <th className="px-4 py-2.5 hidden lg:table-cell">Signed Up</th>
-                    <th className="px-4 py-2.5 hidden xl:table-cell">Last Sign-in</th>
-                    <th className="px-4 py-2.5 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u) => (
-                    <tr key={u.uid} className="border-b border-slate-50 hover:bg-slate-50">
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-3">
-                          {u.photoURL ? (
-                            <img src={u.photoURL} alt="" className="w-8 h-8 rounded-full" />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold text-xs">
-                              {(u.displayName || u.email || "?").slice(0, 1).toUpperCase()}
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <div className="font-medium text-slate-700 truncate">{u.displayName || "—"}</div>
-                            <div className="text-xs text-slate-400 truncate">{u.email || u.uid}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={"inline-block px-2 py-0.5 rounded-full text-xs font-medium " + (u.disabled ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700")}>
-                          {u.disabled ? "Blocked" : "Active"}
+              <div className="overflow-x-auto">
+                <table className="w-full text-[12px]">
+                  <thead>
+                    <tr className="border-b border-rule text-left">
+                      <th className="data-mono px-4 py-2 font-medium uppercase text-ink-muted">User</th>
+                      <th className="data-mono px-4 py-2 font-medium uppercase text-ink-muted">Status</th>
+                      <th className="data-mono px-4 py-2 font-medium uppercase text-ink-muted">Role</th>
+                      <th className="data-mono hidden px-4 py-2 text-right font-medium uppercase text-ink-muted md:table-cell">
+                        <span className="inline-flex items-center gap-1">
+                          Tokens
+                          <Icon name="arrowRight" size={10} className="-rotate-90" />
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-center gap-2">
-                          <span className={"inline-block px-2 py-0.5 rounded-full text-xs font-medium " + (u.facilitator ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-400")}>
-                            {u.facilitator ? "Facilitator" : "—"}
-                          </span>
-                          {u.uid !== user.uid && (
-                            <button
-                              onClick={() => handleToggleFacilitator(u)}
-                              disabled={busyUid === u.uid}
-                              className="px-2.5 py-1 rounded-lg text-xs font-medium text-indigo-600 hover:bg-indigo-50 transition disabled:opacity-60"
-                              title={u.facilitator ? "Revoke the facilitator role" : "Grant the facilitator role"}
-                            >
-                              {u.facilitator ? "Revoke" : "Grant"}
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-right hidden md:table-cell">
-                        <div className="text-sm text-slate-700 font-medium tabular-nums">{formatNum(u.tokens?.promptTokens)}</div>
-                      </td>
-                      <td className="px-4 py-3 text-right hidden md:table-cell">
-                        <div className="text-sm text-slate-700 font-medium tabular-nums">{formatNum(u.tokens?.completionTokens)}</div>
-                      </td>
-                      <td className="px-4 py-3 hidden lg:table-cell text-slate-500">{formatDate(u.createdAt)}</td>
-                      <td className="px-4 py-3 hidden xl:table-cell text-slate-500">{formatDate(u.lastSignIn)}</td>
-                      <td className="px-4 py-3 text-right">
-                        {u.uid === user.uid ? (
-                          <span className="text-xs text-slate-400">(you)</span>
-                        ) : (
-                          <button
-                            onClick={() => handleToggleBlock(u)}
-                            disabled={busyUid === u.uid}
-                            className={"px-3 py-1.5 rounded-lg text-xs font-medium transition disabled:opacity-60 " +
-                              (u.disabled
-                                ? "bg-green-50 text-green-700 hover:bg-green-100"
-                                : "bg-red-50 text-red-700 hover:bg-red-100")}
-                          >
-                            {busyUid === u.uid ? "..." : u.disabled ? "Unblock" : "Block"}
-                          </button>
-                        )}
-                      </td>
+                      </th>
+                      <th className="data-mono hidden px-4 py-2 text-right font-medium uppercase text-ink-muted md:table-cell">
+                        <span className="inline-flex items-center gap-1">
+                          Tokens
+                          <Icon name="arrowRight" size={10} className="rotate-90" />
+                        </span>
+                      </th>
+                      <th className="data-mono hidden px-4 py-2 font-medium uppercase text-ink-muted lg:table-cell">
+                        Signed Up
+                      </th>
+                      <th className="data-mono hidden px-4 py-2 font-medium uppercase text-ink-muted xl:table-cell">
+                        Last Sign-in
+                      </th>
+                      <th className="data-mono px-4 py-2 text-right font-medium uppercase text-ink-muted">
+                        Actions
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {users.map((u) => (
+                      <tr
+                        key={u.uid}
+                        className="border-b border-rule transition-colors last:border-b-0 hover:bg-paper-raised"
+                      >
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-2.5">
+                            {u.photoURL ? (
+                              <img src={u.photoURL} alt="" className="h-7 w-7 flex-shrink-0 rounded-pill border border-rule" />
+                            ) : (
+                              <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-pill border border-rule bg-paper-raised text-[11px] font-bold text-ink-muted">
+                                {(u.displayName || u.email || "?").slice(0, 1).toUpperCase()}
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <div className="truncate text-[12.5px] font-medium text-ink">{u.displayName || "—"}</div>
+                              <div className="data-mono truncate text-ink-muted">{u.email || u.uid}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className={chip(u.disabled ? "error" : "ok")}>
+                            {u.disabled ? "Blocked" : "Active"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className={chip(u.facilitator ? "pine" : "muted")}>
+                              {u.facilitator ? "Facilitator" : "—"}
+                            </span>
+                            {u.uid !== user.uid && (
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                onClick={() => handleToggleFacilitator(u)}
+                                disabled={busyUid === u.uid}
+                                title={u.facilitator ? "Revoke the facilitator role" : "Grant the facilitator role"}
+                              >
+                                {u.facilitator ? "Revoke" : "Grant"}
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                        <td className="data-mono hidden px-4 py-2.5 text-right tabular-nums text-ink-soft md:table-cell">
+                          {formatNum(u.tokens?.promptTokens)}
+                        </td>
+                        <td className="data-mono hidden px-4 py-2.5 text-right tabular-nums text-ink-soft md:table-cell">
+                          {formatNum(u.tokens?.completionTokens)}
+                        </td>
+                        <td className="data-mono hidden px-4 py-2.5 text-ink-muted lg:table-cell">
+                          {formatDate(u.createdAt)}
+                        </td>
+                        <td className="data-mono hidden px-4 py-2.5 text-ink-muted xl:table-cell">
+                          {formatDate(u.lastSignIn)}
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          {u.uid === user.uid ? (
+                            <span className="data-mono text-ink-muted">(you)</span>
+                          ) : (
+                            <Button
+                              variant={u.disabled ? "secondary" : "danger"}
+                              size="xs"
+                              onClick={() => handleToggleBlock(u)}
+                              disabled={busyUid === u.uid}
+                            >
+                              {busyUid === u.uid ? "…" : u.disabled ? "Unblock" : "Block"}
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
 
             {nextPageToken && (
-              <div className="px-5 py-3 border-t border-slate-100">
-                <button
+              <div className="border-t border-rule px-4 py-2.5">
+                <Button
+                  variant="secondary"
+                  size="xs"
                   onClick={() => loadUsers(nextPageToken)}
                   disabled={usersLoading}
-                  className="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition disabled:opacity-60"
+                  icon={<Icon name="arrowRight" size={12} className="rotate-90" />}
                 >
-                  {usersLoading ? "Loading..." : "Load more"}
-                </button>
+                  {usersLoading ? "Loading…" : "Load more"}
+                </Button>
               </div>
             )}
           </div>

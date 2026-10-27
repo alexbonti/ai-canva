@@ -1,0 +1,12 @@
+import { chromium } from "/Users/alessiobonti/dev/ai-canva/client/node_modules/playwright-core/index.mjs";
+const browser = await chromium.launch({ executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless: true });
+const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+const page = await ctx.newPage();
+const errs = [];
+page.on("pageerror", (e) => errs.push(e.message.slice(0, 400)));
+page.on("console", (m) => { if (m.type() === "error") errs.push("console: " + m.text().slice(0, 300)); });
+await page.goto("http://127.0.0.1:5183", { waitUntil: "load" });
+await page.waitForTimeout(3000);
+console.log("errors:", JSON.stringify(errs, null, 1));
+console.log("body:", (await page.evaluate(() => document.body.innerText.slice(0, 300))).replace(/\n/g, " | "));
+await browser.close();

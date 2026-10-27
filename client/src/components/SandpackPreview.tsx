@@ -42,7 +42,7 @@ function SandpackPreviewInner({ code, height = "100%" }: SandpackPreviewProps) {
       key={code}
       template="react"
       files={files}
-      theme="dark"
+      theme="light"
       options={options}
       // Sandpack only sizes the inner preview to 100% of its wrapper; without
       // giving the provider root a height it collapses to a small default and

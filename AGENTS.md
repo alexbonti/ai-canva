@@ -30,7 +30,7 @@ to box — from an Idea, through Research, to PRD / Slides / Code / UI Design / 
 | `server/` | Local Express dev backend (`/api/generate`, `/api/generate-image`, `/api/stitch-generate`, `/api/repo-digest`, `/api/health`). |
 | `functions/` | Same API as a Firebase Cloud Function (`onRequest`) for production. Also hosts `src/stitchJobs.ts` (the async Stitch Cloud Task worker). |
 | `scripts/deploy.sh` | One-command production deploy (build client, build Functions, deploy Hosting + Functions + rules). |
-| `docs/` | Guides: `OVERVIEW`, `ONBOARDING`, `ARCHITECTURE`, `BOX_TYPES`, `API`, `MODELS`, `DEPLOYMENT`, `OSS_READINESS`, plus `docs/course/` teaching materials. `docs/DEVLOG.md` is the session journal (read at session start, append after finishing work). |
+| `docs/` | Guides: `OVERVIEW`, `ONBOARDING`, `ARCHITECTURE`, `BOX_TYPES`, `API`, `MODELS`, `DEPLOYMENT`, `OSS_READINESS`, plus `docs/course/` teaching materials (`00` intro, `01`–`07` briefs + how-to, `08_sprint_task_plan` = the instructor's per-track sprint task handout, `09_weekly_task_packs` = the group tracks' week-by-week 10 h/student cut of it, `individual-project/` = the individual "One Student, One Box" project's own folder (brief + **step-by-step SDLC workbook** = the 4-phase study→design→implement→test task guide, 30 h, 34 tasks, plus the student's ✍️ fill-in sections; the `.html` is a fillable workbook — see "Course handouts" below + 3-week/30 h sprint tasks + README), `02_student_brief_one_box.md` = a stub pointing there, each also as a print-friendly `.html`). `docs/DEVLOG.md` is the session journal (read at session start, append after finishing work). |
 | `firebase.json`, `firestore.rules`, `storage.rules` | Firebase config and security rules. |
 | `dsh-plugins/` | Out-of-tree plugins for the DeepSeek Harness Web GUI (not part of the app). See "dsh GUI plugins" below. |
 
@@ -56,8 +56,8 @@ npm run deploy         # = bash scripts/deploy.sh (production Firebase deploy)
   graph objects so it serializes cleanly to Firestore), and board/collaboration metadata.
 - **`runBox(id)`** is the orchestrator: gathers upstream inputs from incoming edges, builds
   `NamedInput[]` for prompt templating, then branches by box type (cartoon → fal.ai, stitch →
-  Google Stitch, slides → Ollama + JSON parsing, code/ui → Ollama + code extraction, else Ollama
-  text).
+  Google Stitch, slides → Ollama + JSON parsing, code → Ollama + JSX extraction, **ui → the two-step
+  brief→HTML pipeline** (`runUiDesign`, see "UI Design box" below), else Ollama text).
 - **Stitch is asynchronous.** Stitch generation is slow (40s+) and exceeded the ~60s Firebase
   Hosting rewrite timeout, so the deployed box previously reported "Request failed" even though the
   screen was created in Stitch. `POST /api/stitch-generate` now returns a `jobId` immediately; the
@@ -65,8 +65,16 @@ npm run deploy         # = bash scripts/deploy.sh (production Firebase deploy)
   `generateStitchUI(prompt)` in `client/src/lib/api.ts` hides this (start + poll). Local dev uses an
   in-memory job store in `server/src/app.ts`; production uses Firestore (`stitchJobs/{jobId}`, no
   client access) plus a Cloud Task worker `processStitchJob` in `functions/src/stitchJobs.ts`.
-  `stitch.ts` caps prompt length (6000) and uses the fast `GEMINI_3_FLASH` model (`STITCH_MODEL`).
-  Keep the two backends' stitch endpoints in sync.
+  `stitch.ts` caps prompt length (6000) and **never trusts one hardcoded model id**: the Stitch
+  API's accepted `modelId` enum is controlled server-side and changes (the old default
+  `GEMINI_3_FLASH` was retired — sending it fails with "Request contains an invalid argument",
+  which broke the Stitch UI box). It tries `STITCH_MODEL` (env) → `GEMINI_3_5_FLASH_LITE` →
+  `GEMINI_3_8_FLASH` → the provider default ("") and remembers the first id that works; a
+  rejected id moves to the next candidate, and a transient transport error (the 30-50s streamed
+  generation occasionally drops: "fetch failed"/"other side closed") gets one retry on a FRESH
+  `StitchToolClient` — the SDK's shared singleton transport is poisoned after a failure ("Already
+  connected to a transport"), so never reuse it across runs. Keep the two backends' stitch
+  endpoints in sync.
 - **Local server is split for testability.** `server/src/app.ts` exports `createApp()` (the Express
   app + all routes + the in-memory stitch job store) with **no side effects at import**;
   `server/src/index.ts` is the bootstrap that calls `createApp()`, finds a port, writes
@@ -88,30 +96,82 @@ npm run deploy         # = bash scripts/deploy.sh (production Firebase deploy)
   `companion` (the Chatbot), `collab` (standalone team tools: no AI, no Run, no handles),
   and `custom` (the user's saved templates). See `docs/BOX_TYPES.md`.
 
-## UI design system
+## UI design system — "The Printed Line"
 
-The app chrome (header, sidebar, canvas tools) follows a consistent "enterprise but
-modern" language, built on two shared primitives:
+The whole product (workspace **and** landing page) is one committed visual world:
+a **cream timetable paper** with a **deep-pine signage bar**, a single **marigold
+signal** accent, and **per-category line colours**. The canvas reads like a transit
+diagram: every connection is a line with a rounded elbow and a station knot; every
+box carries a mono station code (`RES-01`, `PRD-01`, SDLC stages use their index).
+Selecting a box lights its whole route while unrelated routes recede.
 
-- **`client/src/components/ui/Button.tsx`** — the only button styling in the chrome.
-  Variants: `primary` (indigo-600 — the single loud color, used for Share and the
-  area tool's active state), `secondary` (white + 1px slate border — the default),
-  `ghost` (transparent, for role-gated views), `danger`; sizes `xs/sm/md`; `active`
-  renders the pressed state (dark). Every button gets a keyboard focus ring. Use it
-  instead of hand-rolled Tailwind button class strings.
-- **`client/src/components/ui/Menu.tsx`** — dropdown primitive (`Menu` + `MenuItem`
-  + `MenuDivider`/`MenuLabel`). Closes on outside click + Escape; pass children as
-  a function `(close) => …` so items can dismiss the menu after acting. Used by the
-  Boards menu and the account menu; the presence roster popover follows the same
-  outside-click/Escape contract.
+Durable sources of truth:
+- `DESIGN.md` + `.impeccable/design.json` — the committed system: tokens, ramps,
+  motion, component recipes, narrative rules. Change these before changing the UI.
+- `PRODUCT.md` — product truth/users/principles used by the design tooling.
+- `client/src/index.css` — app tokens as CSS vars + every app component class
+  (`.app-bar`, `.logo-roundel`, `.box-node`, `.box-header`, `.box-station-dot`,
+  `.box-type`, `.box-run`, `.box-action`, `.box-tokens`, `.label-caps`,
+  `.data-mono`, note/label/chatbot annotations, markdown output, route motion,
+  `@media (pointer: coarse)` touch rules).
+- `client/src/landing.css` — the landing page only (`.lp-*`). The app and landing
+  share tokens/type; landing styles are NOT in `index.css`.
+- `client/tailwind.config.js` — token colours (`canvas`, `card`, `paper.raised`,
+  `ink.{soft,muted}`, `rule.{strong}`, `pine.{deep,line}`, `cream`, `signal.ink`,
+  `line.*`, `state.*`), a warm remap of `slate`/`indigo`/`amber`, fonts, radii,
+  shadows, easings. Never reintroduce a cool grey or a second blue accent.
+- **Fonts are self-hosted** (`client/src/assets/fonts/`): Archivo variable
+  (400–700) for UI/body and IBM Plex Mono (400/500) for codes/counts/times,
+  declared with `@font-face` in `index.css`. No Google Fonts/runtime fetch.
+- **Icons are vendored inline SVG** — `client/src/components/ui/Icon.tsx`
+  (`Icon { name, size, className }`, Lucide ISC, one 1.75 stroke weight,
+  `BOX_ICON` maps all 26 built-in box types). Emoji are allowed only as *user
+  content* (custom box emoji, note/chatbot text), never as UI iconography.
+- **`ui/Button.tsx`** is the only button recipe in the chrome: variants
+  `primary` (pine), `signal` (marigold — one per surface), `secondary`, `ghost`,
+  `danger`, `bar`/`bar-ghost` (on the pine bar); sizes `xs/sm/md`; `icon`
+  accepts an `<Icon>`; marigold `:focus-visible` outline globally.
+- **`ui/Menu.tsx`** — card-stock hairline dropdown (`Menu`, `MenuItem`,
+  `MenuDivider`, `MenuLabel`); closes on outside click + Escape; children are a
+  function `(close) => …`. Used by Boards/account menus and the roster popover.
+- **Route edges:** `client/src/components/RouteEdge.tsx` (registered in
+  `Canvas.tsx` as edge type `route`) draws the paper casing + line + destination
+  station knot; `client/src/lib/lines.ts` owns `LINE_COLORS`/`lineColorFor`/
+  `stationCode`. `Canvas.tsx` decorates edges with `{color, focused, dimmed,
+  running}`; a selected box focuses its own routes and dims the rest. Set
+  `animated: false` on RF edges — React Flow's generic dash-march would dash
+  every route; the running dash comes from `.route-edge.is-running`.
 
-Design rules: one accent (indigo) over slate neutrals; 1px borders + layered soft
-shadows (no `border-2`/`shadow-lg` in the chrome); h-14 app bar (`.app-bar`, blurred
-white); box cards are `.box-node` (1px type-colored border set inline, indigo
-selection ring); `.logo-tile` is the only gradient; `.save-dot` states map
-`saveStatus`; thin scrollbars and rounded React Flow controls/minimap styling live
-in `client/src/index.css`. Palette rows use a 28×28 icon tile tinted with the box
-color at ~12% alpha (`color + "1F"`) instead of the old left border-rail.
+Craft floor (non-negotiable): no gradients, glass, glows or bevels; no coloured
+`border-left` rails in the chrome; no emoji icons; mono only for codes/counts/
+times; **marigold ≤ 5 %** of any surface; hairlines over heavy shadows; one loud
+display line per surface; category colour only (never a per-type rainbow);
+functional text ≥ 11 px. Focus is one marigold ring everywhere.
+
+**Accessibility is part of the craft floor** (verified by axe — keep it at zero
+violations with `.impeccable/audit-a11y.mjs`): app bar is `<header>`, the palette
+is `<aside aria-label="Box palette">`, the help card is
+`role="complementary"`; every form control has a real label (`<label htmlFor>`,
+not `title`); cream-on-pine secondary text is ≥ `rgba(242,237,225,.58)`
+(#829085 on #123229 is 4.14:1 — below AA at 11 px); **browser zoom stays enabled**
+(no `user-scalable=no` / `maximum-scale`; touch targets rely on
+`touch-action: manipulation` and the canvas owns pinch). Disabled buttons stay
+printed — paper-raised fill + muted ink — never `opacity`-washed grey (the `bar`
+variants override to a dark disabled state). Error surfaces use the
+`error-wash` / `error-wash-hover` / `error-line` tokens, never raw hexes.
+`@media (prefers-reduced-motion: reduce)` in `index.css` stops the route march,
+save-dot pulse, running-state pulse and chatbot bob (state feedback stays, only
+the motion goes); `landing.css` has the same guard for the route draw-in.
+
+**E2E text-marker convention (load-bearing):** the Playwright suites match buttons
+by `textContent`, so visible chrome uses SVG while the legacy emoji glyph stays in
+an `sr-only, aria-hidden` span: `<span className="sr-only" aria-hidden>💾 </span><Icon name="download"/>Save`
+renders textContent exactly `💾 Save`. Same pattern for `🗂 Audit` and
+`🧑‍🏫 Facilitator`; keep those spans on ONE line with the visible text (JSX
+newline indentation adds spaces and breaks `trim() ===` assertions). Do not add
+`text-transform` to an element whose innerText a test matches (innerText applies
+it). `Icon` strips whitespace between path tags because authored `<path/> <path/>`
+spaces become a text node that pollutes button `textContent`.
 
 **`components/Header.tsx` owns its store subscriptions** (boardTitle, saveStatus,
 boardList, currentBoardId) and is `memo`-ized. App must NOT subscribe to those
@@ -147,8 +207,8 @@ used) via an "Admin" button in the header.
 
 The app reports per-call LLM token usage and tracks cumulative usage per user and across the system.
 
-- **Source:** Ollama's non-streaming `/api/chat` response includes `prompt_eval_count` (input) and
-  `eval_count` (output). `generateContent` in both `server/src/ollama.ts` and `functions/src/ollama.ts`
+- **Source:** the final chunk of Ollama's streamed `/api/chat` reply (the backend accumulates the
+  NDJSON stream) includes `prompt_eval_count` (input) and `eval_count` (output). `generateContent` in both `server/src/ollama.ts` and `functions/src/ollama.ts`
   returns `{ content, model, promptTokens, completionTokens, totalTokens }`, and `/api/generate`
   returns those counts under `usage`.
 - **Per-box display:** each text AI box stores `tokens` in its `BoxData` and shows "in · out / total
@@ -209,9 +269,22 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   grants the facilitator role to a test user via the Firestore admin REST API (OAuth token from
   firebase-tools), then drives the dashboard (workshop → template → team → seat codes), joins as
   a guest in a fresh context (code → profile modal → team board → own board → team board visible
-  in the list), and cleans everything up. Result at time of writing: **105/105 passed**
-  (75 base + 5 "TD" Documents-box tests + 13 "TC" Checklist tests + 9 "T15" shared-checklist
-  cross-user tests added since).
+  in the list), and cleans everything up. Result at time of writing: **106 checks** (76 base + 5
+  "TD" Documents-box tests + 16 "TC" Checklist tests + 9 "T15" shared-checklist cross-user tests).
+  With a stale
+  firebase-tools token the 13 facilitator/guest checks are skipped and the TF check fails, so a run
+  then reports 92/93 while still exiting after the skipped block; with a fresh token it is
+  106/106. (`docs/DEVLOG.md` has the run log.)
+- **Quality gates:** before calling a UI change done, run (against the live dev app)
+  `client/ui-smoke.mjs` (84 checks) and `npx tsc --noEmit`; for visual/system changes also
+  `.impeccable/check-markers.mjs` (exact E2E text markers), `.impeccable/audit-a11y.mjs`
+  (axe, expect 0 violations at landing desktop/mobile/tablet + workspace open/closed),
+  `.impeccable/audit-render.mjs` (adds all 27 box types, expects no page errors) and the
+  detector (`impeccable detect <url>`). `.impeccable/audit-fixes.mjs` regression-tests the
+  UI-box HTML preview/download vs the legacy React wrapper. If you touch a demo workflow in
+  `docs/DEMOS.md`, also run `client/demo-scripts.mjs` (40 checks, mocked models, seconds —
+  it replays all seven demos and asserts the outcomes the guide promises). Rebuild with
+  `npm run build` (production) and, when measuring perf, serve `dist/` with `vite preview`.
 - **UI smoke test:** `client/ui-smoke.mjs` (playwright-core + system Chrome, same pattern as
   `e2e.mjs`) drives the **real dev app** on `localhost:5173` with `/api/generate` **and**
   `/api/repo-digest` mocked at the page level (deterministic artifacts, so it needs no Ollama, no
@@ -318,7 +391,12 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   owns its own store subscriptions — never subscribe BoxNode to `collaborators`/`activeUsers` (that
   would re-render every box on the canvas on each presence snapshot). Mutators return the same array
   when the edit is a no-op, so no-op interactions never dirty the board. It is **not** in
-  `AGENT_CREATABLE_TYPES` (locked by a unit test).
+  `AGENT_CREATABLE_TYPES` (locked by a unit test). **Assignee identity is email-based:** the `＋ assign`
+  options and the `✓ name` tick attribution come from the board owner + `collaborators` + present users'
+  emails, and `me` is the auth email — so a **workshop guest** (custom-token auth, `user.email === null`)
+  shows **no** `✓ name` on their own ticks, and only appears as assignable if they typed an email at the
+  guest-profile step (that lands in `collaborators`; it is never a login). Fixing it means deriving guest
+  identity from the uid + the chosen profile display name.
   **Timer sync rule:** only state *transitions* (start/pause/resume/stop/reset) write to the
   store; the countdown display is always derived locally from `timerStartedAt`/`timerRemainingMs`
   (see `client/src/lib/timer.ts`) on a per-box 250ms interval — **never write per tick** or the
@@ -432,9 +510,10 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   credential — `POST /api/herenow-deploy` (route in both backends, logic in the duplicated
   `server/src/herenow.ts` + `functions/src/herenow.ts`) runs here.now's three-step flow
   (**create → PUT to presigned targets → finalize**; a Site is NOT live until finalize succeeds).
-  What each box publishes comes from **`client/src/lib/deploy.ts`** (`deployFilesFor`): Code/UI →
-  `index.html` (the CDN-wrapped page the box previews) + `App.jsx`; Stitch → its HTML as-is; Code
-  Edit → the changed files at their repository paths + `CHANGES.md` (deletions skipped). The run path
+  What each box publishes comes from **`client/src/lib/deploy.ts`** (`deployFilesFor`): Code →
+  wrapped `index.html` + `App.jsx`; UI Design → its HTML page as `index.html` (legacy React ui keeps
+  the wrapped pair); Stitch → its HTML as-is; Code Edit → the changed files at their repository paths
+  + `CHANGES.md` (deletions skipped). The run path
   is the `deployBox` store action; UI is `components/DeployPanel.tsx` (the 🌐 Live site strip with the
   live link, expiry, 🔑 claim toggle, warnings and errors) plus a footer button. Invariants:
   site-relative paths only and **`.herenow/` refused** (those are here.now config manifests — a
@@ -480,11 +559,24 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   deterministically (mocked response — restore `window.fetch` afterwards so later tests hit the
   real API).
 - **Landing page:** the logged-out entry is a full marketing page in
-  `client/src/components/landing/` (`LandingPage.tsx` composes `LandingNav`, `LandingHero`,
-  `LandingHowItWorks`, `LandingFeatures`, `LandingBoxes`, `LandingRoles`, `LandingCTA`,
-  `LandingFooter`). It reuses `BOX_TYPES` for the box showcase, uses a `Reveal` scroll-fade wrapper
-  (`useReveal.ts`), and keeps the dark indigo/cyan theme from `index.css` (`.landing-bg`,
-  `.gradient-text`, `.glass-card`). `App.tsx` renders it when `!user`.
+  `client/src/components/landing/` (`LandingPage.tsx` composes `LandingNav` (pine, sticky),
+  `LandingHero` (loud "Build AI pipelines." + a real-data route sheet: Idea → Research → PRD → Code
+  stations with codes/tokens/states, then a printed `App.jsx` artifact), `LandingHowItWorks`,
+  `LandingFeatures`, `LandingBoxes` (data-driven from `BOX_TYPES`, grouped by line colour),
+  `LandingRoles`, `LandingCTA` (pine panel, one marigold action), `LandingFooter`). It reuses
+  `BOX_TYPES`, styles live in **`client/src/landing.css`** (`.lp-*`) — not `index.css` — and the
+  same cream/pine/marigold tokens as the app. One authored motion: the route draws in on scroll
+  (`Reveal`, `useReveal.ts`; `prefers-reduced-motion` shows it fully). `App.tsx` renders it when
+  `!user` and owns the floating pine "Have a workshop code?" pill (bottom-left on desktop,
+  bottom-centre on mobile) + the join modal. Keep `LandingPage` zero-prop.
+  **The logged-in surface is split out of the landing bundle:** `App.tsx` renders the
+  lazy `components/Workspace.tsx` (the ONLY importer of `<ReactFlowProvider>`, which wraps
+  Canvas + Sidebar + Toolbar), and lazy `AdminBoard`/`FacilitatorBoard`. Never import
+  Canvas/Sidebar/Toolbar (or `@xyflow/react`) back into `App.tsx` — that puts React Flow and the
+  markdown renderer back on the logged-out first paint. Production landing: ~424 KB transferred,
+  LCP ~90 ms, CLS 0 (measured with `.impeccable/audit-perf.mjs`). `index.html` carries the favicon
+  (`public/favicon.svg`), description/OG tags and a preloaded Archivo woff2 (kills the font-swap
+  CLS); keep those when touching the head.
 - **Code editor:** the Code / UI / Stitch boxes use an editable CodeMirror 6 editor
   (`client/src/components/CodeEditor.tsx`, `@uiw/react-codemirror` + `@codemirror/lang-javascript`
   + `@uiw/codemirror-theme-vscode`). It is **lazy-loaded** via `React.lazy` in `BoxNode.tsx` so
@@ -501,8 +593,8 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   transforms the single generated JSX into a multi-file project: `toSandpackFiles` (for Sandpack:
   `/App.js`, `/index.js`, `/public/index.html`, `/package.json`, `/styles.css`) and `toReactProject`
   (a Vite project for StackBlitz). Both strip the `ReactDOM.createRoot` render call and add a React
-  import. The `ui`/`stitch` boxes still use the lightweight CDN iframe preview. An **⚡ Open in
-  StackBlitz** button (`@stackblitz/sdk`, `sdk.openProject`) opens the same project in a full IDE.
+  import. UI/Stitch use the HTML iframe preview instead; the **⚡ Open in StackBlitz** button
+  (`@stackblitz/sdk`) is Code-only.
   `project.ts` is unit-tested in `client/src/lib/project.test.ts`. Note: Sandpack only sizes its
   inner preview to the provider wrapper's height — pass `style={{ height }}` to `SandpackProvider`
   in `SandpackPreview.tsx` (not just to `SandpackPreviewView`), or the preview collapses to a small
@@ -553,9 +645,10 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   board save/snapshot; `deleteBox(id)` deletes them (no boxData entry). While the tool is active,
   `panOnDrag`/`nodesDraggable` are off and drags on `.react-flow__pane` become a draft rectangle
   (`lib/areas.ts` `normalizeRect`/`isValidAreaSize`, unit-tested; drags <24 units are ignored).
-  The palette (`AREA_COLORS` in `types.ts`) is intentionally **very light** (Tailwind -100 fills,
-  -200/-300 borders) so areas never compete with boxes on top; the minimap shows areas in their
-  border shade. `noWheelClassName="react-flow__node"` covers area nodes too — scroll over an area
+  The palette (`AREA_COLORS` in `types.ts`) is warm paper tints (light fills, hairline borders) so
+  areas never compete with boxes on top; the minimap shows areas in their border shade. **Names and
+  Violet's fill `#ede9fe` are load-bearing** — the E2E picks the `Draw color — Emerald` dot and the
+  `Area color — Violet` dot, and asserts the stored fill exactly. `noWheelClassName="react-flow__node"` covers area nodes too — scroll over an area
   zooms the canvas as over any node.
 - **Touch / tablet (iPad) support:** everything touch-related is scoped to `@media (pointer: coarse)`
   in `client/src/index.css` — desktop is byte-for-byte unchanged. When adding UI, keep it that way:
@@ -574,12 +667,12 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   - **Canvas:** `zoomOnDoubleClick={false}`; the Area tool has a native `touchstart`/`touchmove`/
     `touchend` mirror on `.react-flow__pane` (iPads never fire the synthesized mousedown — React
     Flow's touch handlers suppress it); presence cursors update via ReactFlow `onTouchMove`.
-  - **Page level:** `index.html` viewport is `viewport-fit=cover, maximum-scale=1, user-scalable=no`
-    plus apple/web-app metas (Add-to-Home-Screen = chrome-less kiosk); `.app-bar` pads with
+  - **Page level:** `index.html` viewport is `viewport-fit=cover` (browser zoom stays enabled for
+    WCAG 1.4.4) plus apple/web-app metas (Add-to-Home-Screen = chrome-less kiosk); `.app-bar` pads with
     `env(safe-area-inset-*)`; root uses `100dvh`; `overscroll-behavior: none`; global
     `touch-action: manipulation` on buttons kills double-tap zoom; `body` is `user-select: none` on
     coarse pointers with `input`/`textarea`/`.markdown-output`/CodeMirror re-enabled.
-  - Verified with the full E2E (105/105, desktop viewport) — keep the suite green when extending.
+  - Verified with the full E2E (106/106, desktop viewport) — keep the suite green when extending.
 - **Custom boxes (user-created templates):** users create reusable AI box templates ("✨ New
   Custom Box" in the sidebar) — name, emoji, color, prompt template, system prompt. Definitions
   are saved per-user at `users/{uid}/boxes/{boxId}` (owner-only rules; `userBoxesStore.ts` loads
@@ -630,7 +723,48 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
 - **Deploying:** follow `docs/DEPLOYMENT.md` or the `ai-canva-deploy` skill
   (`.dsh/skills/ai-canva-deploy/SKILL.md`). Requires Firebase CLI logged in and real API keys
   (Ollama, optionally fal.ai + Google Stitch).
-- **Keep `server/` and `functions/` API logic in sync** — they are intentionally duplicated.
+- **A persisted `status: "running"` is never trusted.** A run only exists while the JS that
+  started it is alive, and `runBox` refuses to start a run on a `running` box, so a reload/crash
+  used to leave the box permanently dead (Run disabled, for everyone). `normalizeBoxDataForLoad()`
+  in `client/src/lib/serialization.ts` converts any loaded/rehydrated `running` box to
+  `status: "error"` + "run interrupted" (Firestore load, localStorage `merge`). Live
+  snapshot updates are deliberately NOT normalized — another user's box may legitimately be
+  mid-run. The client also puts a hard timeout on every AI call (`client/src/lib/api.ts`
+  `apiFetch`), so a hung provider cannot leave a box stuck in the first place.
+- **Model output budget is 32 768 tokens, and `/api/generate` says when it was hit.** Both
+  `ollama.ts` copies use `num_predict: 32_768`; the response carries `truncated` (Ollama
+  `done_reason: "length"`). Code-box JSX replies legitimately reach ~10k tokens — the old 8192 cap
+  (then 16384) cut verbose rolls mid-component, losing the `ReactDOM.createRoot(...).render(<App />)`
+  line, and `isCompletePrototype` (needs an App definition **and** a mount) then reported the
+  misleading "generated code is incomplete". Never lower it back; a truncated reply must be reported
+  as truncated, never silently accepted (partial output is invalid). The Ollama call is **streamed as NDJSON and accumulated server-side** (`stream: true`):
+  a non-streamed long generation dies at ~60s with `fetch failed` (remote end closed, nothing keeps
+  the socket alive) — that is exactly what 8–30k-token UI/Code replies trigger, so never switch it
+  back to `stream: false`. The provider call has a 300s abort, the production `api` function runs
+  with `timeoutSeconds: 300`, and long-form boxes get a 5-minute client deadline via
+  `generate(req, { timeoutMs })` — keep those three aligned.
+  **✨ UI Design no longer generates React**: it simplifies the request into a brief, then builds ONE
+  plain self-contained HTML page (~10 s, ~200 lines). Run path `runUiDesign`, prompts `UI_*` in
+  `types.ts`, helpers in `lib/uidesign.ts`, brief in `boxData.designBrief` (🧭 Brief tab); legacy
+  React `code` still previews/deploys via the wrapper. The provider is a **thinking model**
+  (reasoning counts in `eval_count`): `/api/generate` takes an optional `think` flag and UI Design
+  sends `think: false` (64 s → 8 s). Details: `docs/BOX_TYPES.md`.
+- **The API answers JSON, never HTML.** Both backends end with a JSON 404 + error middleware
+  (`docs/API.md` "Error format"); the JSON body limit is **30 MB** (≥ the documented 25 MB here.now
+  deploy cap) — a 10 MB limit used to reject legitimate deploys with an HTML 413. A malformed body
+  is a JSON 400, an oversized one a JSON 413.
+- **Keep `server/` and `functions/` API logic in sync** — they are intentionally duplicated
+  (verified in the 2026-10-26 quality pass: both expose the same 12 routes; `npm audit` is clean in
+  `server/`, the client's remaining highs are `@grpc/grpc-js` inside the Firebase package — a Node
+  transport that the browser bundle does not ship — and only a Firebase major bump would clear them).
+- **A UI Design box stores a complete HTML page** (since the HTML pipeline): the box's Preview tab
+  and 💾 Save must detect it with `isFullHtmlDocument(code)` and use the page verbatim; only a
+  legacy React `code` gets `wrapUIInHtml`/`wrapCodeInHtml`. Wrapping a full page again nests an
+  `<html>` inside a Babel `text/babel` script and the preview dies with an "Unexpected token"
+  error. `lib/deploy.ts` already does this; keep the three paths aligned.
+- **Store diagnostics are DEV-only.** Save/snapshot logging goes through
+  `debugLog()` in `boardStore.ts` (`if (import.meta.env.DEV) console.log`), so production consoles
+  stay quiet. Do not call `console.log` in store hot paths.
 
 ## dsh GUI plugins
 
@@ -681,6 +815,31 @@ app; the directory just lives in this repo so the plugins stay under version con
 - `docs/DEPLOYMENT.md` — production deploy steps.
 - `docs/course/` — teaching/learning materials (briefs + how-to guides, each also as an HTML
   handout for print/PDF).
+
+## Course handouts (fillable workbooks)
+
+`docs/course/` handouts are plain static HTML with a shared cream/green stylesheet (copy the `<style>`
+block from a sibling handout — no build step, no dependencies). The individual project's
+`sdlc-step-by-step.html` is a **fillable workbook** on that baseline:
+
+- Every student answer is a `[contenteditable]` element with a unique `data-key` (`p1-f1`, `p2-d1`,
+  `w5-check-3`…). Blank answer tables are `table[data-work-table][data-table-label]` with
+  `contenteditable` cells whose keys are auto-assigned `<tableKey>-r<row>c<col>` on init, so the
+  generic save/restore/export walk over `[data-key]` covers fields, diagrams, tables and checkboxes.
+- One vanilla `<script>` (no deps): autosaves fields + checkboxes to `localStorage` under
+  `ai-canva-sdlc-workbook-v1` (debounced ~400 ms), restores on load, and wraps **every** storage access
+  in try/catch so a blocked or full store (a pasted screenshot can blow the quota) degrades to a chip
+  warning instead of breaking the page.
+- Fixed toolbar: 🖨 Print / PDF, ⬇ Download answers (.md) (serialises the live DOM in document order —
+  fields, work tables as Markdown tables, checklists as `- [x]`) and 🗑 Clear answers (confirm first).
+  Hidden in `@media print`, where `.finput`/`.drawarea` keep their min-heights so they print as blank
+  writing space.
+- **The Markdown file is the source** and the workbook's ✍️ sections mirror its
+  `### ✍️ Your work — Phase N` blocks — keep the two in step when editing either. Autosave is
+  per-browser and is **not** a submission channel (students must ⬇ export / 🖨 print); this is stated for
+  instructors in `individual-project/README.md` §3 caveat 5.
+- The other handouts (`01`–`09`, `brief.html`) are still static print handouts — only the SDLC workbook
+  is fillable.
 
 ## Maintenance rule (IMPORTANT)
 

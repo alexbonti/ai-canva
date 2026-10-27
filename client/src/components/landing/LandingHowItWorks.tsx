@@ -1,50 +1,85 @@
-import Reveal from "./Reveal.js";
+import type { ReactNode } from "react";
 
-const STEPS = [
+interface Step {
+  n: string;
+  title: string;
+  body: ReactNode;
+}
+
+/**
+ * The sequence is information here, so the steps carry mono numbers. Each row
+ * is a timetable entry, not a card: hairline rules, one title column, one body.
+ */
+const STEPS: Step[] = [
   {
-    icon: "🧩",
-    title: "Place boxes",
-    body: "Drop Idea, Research, PRD, Code and more onto a canvas. Each box is one focused AI step with a clear input and output.",
+    n: "01",
+    title: "Place the box",
+    body: (
+      <>
+        Drop an Idea, Research, PRD or Code box onto the canvas. Twenty-six
+        built-in types cover inputs, workers, the six SDLC stages, the Chatbot
+        companion and the team&apos;s shared tools.
+      </>
+    ),
   },
   {
-    icon: "🔗",
-    title: "Connect them",
-    body: "Draw edges to chain boxes into a pipeline. Content flows box-to-box, and prompts reference upstream outputs by name.",
+    n: "02",
+    title: "Wire the route",
+    body: (
+      <>
+        Connect one box to the next. Downstream prompts reference upstream output
+        by name — <code className="lp-code">{"{{inputs}}"}</code>,{" "}
+        <code className="lp-code">{"{{Research}}"}</code>,{" "}
+        <code className="lp-code">{"{{input_1}}"}</code> — so content actually
+        flows.
+      </>
+    ),
   },
   {
-    icon: "⚡",
-    title: "Run the AI",
-    body: "Hit run and watch research become a PRD, then a dev plan, then a working React prototype — previewed right in the box.",
+    n: "03",
+    title: "Run the step",
+    body: (
+      <>
+        Each box runs on its own. Text boxes record tokens in and out when they
+        land; state is never cosmetic — running, done, error and stale are read
+        from the box itself.
+      </>
+    ),
+  },
+  {
+    n: "04",
+    title: "Keep the record",
+    body: (
+      <>
+        Builds and edits append versions; approvals and findings stay on the box.
+        Send a stage back and everything downstream is marked stale, so an old
+        artifact cannot pass as the current one.
+      </>
+    ),
   },
 ];
 
 export default function LandingHowItWorks() {
   return (
-    <section id="how-it-works" className="border-t border-white/5 py-20">
-      <div className="mx-auto max-w-6xl px-5">
-        <Reveal className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-            How it works
-          </h2>
-          <p className="mt-3 text-slate-400">
-            No code required to start. Build a visual pipeline in three steps.
+    <section id="how-it-works" className="lp-section">
+      <div className="lp-shell">
+        <div className="lp-section-head">
+          <h2 className="lp-section-title">How it works.</h2>
+          <p className="lp-section-lede">
+            Four moves from a raw idea to an artifact you can hand on. No setup,
+            no scripting — the canvas is the interface.
           </p>
-        </Reveal>
-
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
-          {STEPS.map((step, i) => (
-            <Reveal key={step.title} delay={i * 120}>
-              <div className="h-full rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:border-white/20 hover:bg-white/[0.07]">
-                <div className="flex items-center justify-between">
-                  <span className="text-3xl">{step.icon}</span>
-                  <span className="text-sm font-bold text-slate-500">0{i + 1}</span>
-                </div>
-                <h3 className="mt-4 text-lg font-semibold text-white">{step.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-400">{step.body}</p>
-              </div>
-            </Reveal>
-          ))}
         </div>
+
+        <ol className="lp-steps">
+          {STEPS.map((step) => (
+            <li key={step.n} className="lp-step">
+              <span className="data-mono lp-step-num">{step.n}</span>
+              <h3 className="lp-step-title">{step.title}</h3>
+              <p className="lp-step-body">{step.body}</p>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   );

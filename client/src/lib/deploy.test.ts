@@ -48,10 +48,30 @@ describe("deployFilesFor", () => {
     expect(files[1].content).toBe(CODE + "\n");
   });
 
-  it("wraps a UI Design box with Tailwind, and publishes Stitch HTML as-is", () => {
-    const ui = deployFilesFor("ui", data({ code: "const App = () => <div className=\"p-4\" />;" }));
-    expect(ui[0].content).toContain("cdn.tailwindcss.com");
+  it("publishes a UI Design page as index.html as-is", () => {
+    const html = [
+      "<!DOCTYPE html>",
+      '<html lang="en"><head><style>body{font-family:system-ui}</style></head>',
+      "<body><h1>Plans</h1></body></html>",
+    ].join("\n");
+    expect(deployFilesFor("ui", data({ code: html }))).toEqual([{ path: "index.html", content: html }]);
+  });
 
+  it("keeps the old wrapper for a legacy React-based UI Design box", () => {
+    const ui = deployFilesFor("ui", data({ code: CODE }));
+    expect(ui[0].content).toContain("cdn.tailwindcss.com");
+    expect(ui[1].path).toBe("App.jsx");
+  });
+
+  it("wraps a UI Design fragment into a document before publishing it", () => {
+    const ui = deployFilesFor("ui", data({ code: "<main><h1>Hi</h1></main>" }));
+    expect(ui).toHaveLength(1);
+    expect(ui[0].path).toBe("index.html");
+    expect(ui[0].content).toContain("<!DOCTYPE html>");
+    expect(ui[0].content).toContain("<h1>Hi</h1>");
+  });
+
+  it("publishes Stitch HTML as-is", () => {
     const stitch = deployFilesFor("stitch", data({ code: "<html><body>screen</body></html>" }));
     expect(stitch).toEqual([{ path: "index.html", content: "<html><body>screen</body></html>" }]);
   });

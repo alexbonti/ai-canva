@@ -11,7 +11,7 @@ import {
   type Connection,
 } from "@xyflow/react";
 import type { BoxData, BoxType, BoxStatus, NamedInput, AgentStep, ChatMessage, DeployInfo, FileChange, EditMeta, ArtifactVersion, SdlcEvent, SdlcStage, RepoMeta, ChecklistItem } from "../types.js";
-import { BOX_TYPES, AGENT_CONTROLLER_SYSTEM_PROMPT } from "../types.js";
+import { BOX_TYPES, AGENT_CONTROLLER_SYSTEM_PROMPT, UI_BRIEF_SYSTEM_PROMPT, UI_BUILD_SYSTEM_PROMPT } from "../types.js";
 import { buildCodeMapPrompt, resolveRepoRef } from "../lib/repo.js";
 import {
   buildEditPrompt,
@@ -61,13 +61,24 @@ import {
 import { buildDocumentsOutput } from "../lib/documents.js";
 import { buildCodeChangePrompt, extractCode, isCompletePrototype } from "../lib/code.js";
 import {
+  buildDesignBriefPrompt,
+  buildUiBuildPrompt,
+  buildUiChangePrompt,
+  isFullHtmlDocument,
+  normalizeUiDesign,
+  uiBuildSystemPrompt,
+} from "../lib/uidesign.js";
+import {
   deployBlockedReason,
   deployFilesFor,
   deploySiteTitle,
   validateDeploySet,
 } from "../lib/deploy.js";
 import { parseSlidesResponse } from "../lib/slides.js";
-import { cleanBoxDataForFirestore } from "../lib/serialization.js";
+import {
+  cleanBoxDataForFirestore,
+  normalizeBoxDataForLoad,
+} from "../lib/serialization.js";
 import { DEFAULT_TIMER_MS } from "../lib/timer.js";
 import type { CustomBoxDef } from "../lib/customBoxes.js";
 import {
@@ -83,8 +94,25 @@ import { useAuthStore } from "./authStore.js";
 import { getUserEmail } from "../lib/admin.js";
 import { useTokenStore } from "./tokenStore.js";
 
+/** Dev-only diagnostics for the save/snapshot loop (silent in production). */
+const debugLog = (...args: unknown[]) => {
+  if (import.meta.env.DEV) console.log(...args);
+};
+
 function makeId(): string {
   return `box-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+/**
+ * Node coordinates must be finite. A NaN/Infinity position (possible from a
+ * degenerate viewport or a programmatic caller) breaks React Flow's minimap and
+ * is rejected by Firestore, so every creation path sanitizes it.
+ */
+function finitePosition(position: { x: number; y: number }): { x: number; y: number } {
+  return {
+    x: Number.isFinite(position.x) ? position.x : 0,
+    y: Number.isFinite(position.y) ? position.y : 0,
+  };
 }
 
 // Debounced save to Firestore — triggers 1s after the last change
@@ -394,10 +422,12 @@ export const useBoardStore = create<BoardState>()(
         const node: Node = {
           id,
           type,
-          position: position || {
-            x: 200 + Math.random() * 200,
-            y: 150 + Math.random() * 100,
-          },
+          position: finitePosition(
+            position || {
+              x: 200 + Math.random() * 200,
+              y: 150 + Math.random() * 100,
+            }
+          ),
           data: {
             boxType: type,
             // Chatbots get a friendly companion name instead of "… Box",
@@ -444,8 +474,11 @@ export const useBoardStore = create<BoardState>()(
         const node: Node = {
           id,
           type: "area",
-          position: { x: rect.x, y: rect.y },
-          style: { width: rect.width, height: rect.height },
+          position: finitePosition({ x: rect.x, y: rect.y }),
+          style: {
+            width: Number.isFinite(rect.width) ? Math.abs(rect.width) : 0,
+            height: Number.isFinite(rect.height) ? Math.abs(rect.height) : 0,
+          },
           // Areas render BELOW all boxes (default node z is 0; React Flow
           // elevates the selected node by 1000 so a selected area's color
           // dots stay reachable even where boxes overlap it).
@@ -476,10 +509,12 @@ export const useBoardStore = create<BoardState>()(
         const node: Node = {
           id,
           type: "custom",
-          position: position || {
-            x: 200 + Math.random() * 200,
-            y: 150 + Math.random() * 100,
-          },
+          position: finitePosition(
+            position || {
+              x: 200 + Math.random() * 200,
+              y: 150 + Math.random() * 100,
+            }
+          ),
           data: {
             boxType: "custom",
             title: def.label + " Box",
@@ -709,39 +744,69 @@ export const useBoardStore = create<BoardState>()(
           return;
         }
 
+        // UI Design boxes built after the HTML pipeline hold a plain HTML page:
+        // rewrite it as HTML. A legacy (React) UI box keeps the JSX path.
+        const htmlMode = boxType === "ui" && isFullHtmlDocument(current);
+
         get().setBoxStatus(id, "running");
         try {
-          const userPrompt = buildCodeChangePrompt({
-            code: current,
-            request,
-            context: typed ? namedInputs : [],
-          });
+          const userPrompt = htmlMode
+            ? buildUiChangePrompt({
+                code: current,
+                request,
+                context: typed ? namedInputs : [],
+              })
+            : buildCodeChangePrompt({
+                code: current,
+                request,
+                context: typed ? namedInputs : [],
+              });
           const result = await generateTextForBox(id, {
             systemPrompt: data.systemPrompt,
             userPrompt,
             boxType,
+            // A change request rewrites the whole component (same output budget
+            // as a build), so it gets the same 5-minute deadline.
+            timeoutMs: 300_000,
+            timeoutMessage:
+              "The change did not finish within 5 minutes. Try a smaller change and run it again.",
+            // A plain-HTML page edit does not need the model's reasoning pass.
+            ...(htmlMode ? { think: false } : {}),
           });
 
-          const next = extractCode(result.content || "");
-          if (!isCompletePrototype(next)) {
+          const next = htmlMode
+            ? normalizeUiDesign(result.content || "").html
+            : extractCode(result.content || "");
+          const complete = htmlMode ? Boolean(next) : isCompletePrototype(next);
+          if (!complete) {
             get().setBoxStatus(
               id,
               "error",
-              "The change returned incomplete code (no App component / render call), so the existing code was kept. Try rephrasing the change."
+              result.truncated
+                ? "The model ran out of output space before it finished rewriting the " +
+                  (htmlMode ? "page" : "component") +
+                  ", so the existing code was kept. Try a smaller change."
+                : "The change returned incomplete code (no " +
+                  (htmlMode ? "closing </html> — not a complete page" : "App component / render call") +
+                  "), so the existing code was kept. Try rephrasing the change."
             );
             return;
           }
+          // Re-read after the model call: a collaborator's snapshot (or another
+          // local action) may have appended a version while we waited, and
+          // appending from the stale closure would drop it.
+          const live = get().boxData[id] || data;
           if (next === current) {
             get().updateBoxData(id, {
               status: "done",
               error: undefined,
               // Keep the request in the field so it can be tweaked and retried.
-              codeVersions: data.codeVersions || [],
+              codeVersions: live.codeVersions || [],
             });
             return;
           }
 
-          const versions = appendVersion(data.codeVersions, {
+          const versions = appendVersion(live.codeVersions, {
             content: next,
             createdBy: actorName(),
             source: "generated",
@@ -928,21 +993,11 @@ export const useBoardStore = create<BoardState>()(
           agentCancelled.delete(id);
           return;
         }
+        // Cooperative stop: the in-flight turn (LLM call / box run) completes,
+        // then the loop sees the flag and appends ONE "stopped" step plus the
+        // wrap-up output. Don't append a step here — doing both produced two
+        // "Stopped" entries in the persisted timeline.
         agentCancelled.add(id);
-        // Immediate feedback: the loop halts after the current turn
-        // (LLM call / box run in flight always completes).
-        const existing = get().boxData[id]?.agentSteps || [];
-        get().updateBoxData(id, {
-          agentSteps: [
-            ...existing,
-            {
-              id: makeId(),
-              at: Date.now(),
-              type: "stopped" as const,
-              label: "Stop requested — halting after the current step…",
-            },
-          ],
-        });
       },
 
       // === Chatbot companion ===
@@ -975,7 +1030,7 @@ export const useBoardStore = create<BoardState>()(
         set({
           nodes: get().nodes.map((n) =>
             n.id === id
-              ? { ...n, position, data: { ...n.data, autoPlace: false } }
+              ? { ...n, position: finitePosition(position), data: { ...n.data, autoPlace: false } }
               : n
           ),
         });
@@ -1075,15 +1130,24 @@ export const useBoardStore = create<BoardState>()(
         if (!user) return;
         const boardId = makeId();
         const now = Date.now();
-        await saveBoard({
-          id: boardId,
-          title: title || "Untitled Board",
-          ownerId: user.uid,
-          ownerEmail: user.email || "",
-          collaborators: [],
-          nodes: [], edges: [], boxData: {},
-          createdAt: now, updatedAt: now,
-        });
+        try {
+          await saveBoard({
+            id: boardId,
+            title: title || "Untitled Board",
+            ownerId: user.uid,
+            ownerEmail: user.email || "",
+            collaborators: [],
+            nodes: [], edges: [], boxData: {},
+            createdAt: now, updatedAt: now,
+          });
+        } catch (err) {
+          // Never leave the app believing it has a board that was not created:
+          // show the failure instead of an empty canvas that silently saves
+          // nowhere.
+          console.error("Failed to create board:", err);
+          set({ saveStatus: "error" });
+          return;
+        }
         set({
           currentBoardId: boardId,
           boardTitle: title || "Untitled Board",
@@ -1095,19 +1159,31 @@ export const useBoardStore = create<BoardState>()(
       },
 
       loadBoardFromFirestore: async (boardId) => {
-        const board = await loadBoard(boardId);
-        if (!board) return;
-        console.log("[load] Board collaborators from Firestore:", board.collaborators);
-        set({
-          currentBoardId: board.id,
-          boardTitle: board.title,
-          collaborators: board.collaborators || [],
-          nodes: board.nodes as Node[],
-          edges: board.edges as Edge[],
-          boxData: board.boxData as Record<string, BoxData>,
-          saveStatus: "saved",
-          activeUsers: [],
-        });
+        try {
+          const board = await loadBoard(boardId);
+          if (!board) return;
+          debugLog("[load] Board collaborators from Firestore:", board.collaborators);
+          set({
+            currentBoardId: board.id,
+            boardTitle: board.title,
+            collaborators: board.collaborators || [],
+            nodes: board.nodes as Node[],
+            edges: board.edges as Edge[],
+            // A persisted "running" box is dead weight: its run ended when the
+            // tab/link that started it went away, and nothing else clears the
+            // status. Recover it as an error so Run works again.
+            boxData: normalizeBoxDataForLoad(
+              (board.boxData || {}) as Record<string, BoxData>
+            ),
+            saveStatus: "saved",
+            activeUsers: [],
+          });
+        } catch (err) {
+          // Permissions / offline / network failures must be visible instead of
+          // leaving the user on a blank board with no explanation.
+          console.error("Failed to load board:", err);
+          set({ saveStatus: "error" });
+        }
         // Subscription is handled automatically by the useEffect in App.tsx
         // that watches currentBoardId — no need to manually subscribe here
       },
@@ -1119,8 +1195,8 @@ export const useBoardStore = create<BoardState>()(
         set({ saveStatus: "saving" });
         lastSaveTime = Date.now();
         lastSavedUpdatedAt = Date.now();
-        console.log("[save] email:", user.email, "| uid:", user.uid, "| boardId:", state.currentBoardId);
-        console.log("[save] collaborators in store:", state.collaborators);
+        debugLog("[save] email:", user.email, "| uid:", user.uid, "| boardId:", state.currentBoardId);
+        debugLog("[save] collaborators in store:", state.collaborators);
         try {
           // Strip undefined values and base64 imageData from boxData.
           // updateDoc rejects undefined values, so we must remove them entirely.
@@ -1140,7 +1216,7 @@ export const useBoardStore = create<BoardState>()(
             updatedAt: saveTimestamp,
           });
           lastSavedUpdatedAt = saveTimestamp;
-          console.log("[save] SUCCESS | updatedAt:", saveTimestamp, "| user:", user.email);
+          debugLog("[save] SUCCESS | updatedAt:", saveTimestamp, "| user:", user.email);
           set({ saveStatus: "saved" });
         } catch (err) {
           console.error("Firestore save failed:", err);
@@ -1212,7 +1288,7 @@ export const useBoardStore = create<BoardState>()(
         const state = get();
         if (!state.currentBoardId) return;
         const boardId = state.currentBoardId;
-        console.log("[store] Subscribing to board updates:", boardId);
+        debugLog("[store] Subscribing to board updates:", boardId);
 
         // Subscribe to board document changes (real-time sync)
         boardUnsub = subscribeToBoard(boardId, (board) => {
@@ -1220,9 +1296,9 @@ export const useBoardStore = create<BoardState>()(
           // If they match, this is our own save echoing back — skip it.
           // If they differ, it's another user's update — apply it.
           const isEcho = board.updatedAt === lastSavedUpdatedAt;
-          console.log("[sync] onSnapshot | board.updatedAt:", board.updatedAt, "| myLastSaved:", lastSavedUpdatedAt, "| isEcho:", isEcho, "| me:", useAuthStore.getState().user?.email);
+          debugLog("[sync] onSnapshot | board.updatedAt:", board.updatedAt, "| myLastSaved:", lastSavedUpdatedAt, "| isEcho:", isEcho, "| me:", useAuthStore.getState().user?.email);
           if (isEcho) return;
-          console.log("[sync] Applying remote update | nodes:", board.nodes?.length, "| edges:", board.edges?.length);
+          debugLog("[sync] Applying remote update | nodes:", board.nodes?.length, "| edges:", board.edges?.length);
           set({
             nodes: board.nodes as Node[],
             edges: board.edges as Edge[],
@@ -1345,12 +1421,19 @@ export const useBoardStore = create<BoardState>()(
         // run — the Run button is hidden for them. Guard here too so no future
         // caller falls into the text-AI branch.
         // The chatbot talks via sendChatMessage, never via runBox.
+        // Input-only boxes (idea / image / documents) carry what the user typed
+        // or uploaded — running one used to call the model with an empty prompt
+        // (the Agent's run_box action could reach them) and then stamp a bogus
+        // "done" output on an input box.
         if (
           boxType === "note" ||
           boxType === "label" ||
           boxType === "timer" ||
           boxType === "checklist" ||
-          boxType === "chatbot"
+          boxType === "chatbot" ||
+          boxType === "idea" ||
+          boxType === "image" ||
+          boxType === "documents"
         ) {
           return;
         }
@@ -1381,6 +1464,14 @@ export const useBoardStore = create<BoardState>()(
         // change set the app turns into a diff and a patch.
         if (boxType === "codeedit") {
           await runCodeEdit(id);
+          return;
+        }
+
+        // The UI Design box simplifies the request/research into a short design
+        // brief, then builds ONE simple self-contained HTML page from it — two
+        // small model calls instead of one huge React generation.
+        if (boxType === "ui") {
+          await runUiDesign(id);
           return;
         }
 
@@ -1437,10 +1528,17 @@ export const useBoardStore = create<BoardState>()(
               namedInputs
             );
 
+            // Code replies are long (8-11k tokens of JSX), so they need a longer
+            // deadline than an ordinary text box.
+            const longForm = boxType === "code";
             const result = await generateTextForBox(id, {
               systemPrompt: data.systemPrompt,
               userPrompt: filledPrompt,
               boxType,
+              timeoutMs: longForm ? 300_000 : undefined,
+              timeoutMessage: longForm
+                ? "The build did not finish within 5 minutes. Run the box again."
+                : undefined,
             });
 
             if (boxType === "slides") {
@@ -1452,18 +1550,25 @@ export const useBoardStore = create<BoardState>()(
                 status: "done",
                 error: undefined,
               });
-            } else if (boxType === "code" || boxType === "ui") {
+            } else if (boxType === "code") {
               // Extract component code from the LLM's response
               const code = extractCode(result.content);
-              // Validate: the code must be a complete, mountable component
+              // Validate: the code must be a complete, mountable component.
+              // A truncated reply is the common cause of "missing App/render":
+              // the model ran out of output budget mid-JSX, so say that instead
+              // of blaming the prompt.
               if (!isCompletePrototype(code)) {
                 throw new Error(
-                  "Generated code is incomplete (missing the App component or the ReactDOM render call). Try simplifying the requirements or re-run."
+                  result.truncated
+                    ? "The model ran out of output space before the design was finished, so there is no complete component to preview yet. Run the box again — a shorter description (fewer sections/features) is more likely to fit."
+                    : "Generated code is incomplete (missing the App component or the ReactDOM render call). Try simplifying the requirements or re-run."
                 );
               }
               // Every build is versioned, so an AI change (or a revert) always has
               // something to fall back to.
-              const versions = appendVersion(data.codeVersions, {
+              // Re-read: another writer may have versioned this box while the
+              // model call was in flight (append-only history must not lose it).
+              const versions = appendVersion(get().boxData[id]?.codeVersions, {
                 content: code,
                 createdBy: actorName(),
                 source: "generated",
@@ -1500,9 +1605,127 @@ export const useBoardStore = create<BoardState>()(
         currentBoardId: state.currentBoardId,
         boardTitle: state.boardTitle,
       }),
+      // localStorage is the offline cache: a box persisted mid-run is repaired
+      // on rehydration exactly like one loaded from Firestore (otherwise a
+      // reload leaves it permanently "running" and Run stays disabled).
+      merge: (persisted, current) => {
+        const saved = (persisted || {}) as Partial<typeof current>;
+        const merged = { ...current, ...saved } as typeof current;
+        merged.boxData = normalizeBoxDataForLoad(merged.boxData || {});
+        return merged;
+      },
     }
   )
 );
+
+// ============================================================
+// UI Design box — simplify the request, then build one simple HTML page.
+//
+// The box used to ask for a full React prototype in a single call; long research
+// inputs made that a 20-30k-token reply that overflowed the output budget and
+// failed with "incomplete code". It now runs two small steps (prompt constants in
+// types.ts, pure helpers in lib/uidesign.ts):
+//   1. simplify the request + connected research into a compact design brief
+//      (stored on the box as `designBrief`, shown in the box's Brief tab), then
+//   2. build ONE self-contained HTML page (plain HTML + a <style> block — no
+//      React, no build step) from that brief.
+// The brief is kept so the design can be re-explained, changed and audited
+// without re-reading the research.
+// ============================================================
+
+async function runUiDesign(id: string) {
+  const get = () => useBoardStore.getState();
+
+  const node = get().nodes.find((n) => n.id === id);
+  const data = get().boxData[id];
+  if (!node || !data) return;
+  if (data.status === "running") return;
+
+  const { namedInputs } = collectInputs(get().nodes, get().edges, get().boxData, id);
+  // collectInputs adds this box's own description ("This Box"), so a box with
+  // either a typed description or connected sources has material to work from.
+  const hasOwnDescription = Boolean((data.content || "").trim());
+  if (!hasOwnDescription && namedInputs.length === 0) {
+    get().setBoxStatus(
+      id,
+      "error",
+      "Describe the page you want in this box, or connect a Research / PRD / Idea box — there is nothing to simplify yet."
+    );
+    return;
+  }
+  const request = fillPromptTemplate(data.prompt, namedInputs).trim();
+
+  get().setBoxStatus(id, "running");
+
+  try {
+    // ---- stage 1: simplify into a compact design brief ----
+    const briefResult = await generateTextForBox(id, {
+      systemPrompt: UI_BRIEF_SYSTEM_PROMPT,
+      userPrompt: buildDesignBriefPrompt(request),
+      boxType: "ui",
+      timeoutMs: 120_000,
+      timeoutMessage: "The design brief did not finish within 2 minutes. Run the box again.",
+      tokensMode: "replace",
+      think: false,
+    });
+    if (briefResult.truncated) {
+      throw new Error(
+        "The model ran out of output space while simplifying the design brief. Run the box again."
+      );
+    }
+    const brief = (briefResult.content || "").trim();
+    if (!brief) {
+      throw new Error("The model returned an empty design brief. Run the box again.");
+    }
+    // Show the brief immediately — the build call takes longer.
+    get().updateBoxData(id, { designBrief: brief });
+
+    // ---- stage 2: build ONE simple, self-contained HTML page ----
+    const buildResult = await generateTextForBox(id, {
+      // Old boards still carry the pre-HTML React system prompt; uiBuildSystemPrompt
+      // ignores it and uses the HTML one (a user's own custom prompt is respected).
+      systemPrompt: uiBuildSystemPrompt(data.systemPrompt),
+      userPrompt: buildUiBuildPrompt(brief),
+      boxType: "ui",
+      timeoutMs: 300_000,
+      timeoutMessage: "The page build did not finish within 5 minutes. Run the box again.",
+      tokensMode: "accumulate",
+      think: false,
+    });
+    if (buildResult.truncated) {
+      throw new Error(
+        "The model ran out of output space before the page was finished, so there is nothing complete to preview yet. Run the box again."
+      );
+    }
+    // normalizeUiDesign returns a full document when the model wrote one, and
+    // wraps a bare fragment so it can still be previewed. A truncated reply was
+    // rejected above — partial HTML is never a complete page.
+    const { html } = normalizeUiDesign(buildResult.content || "");
+    if (!html) {
+      throw new Error("The model returned no HTML page. Run the box again.");
+    }
+
+    // Re-read after the model calls: a collaborator's snapshot (or another local
+    // action) may have appended a version while we waited.
+    const versions = appendVersion(get().boxData[id]?.codeVersions, {
+      content: html,
+      createdBy: actorName(),
+      source: "generated",
+      note: "built from the design brief",
+    });
+    get().updateBoxData(id, {
+      output: html,
+      code: html,
+      designBrief: brief,
+      status: "done",
+      error: undefined,
+      codeVersions: versions,
+      codeVersion: versions[versions.length - 1].version,
+    });
+  } catch (err: any) {
+    get().setBoxStatus(id, "error", err.message || "Design generation failed");
+  }
+}
 
 // ============================================================
 // Code Map box — read a repository, then write an orientation brief.
@@ -1902,18 +2125,46 @@ function actorName(): string {
  */
 async function generateTextForBox(
   id: string,
-  opts: { systemPrompt: string; userPrompt: string; boxType: BoxType }
+  opts: {
+    systemPrompt: string;
+    userPrompt: string;
+    boxType: BoxType;
+    /** Long-form artifacts (UI/Code) need a bigger deadline than a text box. */
+    timeoutMs?: number;
+    timeoutMessage?: string;
+    /**
+     * How this call's usage lands on the box. "replace" (default) is right for a
+     * single-call box; "accumulate" adds to what is already there, which the
+     * two-step UI Design run needs (brief + build are one user-visible run).
+     */
+    tokensMode?: "replace" | "accumulate";
+    /** Provider reasoning toggle (the UI Design box turns thinking off). */
+    think?: boolean;
+  }
 ) {
-  const result = await generate({
-    systemPrompt: opts.systemPrompt,
-    userPrompt: opts.userPrompt,
-  });
+  const result = await generate(
+    {
+      systemPrompt: opts.systemPrompt,
+      userPrompt: opts.userPrompt,
+      ...(opts.think === undefined ? {} : { think: opts.think }),
+    },
+    { timeoutMs: opts.timeoutMs, timeoutMessage: opts.timeoutMessage }
+  );
 
   if (result.error) throw new Error(result.error);
 
   const store = useBoardStore.getState();
   if (result.usage) {
-    store.updateBoxData(id, { tokens: result.usage });
+    const previous = opts.tokensMode === "accumulate" ? store.boxData[id]?.tokens : undefined;
+    store.updateBoxData(id, {
+      tokens: previous
+        ? {
+            promptTokens: previous.promptTokens + result.usage.promptTokens,
+            completionTokens: previous.completionTokens + result.usage.completionTokens,
+            totalTokens: previous.totalTokens + result.usage.totalTokens,
+          }
+        : result.usage,
+    });
     const user = useAuthStore.getState().user;
     if (user) {
       recordTokenUsage(
@@ -2091,15 +2342,18 @@ async function runSdlcStage(id: string) {
 
     const actor = actorName();
     const { content, truncated } = truncateArtifact(result.content || "");
-    const versions = appendVersion(data.sdlcVersions, {
+    // Re-read after the model call: a collaborator's snapshot may have appended
+    // a version while we waited (the artifact history is append-only).
+    const live = get().boxData[id] || data;
+    const versions = appendVersion(live.sdlcVersions, {
       content,
       createdBy: actor,
       source: "generated",
-      note: (data.sdlcFeedback || "").trim(),
+      note: (live.sdlcFeedback || "").trim(),
     });
     const newVersion = versions[versions.length - 1].version;
 
-    let history = appendEvent(data.sdlcHistory, {
+    let history = appendEvent(live.sdlcHistory, {
       actor,
       action: `generated ${meta.stage} v${newVersion}`,
       note: truncated ? "Artifact truncated at 60000 characters." : "",

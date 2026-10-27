@@ -16,6 +16,7 @@ A collaborative, AI-powered whiteboard where you compose visual pipelines of AI 
 | [Onboarding & Environment Setup](docs/ONBOARDING.md) | Get from a clean machine to a running app, step by step |
 | [Architecture](docs/ARCHITECTURE.md) | Deep dive into the client, backend, and Firebase layers |
 | [Box Types](docs/BOX_TYPES.md) | Every box and how to add a new one |
+| [Demo Workflows](docs/DEMOS.md) | Seven 3–10 minute demos you can build live (Ollama only), rehearsed by `client/demo-scripts.mjs` |
 | [API](docs/API.md) | The backend endpoints and environment variables |
 | [Deployment](docs/DEPLOYMENT.md) | Ship it to Firebase Hosting + Functions |
 | [Testing](docs/TESTING.md) | Running and writing Vitest unit tests for server + client |

@@ -1,14 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ReactFlowProvider } from "@xyflow/react";
-import Canvas from "./components/Canvas.js";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Header from "./components/Header.js";
-import Toolbar from "./components/Toolbar.js";
-import Sidebar from "./components/Sidebar.js";
+import { Icon } from "./components/ui/Icon.js";
 import NewBoardModal from "./components/NewBoardModal.js";
 import ShareModal from "./components/ShareModal.js";
 import LandingPage from "./components/landing/LandingPage.js";
-import AdminBoard from "./components/AdminBoard.js";
-import FacilitatorBoard from "./components/FacilitatorBoard.js";
 import GuestProfileModal from "./components/GuestProfileModal.js";
 import { isFacilitator } from "./lib/admin.js";
 import { addBoardMember } from "./lib/firestore.js";
@@ -24,6 +19,24 @@ import { isAdmin, updateUserProfile, heartbeat } from "./lib/admin.js";
 import { fetchUserTokenTotal } from "./lib/firestore.js";
 import { BOX_TYPES } from "./types.js";
 import type { BoxType } from "./types.js";
+
+// Split the logged-in surfaces out of the landing bundle: a visitor who never
+// signs in should not download React Flow, the box renderers or the dashboards.
+const Workspace = lazy(() => import("./components/Workspace.js"));
+const AdminBoard = lazy(() => import("./components/AdminBoard.js"));
+const FacilitatorBoard = lazy(() => import("./components/FacilitatorBoard.js"));
+
+/** Paper-and-pine stand-in while a split chunk arrives (a few ms locally). */
+function SurfaceLoading({ label }: { label: string }) {
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-pine">
+      <div className="flex flex-col items-center gap-3">
+        <span className="logo-roundel" aria-hidden />
+        <span className="label-caps text-[rgba(242,237,225,0.72)]">{label}</span>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const addBox = useBoardStore((s) => s.addBox);
@@ -253,10 +266,10 @@ export default function App() {
   // Loading state
   if (authLoading) {
     return (
-      <div className="h-full w-full flex items-center justify-center bg-slate-900">
+      <div className="flex h-full w-full items-center justify-center bg-pine">
         <div className="flex flex-col items-center gap-3">
-          <span className="text-4xl animate-spin">🎨</span>
-          <span className="text-sm text-slate-400">Loading...</span>
+          <span className="logo-roundel" aria-hidden />
+          <span className="label-caps text-[rgba(242,237,225,0.72)]">Loading…</span>
         </div>
       </div>
     );
@@ -304,44 +317,69 @@ export default function App() {
         {!showJoinModal && (
           <button
             onClick={() => setShowJoinModal(true)}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg hover:bg-indigo-500 transition"
+            className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-center gap-2 bg-pine px-4 py-3 text-[13px] font-semibold text-cream shadow-float border-t border-[rgba(242,237,225,0.16)] transition hover:bg-pine-deep md:inset-x-auto md:left-6 md:bottom-6 md:inline-flex md:rounded-pill md:border md:px-5 md:py-2.5"
           >
-            🎟️ Have a workshop code?
+            <span className="text-signal">
+              <Icon name="key" size={14} />
+            </span>
+            Have a workshop code?
           </button>
         )}
         {showJoinModal && (
-          <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4">
-            <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl border border-slate-200 p-6">
-              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <span>🎟️</span> Join your workshop
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Enter the code your facilitator gave you — no account needed.
-              </p>
-              <input
-                autoFocus
-                className="mt-4 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-center font-mono text-lg tracking-[0.3em] uppercase focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                placeholder="CODE"
-                maxLength={8}
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z2-9]/g, ""))}
-                onKeyDown={(e) => e.key === "Enter" && handleJoinCode()}
-              />
-              {joinError && <p className="mt-2 text-xs text-red-600">{joinError}</p>}
-              <div className="mt-4 flex gap-2">
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-[rgba(22,33,28,0.45)] p-4">
+            <div className="w-full max-w-sm rounded-md bg-card shadow-float border border-rule overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-3.5 border-b border-rule">
+                <h2 className="flex items-center gap-2 text-[15px] font-semibold text-ink">
+                  <span className="text-line-input">
+                    <Icon name="key" size={15} />
+                  </span>
+                  Join your workshop
+                </h2>
                 <button
                   onClick={() => {
                     setJoinError("");
                     setShowJoinModal(false);
                   }}
-                  className="flex-1 rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 transition"
+                  className="box-icon-btn"
+                  title="Close"
+                >
+                  <Icon name="x" size={14} />
+                </button>
+              </div>
+              <div className="px-6 py-5">
+                <p className="text-[12.5px] text-ink-muted leading-relaxed">
+                  Enter the code your facilitator gave you — no account needed.
+                </p>
+                <input
+                  autoFocus
+                  className="mt-4 w-full h-11 rounded-sm border border-rule bg-paper-raised px-3 text-center font-mono text-lg tracking-[0.3em] uppercase text-ink placeholder:text-ink-muted focus:outline-none focus:border-pine focus:ring-2 focus:ring-signal/30"
+                  placeholder="CODE"
+                  maxLength={8}
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z2-9]/g, ""))}
+                  onKeyDown={(e) => e.key === "Enter" && handleJoinCode()}
+                />
+                {joinError && (
+                  <p className="mt-2 flex items-start gap-1.5 text-[11.5px] text-state-error">
+                    <Icon name="alert" size={12} className="mt-0.5 flex-shrink-0" />
+                    {joinError}
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-2 justify-end border-t border-rule bg-paper-raised px-6 py-3">
+                <button
+                  onClick={() => {
+                    setJoinError("");
+                    setShowJoinModal(false);
+                  }}
+                  className="h-8 rounded-md px-3.5 text-[12.5px] font-medium text-ink-soft border border-rule bg-card hover:border-rule-strong transition"
                 >
                   Sign in instead
                 </button>
                 <button
                   onClick={handleJoinCode}
                   disabled={joinCode.length !== 8 || joining}
-                  className="flex-1 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:opacity-50"
+                  className="h-8 rounded-md px-4 text-[12.5px] font-semibold bg-pine text-cream hover:bg-pine-deep transition disabled:opacity-40"
                 >
                   {joining ? "Joining…" : "Join"}
                 </button>
@@ -376,22 +414,27 @@ export default function App() {
 
       <div className="flex-1 relative">
         {adminView ? (
-          <AdminBoard user={user} onBack={() => setAdminView(false)} />
+          <Suspense fallback={<SurfaceLoading label="Loading admin…" />}>
+            <AdminBoard user={user} onBack={() => setAdminView(false)} />
+          </Suspense>
         ) : facilitatorView ? (
-          <FacilitatorBoard
-            user={user}
-            onBack={() => setFacilitatorView(false)}
-            onOpenBoard={(boardId) => {
-              setFacilitatorView(false);
-              loadBoardFromFirestore(boardId);
-            }}
-          />
+          <Suspense fallback={<SurfaceLoading label="Loading dashboard…" />}>
+            <FacilitatorBoard
+              user={user}
+              onBack={() => setFacilitatorView(false)}
+              onOpenBoard={(boardId) => {
+                setFacilitatorView(false);
+                loadBoardFromFirestore(boardId);
+              }}
+            />
+          </Suspense>
         ) : (
-          <ReactFlowProvider>
-            <Canvas />
-            <Sidebar open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
-            <Toolbar />
-          </ReactFlowProvider>
+          <Suspense fallback={<SurfaceLoading label="Loading board…" />}>
+            <Workspace
+              sidebarOpen={sidebarOpen}
+              onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+            />
+          </Suspense>
         )}
       </div>
       {/* Workshop guest profile step (new joins or unfinished profiles) */}

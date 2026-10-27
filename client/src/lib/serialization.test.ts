@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { BoxData } from "../types.js";
-import { cleanBoxDataForFirestore } from "./serialization.js";
+import {
+  INTERRUPTED_RUN_MESSAGE,
+  cleanBoxDataForFirestore,
+  normalizeBoxDataForLoad,
+} from "./serialization.js";
 
 describe("cleanBoxDataForFirestore", () => {
   it("drops undefined values entirely", () => {
@@ -75,5 +79,66 @@ describe("cleanBoxDataForFirestore", () => {
     };
     walk(cleaned.i);
     expect(nested).toEqual([]);
+  });
+});
+
+describe("cleanBoxDataForFirestore — nested undefined", () => {
+  it("strips undefined inside arrays and objects (Slides-box regression)", () => {
+    // Regression: parseSlidesResponse used to leave `notes: undefined` on every
+    // slide without speaker notes. Firestore rejects the whole document, which
+    // silently stopped ALL board saves after one Slides run.
+    const data = {
+      slidesBox: {
+        status: "done",
+        slides: [
+          { title: "Problem", bullets: ["A"], notes: undefined },
+          { title: "Solution", bullets: ["B"], notes: "say this" },
+        ],
+        changeSet: [{ path: "a.ts", original: "x", content: "y", extra: undefined }],
+        nested: { keep: 1, drop: undefined, deeper: [{ ok: true, gone: undefined }] },
+      },
+    } as unknown as Record<string, BoxData>;
+
+    const cleaned = cleanBoxDataForFirestore(data);
+    const box = cleaned.slidesBox as Record<string, unknown>;
+    expect(box.slides).toEqual([
+      { title: "Problem", bullets: ["A"] },
+      { title: "Solution", bullets: ["B"], notes: "say this" },
+    ]);
+    expect(box.nested).toEqual({ keep: 1, deeper: [{ ok: true }] });
+
+    const found: unknown[] = [];
+    const walk = (value: unknown) => {
+      if (value === undefined) found.push(value);
+      else if (Array.isArray(value)) value.forEach(walk);
+      else if (value && typeof value === "object") Object.values(value).forEach(walk);
+    };
+    walk(cleaned);
+    expect(found).toEqual([]);
+  });
+});
+
+describe("normalizeBoxDataForLoad", () => {
+  it("turns a persisted 'running' status into a recoverable error", () => {
+    const data = {
+      a: { status: "running", output: "old", prompt: "p", content: "c" },
+      b: { status: "done", output: "ok", prompt: "p", content: "" },
+    } as unknown as Record<string, BoxData>;
+
+    const normalized = normalizeBoxDataForLoad(data);
+    expect(normalized.a.status).toBe("error");
+    expect(normalized.a.error).toBe(INTERRUPTED_RUN_MESSAGE);
+    // The previous output is kept — the user can still read the last artifact.
+    expect(normalized.a.output).toBe("old");
+    // Untouched boxes are returned by reference.
+    expect(normalized.b).toBe(data.b);
+  });
+
+  it("returns the same object when nothing needs repair", () => {
+    const data = {
+      a: { status: "idle" },
+      b: { status: "error", error: "boom" },
+    } as unknown as Record<string, BoxData>;
+    expect(normalizeBoxDataForLoad(data)).toBe(data);
   });
 });

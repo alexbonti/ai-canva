@@ -40,29 +40,25 @@ export default function Cursors() {
               transition: "left 0.15s ease-out, top 0.15s ease-out",
             }}
           >
-            {/* Cursor arrow */}
+            {/* Cursor arrow — a marker on the map, not a neon pointer. */}
             <svg
-              width="24"
-              height="24"
+              width="20"
+              height="20"
               viewBox="0 0 24 24"
               fill="none"
-              style={{
-                filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.3))",
-              }}
+              style={{ filter: "drop-shadow(0 1px 1px rgba(22,33,28,0.25))" }}
             >
               <path
                 d="M5.5 3.5L18 10L11.5 11.5L10 18L5.5 3.5Z"
-                fill={user.color}
-                stroke="white"
+                fill="var(--pine)"
+                stroke="var(--cream)"
                 strokeWidth="1.5"
                 strokeLinejoin="round"
               />
             </svg>
-            {/* Name label */}
-            <div
-              className="absolute top-5 left-4 px-2 py-0.5 rounded-full text-white text-xs font-medium whitespace-nowrap shadow-sm"
-              style={{ backgroundColor: user.color }}
-            >
+            {/* Name tag — a printed label with the user's line colour. */}
+            <div className="cursor-tag absolute top-4 left-4">
+              <span className="cursor-tag-dot" style={{ backgroundColor: user.color }} />
               {user.initials}
             </div>
           </div>

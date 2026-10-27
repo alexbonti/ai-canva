@@ -27,6 +27,11 @@ describe("extractCode", () => {
     const raw = "Here is the code:\nfunction App(){}";
     expect(extractCode(raw)).toBe(raw.trim());
   });
+
+  it("strips an unterminated opening fence (truncated reply)", () => {
+    const raw = "```jsx\nfunction App() { return <div>";
+    expect(extractCode(raw)).toBe("function App() { return <div>");
+  });
 });
 
 describe("wrapCodeInHtml", () => {

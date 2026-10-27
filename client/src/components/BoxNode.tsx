@@ -1,12 +1,17 @@
 import { memo, useState, useRef, useEffect, lazy, Suspense } from "react";
+import type { CSSProperties } from "react";
 import { Handle, Position, NodeResizer, type NodeProps } from "@xyflow/react";
 import ReactMarkdown from "react-markdown";
 import { useBoardStore } from "../store/boardStore.js";
 import { useAuthStore } from "../store/authStore.js";
 import { BOX_TYPES, LABEL_COLORS } from "../types.js";
+import { Icon } from "./ui/Icon.js";
+import type { IconName } from "./ui/Icon.js";
+import { LINE_COLORS, lineColorFor, stationCode } from "../lib/lines.js";
 import { chatbotName } from "../lib/chatbot.js";
 import type { BoxType } from "../types.js";
 import { wrapCodeInHtml, wrapUIInHtml, downloadHtml, copyToClipboard } from "../lib/code.js";
+import { isFullHtmlDocument } from "../lib/uidesign.js";
 import { downloadText, hasDownloadableOutcome, outcomeFilename, outcomeMime, outcomeText } from "../lib/download.js";
 import { buildAuditExport, forcedGateReason, isSdlcBox, sdlcStageMeta } from "../lib/sdlc.js";
 import SdlcGatePanel, { SdlcGateBadge } from "./SdlcGatePanel.js";
@@ -108,6 +113,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           label: (data.customLabel as string) || baseMeta.label,
         }
       : baseMeta;
+  // The box's line colour (category, never per-type) and its station code.
+  const accentColor = lineColorFor(boxType);
   const boxData = useBoardStore((s) => s.boxData[id]);
   const updateBoxData = useBoardStore((s) => s.updateBoxData);
   const deleteBox = useBoardStore((s) => s.deleteBox);
@@ -115,6 +122,13 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const stopAgent = useBoardStore((s) => s.stopAgent);
   const edges = useBoardStore((s) => s.edges);
   const allNodes = useBoardStore((s) => s.nodes);
+  // Station code: `RES-02` — prefix plus this box's index among its own type.
+  const station = stationCode(
+    boxType,
+    allNodes.filter(
+      (n) => ((n.data as Record<string, unknown> | undefined)?.boxType || n.type) === boxType
+    ).findIndex((n) => n.id === id) + 1
+  );
   const setBoxName = useBoardStore((s) => s.setBoxName);
   const setSdlcGateRequired = useBoardStore((s) => s.setSdlcGateRequired);
   const deployBox = useBoardStore((s) => s.deployBox);
@@ -247,7 +261,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             onClick={() => deleteBox(id)}
             title="Delete note"
           >
-            ✕
+            <Icon name="x" size={11} />
           </button>
           <textarea
             className="nodrag nowheel note-textarea"
@@ -272,7 +286,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           {isEditingLabel ? (
             <input
               autoFocus
-              className="nodrag w-44 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-center text-[13px] font-bold text-slate-700 shadow-md focus:outline-none focus:ring-2 focus:ring-slate-300"
+              className="nodrag w-44 rounded-sm border border-rule-strong bg-card px-3 py-1.5 text-center text-[13px] font-semibold text-ink shadow-float focus:outline-none focus:border-pine focus:ring-2 focus:ring-signal/30"
               value={labelDraft}
               placeholder="Label text…"
               onChange={(e) => setLabelDraft(e.target.value)}
@@ -291,7 +305,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           ) : (
             <div
               className="label-pill nodrag cursor-text"
-              style={{ backgroundColor: boxData.labelColor || LABEL_COLORS[0] }}
+              style={{ ["--label-color" as string]: boxData.labelColor || LABEL_COLORS[0] } as CSSProperties}
               onClick={() => {
                 setLabelDraft(boxData.content);
                 setIsEditingLabel(true);
@@ -299,7 +313,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
               title="Click to edit the label text"
             >
               {boxData.content || (
-                <span className="text-slate-400 font-medium">Click to add text…</span>
+                <span className="text-ink-muted font-medium">Click to add text…</span>
               )}
             </div>
           )}
@@ -309,7 +323,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             onClick={() => deleteBox(id)}
             title="Delete label"
           >
-            ✕
+            <Icon name="x" size={11} />
           </button>
         </div>
         {selected && (
@@ -321,8 +335,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 className={
                   "label-color-dot w-4 h-4 rounded-full border transition " +
                   ((boxData.labelColor || LABEL_COLORS[0]) === c
-                    ? "border-slate-700 scale-125"
-                    : "border-slate-300")
+                    ? "border-ink scale-125"
+                    : "border-rule-strong")
                 }
                 style={{ backgroundColor: c }}
                 title="Set label color"
@@ -349,7 +363,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           onClick={() => deleteBox(id)}
           title="Delete companion"
         >
-          ✕
+          <Icon name="x" size={11} />
         </button>
         {/* Speech bubble: latest bot line, or thinking dots */}
         {thinking ? (
@@ -367,13 +381,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           onClick={() => setChatPanelOpen(true)}
           title={`Chat with ${name}`}
         >
-          <StickFigure size={104} tone={meta.color} busy={thinking} />
-          <span
-            className="chatbot-name"
-            style={{ backgroundColor: meta.color + "14", color: "#334155" }}
-          >
-            {name}
-          </span>
+          <StickFigure size={104} tone={accentColor} busy={thinking} />
+          <span className="chatbot-name">{name}</span>
         </button>
         {chatPanelOpen && (
           <ChatbotPanel id={id} onClose={() => setChatPanelOpen(false)} />
@@ -492,7 +501,15 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
   const handleDownloadCode = () => {
     if (!boxData.code) return;
-    const html = wrapCodeInHtml(boxData.code);
+    const code = boxData.code;
+    // Modern UI Design boxes store a complete HTML page — save it verbatim
+    // (wrapping it again would nest a <html> inside a Babel script tag).
+    // Legacy React UI code and Code boxes still need the React wrapper.
+    const html = isStitch || isFullHtmlDocument(code)
+      ? code
+      : boxType === "ui"
+        ? wrapUIInHtml(code)
+        : wrapCodeInHtml(code);
     downloadHtml(html);
   };
 
@@ -540,25 +557,32 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         isVisible={!!selected}
       />
       <div
-        className={"box-node" + (selected ? " selected" : "")}
-        style={{ borderColor: meta.color }}
+        className={
+          "box-node" +
+          (selected ? " selected" : "") +
+          (boxData.status === "running" ? " is-running" : "")
+        }
       >
       {/* Target handle (input) — AI boxes only (not input/utility boxes) */}
       {!isInputBox && !isUtility && (
         <Handle
           type="target"
           position={Position.Left}
-          style={{ background: meta.color, width: 10, height: 10 }}
+          style={{ borderColor: accentColor }}
         />
       )}
 
-      {/* Header */}
+      {/* Header — the stop: category wash, station dot, name, code, state */}
       <div
-        className="flex items-center justify-between px-3 py-2 rounded-t-[10px]"
-        style={{ backgroundColor: meta.color + "20" }}
+        className="box-header"
+        style={{ backgroundColor: `color-mix(in srgb, ${accentColor} 7%, var(--card))` }}
       >
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <span className="text-base flex-shrink-0">{meta.icon}</span>
+          <span
+            className="box-station-dot"
+            style={{ backgroundColor: accentColor }}
+            aria-hidden
+          />
           {isEditingName ? (
             <input
               autoFocus
@@ -576,7 +600,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 }
                 if (e.key === "Escape") setIsEditingName(false);
               }}
-              className="font-semibold text-slate-700 text-sm bg-white rounded px-1 py-0.5 border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-400 flex-1 min-w-0"
+              className="box-name-input"
             />
           ) : (
             <span
@@ -584,22 +608,34 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 setNameDraft(data.title as string || meta.label + " Box");
                 setIsEditingName(true);
               }}
-              className="font-semibold text-slate-700 text-sm truncate cursor-text hover:bg-white/40 rounded px-1 py-0.5 transition"
+              className="box-name"
               title="Click to rename"
             >
               {(data.title as string) || meta.label + " Box"}
             </span>
           )}
-          <span className="text-xs text-slate-400 flex-shrink-0">{meta.label}</span>
+          <span className="box-type">{station}</span>
+          {boxData.status === "running" && (
+            <span className="box-status is-running">
+              <span className="dot" aria-hidden />
+              {isAgent ? "Working" : "Running"}
+            </span>
+          )}
+          {boxData.status === "error" && (
+            <span className="box-status is-error">
+              <span className="dot" aria-hidden />
+              Error
+            </span>
+          )}
           {/* SDLC stage: gate state at a glance (approved / awaiting / stale) */}
           {isSdlc && <SdlcGateBadge data={boxData} />}
         </div>
         <button
           onClick={() => deleteBox(id)}
-          className="box-delete nodrag text-slate-400 hover:text-red-500 transition text-sm w-5 h-5 flex items-center justify-center rounded hover:bg-red-50"
+          className="box-icon-btn danger nodrag"
           title="Delete box"
         >
-          ✕
+          <Icon name="x" size={13} />
         </button>
       </div>
 
@@ -620,36 +656,43 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           const progress = duration > 0 ? remaining / duration : 0;
           const email = useAuthStore.getState().user?.email || "";
           return (
-            <div className="nodrag h-full rounded-lg border border-slate-700 bg-slate-900 p-3 flex flex-col items-center justify-center gap-2.5">
+            <div className="nodrag h-full p-1 flex flex-col items-center justify-center gap-3">
               {/* Digits */}
               <div
                 className={
-                  "font-mono tabular-nums text-4xl font-bold tracking-wider " +
+                  "font-mono tabular-nums text-[40px] font-medium tracking-tight leading-none " +
                   (finished
-                    ? "text-rose-400 animate-pulse"
+                    ? "text-state-error animate-pulse"
                     : timerRunning && remaining <= 10_000
-                      ? "text-amber-300"
-                      : "text-cyan-300")
+                      ? "text-signal"
+                      : "text-pine")
                 }
+                title="The shared countdown — every viewer sees the same clock"
               >
                 {formatTimer(remaining)}
               </div>
-              {/* Progress bar */}
-              <div className="w-full h-1.5 rounded-full bg-slate-700 overflow-hidden">
+              {/* Progress — a line emptying, not a glowing bar */}
+              <div className="w-full h-[3px] rounded-full bg-rule overflow-hidden">
                 <div
-                  className={"h-full transition-[width] duration-300 " + (finished ? "bg-rose-500" : "bg-cyan-400")}
-                  style={{ width: `${Math.round(progress * 100)}%` }}
+                  className="h-full transition-[width] duration-300"
+                  style={{
+                    width: `${Math.round(progress * 100)}%`,
+                    backgroundColor: finished ? "var(--state-error)" : LINE_COLORS.collab,
+                  }}
                 />
               </div>
               {finished && (
-                <div className="text-xs font-semibold text-rose-400 animate-pulse">⏰ Time's up</div>
+                <div className="flex items-center gap-1 text-[11px] font-semibold text-state-error">
+                  <Icon name="alert" size={12} />
+                  Time's up
+                </div>
               )}
               {/* Controls */}
               <div className="timer-controls flex items-center gap-1.5">
                 {(status === "idle" || status === "stopped") && (
                   <>
                     <input
-                      className="w-[70px] rounded-lg border border-slate-600 bg-slate-800 px-2 py-1 text-center font-mono text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      className="w-[68px] rounded-sm border border-rule-strong bg-card px-2 py-1 text-center font-mono text-[12px] text-ink focus:border-pine focus:outline-none focus:ring-2 focus:ring-signal/30"
                       value={draft}
                       placeholder="MM:SS"
                       title="Duration — e.g. 5:30 or 90"
@@ -668,9 +711,11 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                         });
                       }}
                       disabled={parsedDraft === null}
-                      className="px-3 py-1 rounded-lg bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-400 transition disabled:opacity-40"
+                      className="inline-flex items-center gap-1.5 rounded-sm border border-pine bg-pine px-3 py-1 text-[12px] font-semibold text-cream transition hover:bg-pine-deep disabled:opacity-40"
                     >
-                      ▶ Start
+                      <span className="sr-only" aria-hidden>▶ </span>
+                      <Icon name="play" size={11} />
+                      Start
                     </button>
                   </>
                 )}
@@ -683,9 +728,10 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                           timerRemainingMs: computeRemainingMs(boxData, Date.now()),
                         })
                       }
-                      className="px-3 py-1 rounded-lg bg-slate-700 text-slate-100 text-sm font-medium hover:bg-slate-600 transition"
+                      className="inline-flex items-center gap-1.5 rounded-sm border border-rule-strong bg-card px-3 py-1 text-[12px] font-medium text-ink-soft transition hover:border-pine hover:text-ink"
                     >
-                      ⏸ Pause
+                      <Icon name="pause" size={11} />
+                      Pause
                     </button>
                     <button
                       onClick={() =>
@@ -694,9 +740,11 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                           timerRemainingMs: computeRemainingMs(boxData, Date.now()),
                         })
                       }
-                      className="px-3 py-1 rounded-lg bg-rose-500 text-white text-sm font-medium hover:bg-rose-400 transition"
+                      className="inline-flex items-center gap-1.5 rounded-sm border border-error-line bg-error-wash px-3 py-1 text-[12px] font-medium text-state-error transition hover:bg-error-wash-hover"
                     >
-                      ⏹ Stop
+                      <span className="sr-only" aria-hidden>⏹ </span>
+                      <Icon name="stop" size={11} />
+                      Stop
                     </button>
                   </>
                 )}
@@ -709,9 +757,10 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                           timerStartedAt: Date.now(),
                         })
                       }
-                      className="px-3 py-1 rounded-lg bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-400 transition"
+                      className="px-3 py-1 rounded-sm border border-pine bg-pine text-cream text-[12px] font-semibold hover:bg-pine-deep transition"
                     >
-                      ▶ Resume
+                      <Icon name="play" size={11} />
+                      Resume
                     </button>
                     <button
                       onClick={() =>
@@ -719,9 +768,11 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                           timerStatus: "stopped",
                         })
                       }
-                      className="px-3 py-1 rounded-lg bg-rose-500 text-white text-sm font-medium hover:bg-rose-400 transition"
+                      className="inline-flex items-center gap-1.5 rounded-sm border border-error-line bg-error-wash px-3 py-1 text-[12px] font-medium text-state-error transition hover:bg-error-wash-hover"
                     >
-                      ⏹ Stop
+                      <span className="sr-only" aria-hidden>⏹ </span>
+                      <Icon name="stop" size={11} />
+                      Stop
                     </button>
                   </>
                 )}
@@ -736,7 +787,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                         timerStartedBy: undefined,
                       });
                     }}
-                    className="px-3 py-1 rounded-lg bg-slate-700 text-slate-100 text-sm font-medium hover:bg-slate-600 transition"
+                    className="inline-flex items-center gap-1.5 rounded-sm border border-rule-strong bg-card px-3 py-1 text-[12px] font-medium text-ink-soft transition hover:border-pine hover:text-ink"
                     title="Reset to the full duration"
                   >
                     ↺ Reset
@@ -745,7 +796,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
               </div>
               {/* Attribution */}
               {boxData.timerStartedBy && status !== "idle" && (
-                <p className="text-[10px] text-slate-400 truncate max-w-full">
+                <p className="text-[11px] text-ink-muted truncate max-w-full">
                   started by {boxData.timerStartedBy}
                 </p>
               )}
@@ -762,7 +813,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         {/* Idea box — editable textarea */}
         {isIdea && (
           <textarea
-            className="nodrag nowheel w-full min-h-[100px] resize-y rounded-lg border border-slate-200 p-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-300"
+            className="nodrag nowheel w-full h-full min-h-[100px] resize-none bg-transparent border-0 p-0 text-[13px] leading-relaxed text-ink-soft placeholder:text-ink-muted focus:outline-none"
             placeholder="Write your idea here..."
             value={boxData.content}
             onChange={(e) =>
@@ -774,46 +825,48 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         {/* Agent box — task + live step timeline + final answer */}
         {isAgent && (() => {
           const stepsList = boxData.agentSteps || [];
-          const stepIcon: Record<string, string> = {
-            plan: "🧠",
-            add_box: "➕",
-            connect: "🔗",
-            run: "▶️",
-            finish: "✅",
-            stopped: "⏹️",
-            error: "⚠️",
+          const stepIcon: Record<string, IconName> = {
+            plan: "wand",
+            add_box: "plus",
+            connect: "link",
+            run: "play",
+            finish: "checkCircle",
+            stopped: "stop",
+            error: "alert",
           };
           const stepColor: Record<string, string> = {
-            finish: "text-emerald-600",
-            stopped: "text-amber-600",
-            error: "text-red-600",
+            finish: "text-state-ok",
+            stopped: "text-state-stale",
+            error: "text-state-error",
           };
           return (
             <div className="flex flex-col gap-2 min-h-[140px]">
               <textarea
-                className="nodrag nowheel w-full min-h-[64px] resize-y rounded-lg border border-indigo-200 p-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                className="nodrag nowheel w-full min-h-[64px] resize-y rounded-sm border border-rule bg-card p-2 text-[12.5px] text-ink-soft focus:outline-none focus:border-pine focus:ring-2 focus:ring-signal/30"
                 placeholder="Describe the task for the agent, e.g. “Turn this idea into a full pitch: research it, write a PRD, and build a landing page prototype”"
                 value={boxData.content}
                 onChange={(e) => updateBoxData(id, { content: e.target.value })}
               />
               {isRunning && stepsList.length === 0 && (
-                <div className="flex items-center gap-2 text-indigo-500 text-sm py-2 justify-center">
-                  <span className="animate-spin">🤖</span>
+                <div className="flex items-center gap-2 text-ink-muted text-[12px] py-2 justify-center">
+                  <Icon name="loader" size={14} className="animate-spin" />
                   <span>Planning…</span>
                 </div>
               )}
               {stepsList.length > 0 && (
-                <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-2 max-h-[190px] overflow-y-auto nowheel space-y-1">
+                <div className="rounded-md border border-rule bg-paper-raised px-2.5 py-2 max-h-[190px] overflow-y-auto nowheel space-y-1">
                   {stepsList.map((s) => (
                     <div key={s.id} className="flex items-start gap-1.5 text-[11px] leading-snug">
-                      <span className="flex-shrink-0 mt-[1px]">{stepIcon[s.type] || "•"}</span>
+                      <span className="flex-shrink-0 mt-[1px]">
+                        <Icon name={stepIcon[s.type] || "station"} size={11} />
+                      </span>
                       <div className="min-w-0">
-                        <span className={"font-medium " + (stepColor[s.type] || "text-slate-600")}>
+                        <span className={"font-medium " + (stepColor[s.type] || "text-ink-soft")}>
                           {s.label}
                         </span>
                         {s.detail && (
                           <span
-                            className="text-slate-400"
+                            className="text-ink-muted"
                             title={s.detail}
                           >
                             {" — "}
@@ -826,15 +879,15 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 </div>
               )}
               {hasTextOutput && (
-                <div className="markdown-output text-slate-700 text-sm">
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-indigo-500 mb-0.5">
+                <div className="markdown-output text-ink text-sm">
+                  <div className="label-caps text-ink-muted mb-0.5">
                     Agent answer
                   </div>
                   <ReactMarkdown>{boxData.output}</ReactMarkdown>
                 </div>
               )}
               {!hasTextOutput && !isRunning && stepsList.length === 0 && !hasError && (
-                <div className="text-slate-400 text-sm py-4 text-center">
+                <div className="text-ink-muted text-sm py-4 text-center">
                   Type a task above and click <strong>Run</strong>. The agent will create and
                   run boxes on this board, then report back here.
                 </div>
@@ -851,25 +904,26 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 <img
                   src={boxData.imageData}
                   alt="Uploaded"
-                  className="w-full rounded-lg border border-slate-200"
+                  className="w-full rounded-md border border-rule"
                 />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="mt-2 w-full text-xs py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition"
+                  className="mt-2 w-full text-xs py-1.5 rounded-md border border-rule text-ink-soft hover:bg-paper-raised transition"
                 >
-                  📁 Change Image
+                  <Icon name="image" size={12} className="inline-block mr-1 -mt-0.5" />
+                  Change image
                 </button>
               </div>
             ) : (
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="cursor-pointer border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-emerald-400 hover:bg-emerald-50 transition"
+                className="cursor-pointer rounded-md border border-dashed border-rule-strong bg-paper-raised p-6 text-center transition hover:border-pine hover:bg-card"
               >
-                <div className="text-3xl mb-2">🖼️</div>
-                <div className="text-sm text-slate-500 font-medium">
+                <Icon name="image" size={28} className="text-ink-muted mb-2" />
+                <div className="text-sm text-ink-soft font-medium">
                   Click to upload
                 </div>
-                <div className="text-xs text-slate-400 mt-1">
+                <div className="text-xs text-ink-muted mt-1">
                   PNG, JPG, WebP — max 1024px
                 </div>
               </div>
@@ -906,24 +960,24 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                     handleDocumentsUpload(e.dataTransfer.files);
                   }}
                   className={
-                    "cursor-pointer border-2 border-dashed rounded-lg p-4 text-center transition " +
+                    "cursor-pointer rounded-md border border-dashed p-4 text-center transition " +
                     (docDragOver
-                      ? "border-slate-500 bg-slate-100"
-                      : "border-slate-300 hover:border-slate-400 hover:bg-slate-50")
+                      ? "border-pine bg-card"
+                      : "border-rule-strong bg-paper-raised hover:border-pine hover:bg-card")
                   }
                 >
-                  <div className="text-2xl mb-1">📎</div>
-                  <div className="text-sm text-slate-500 font-medium">
+                  <Icon name="paperclip" size={24} className="text-ink-muted mb-1" />
+                  <div className="text-sm text-ink-soft font-medium">
                     Click or drop files
                   </div>
-                  <div className="text-[11px] text-slate-400 mt-1">
+                  <div className="text-[11px] text-ink-muted mt-1">
                     PDF, DOCX, TXT, MD, CSV, JSON
                   </div>
                 </div>
 
                 {docBusy > 0 && (
-                  <div className="flex items-center justify-center gap-2 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg py-2">
-                    <span className="animate-spin inline-block">⏳</span>
+                  <div className="flex items-center justify-center gap-2 text-xs text-ink-soft bg-paper-raised border border-rule rounded-md py-2">
+                    <Icon name="loader" size={13} className="animate-spin inline-block" />
                     Extracting text from {docBusy} file{docBusy > 1 ? "s" : ""}…
                   </div>
                 )}
@@ -933,22 +987,22 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                     {docs.map((d) => (
                       <div
                         key={d.id}
-                        className="group flex items-start gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2"
+                        className="group flex items-start gap-2 rounded-md border border-rule bg-card px-2.5 py-2"
                       >
                         <span className="text-sm flex-shrink-0 mt-0.5">
                           {documentIcon(d.ext)}
                         </span>
                         <div className="flex-1 min-w-0">
                           <div
-                            className="text-[13px] font-medium text-slate-700 truncate"
+                            className="text-[13px] font-medium text-ink truncate"
                             title={d.name}
                           >
                             {d.name}
                           </div>
-                          <div className="text-[11px] text-slate-400">
+                          <div className="text-[11px] text-ink-muted">
                             {formatBytes(d.size)}
                             {d.error ? (
-                              <span className="text-red-500"> — {d.error}</span>
+                              <span className="text-state-error"> — {d.error}</span>
                             ) : (
                               <>
                                 {" · "}
@@ -962,7 +1016,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                               href={d.url}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-[11px] text-indigo-500 hover:underline"
+                              className="text-[11px] text-pine underline underline-offset-2 hover:text-pine-deep"
                             >
                               Open original ↗
                             </a>
@@ -970,10 +1024,10 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                         </div>
                         <button
                           onClick={() => removeDocument(d.id)}
-                          className="touch-visible w-5 h-5 rounded-full text-[10px] text-slate-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center flex-shrink-0 opacity-0 group-hover:opacity-100 transition"
+                          className="touch-visible w-5 h-5 rounded-full text-[11px] text-ink-muted hover:text-state-error hover:bg-error-wash flex items-center justify-center flex-shrink-0 opacity-0 group-hover:opacity-100 transition"
                           title="Remove this document"
                         >
-                          ✕
+                          <Icon name="x" size={11} />
                         </button>
                       </div>
                     ))}
@@ -981,7 +1035,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 )}
 
                 {docs.length > 0 && (
-                  <p className="text-[11px] text-slate-400 leading-snug px-0.5">
+                  <p className="text-[11px] text-ink-muted leading-snug px-0.5">
                     {usable} of {docs.length} usable ·{" "}
                     {totalChars.toLocaleString()} chars total — flows into
                     connected boxes via {"{{inputs}}"}.
@@ -1007,14 +1061,15 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         {!isInputBox && isCartoon && (
           <div className="min-h-[120px]">
             {isRunning && (
-              <div className="flex flex-col items-center gap-2 text-slate-400 text-sm py-8 justify-center">
-                <span className="animate-spin text-2xl">🎨</span>
+              <div className="flex flex-col items-center gap-2 text-ink-muted text-sm py-8 justify-center">
+                <Icon name="loader" size={26} className="animate-spin text-ink-muted" />
                 <span>Generating cartoon...</span>
               </div>
             )}
             {hasError && !isRunning && (
-              <div className="text-red-500 text-sm p-2 bg-red-50 rounded-lg">
-                ⚠️ {boxData.error}
+              <div className="flex items-start gap-1.5 text-[12px] leading-snug text-state-error bg-error-wash border border-error-line p-2 rounded-sm">
+                <Icon name="alert" size={13} className="inline-block mr-1" />
+                <span className="min-w-0 break-words">{boxData.error}</span>
               </div>
             )}
             {hasImageOutput && !isRunning && (
@@ -1022,21 +1077,21 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 <img
                   src={boxData.outputImage}
                   alt="Generated cartoon profile"
-                  className="w-full rounded-lg border border-slate-200"
+                  className="w-full rounded-md border border-rule"
                 />
                 <a
                   href={boxData.outputImage}
                   download="cartoon-profile.jpg"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block mt-2 text-xs text-center text-slate-400 hover:text-slate-600"
+                  className="block mt-2 text-xs text-center text-ink-muted hover:text-ink-soft"
                 >
                   Open image ↗
                 </a>
               </div>
             )}
             {!hasImageOutput && !isRunning && !hasError && (
-              <div className="text-slate-400 text-sm py-8 text-center">
+              <div className="text-ink-muted text-sm py-8 text-center">
                 No image yet. Connect an Image or Idea box and click <strong>Run</strong>.
               </div>
             )}
@@ -1049,14 +1104,15 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         {!isInputBox && !isCartoon && !isSlides && !isCode && !isAgent && !isUtility && (
           <div className="min-h-[80px]">
             {isRunning && (
-              <div className="flex items-center gap-2 text-slate-400 text-sm py-4 justify-center">
-                <span className="animate-spin">⏳</span>
+              <div className="flex items-center gap-2 text-ink-muted text-sm py-4 justify-center">
+                <Icon name="loader" size={14} className="animate-spin" />
                 <span>Generating...</span>
               </div>
             )}
             {hasError && !isRunning && (
-              <div className="text-red-500 text-sm p-2 bg-red-50 rounded-lg">
-                ⚠️ {boxData.error}
+              <div className="flex items-start gap-1.5 text-[12px] leading-snug text-state-error bg-error-wash border border-error-line p-2 rounded-sm">
+                <Icon name="alert" size={13} className="inline-block mr-1" />
+                <span className="min-w-0 break-words">{boxData.error}</span>
               </div>
             )}
             {/* Code Map: which repository this box read, and what came back */}
@@ -1074,12 +1130,12 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             )}
 
             {hasTextOutput && !isRunning && !isCodeEdit && (
-              <div className="markdown-output text-slate-700 text-sm">
+              <div className="markdown-output text-ink text-sm">
                 <ReactMarkdown>{boxData.output}</ReactMarkdown>
               </div>
             )}
             {!hasTextOutput && !isRunning && !hasError && !isUtility && (
-              <div className="text-slate-400 text-sm py-4 text-center">
+              <div className="text-ink-muted text-sm py-4 text-center">
                 {isSdlc ? (
                   <>
                     No artifact yet. Connect the previous stage (or an Idea box with the change
@@ -1106,38 +1162,39 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         {!isInputBox && isSlides && (
           <div className="min-h-[120px]">
             {isRunning && (
-              <div className="flex flex-col items-center gap-2 text-slate-400 text-sm py-8 justify-center">
-                <span className="animate-spin text-2xl">📊</span>
+              <div className="flex flex-col items-center gap-2 text-ink-muted text-sm py-8 justify-center">
+                <Icon name="loader" size={26} className="animate-spin text-ink-muted" />
                 <span>Creating slides...</span>
               </div>
             )}
             {hasError && !isRunning && (
-              <div className="text-red-500 text-sm p-2 bg-red-50 rounded-lg">
-                ⚠️ {boxData.error}
+              <div className="flex items-start gap-1.5 text-[12px] leading-snug text-state-error bg-error-wash border border-error-line p-2 rounded-sm">
+                <Icon name="alert" size={13} className="inline-block mr-1" />
+                <span className="min-w-0 break-words">{boxData.error}</span>
               </div>
             )}
             {hasSlides && !isRunning && slide && (
               <div>
                 {/* Slide card */}
-                <div className="rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+                <div className="rounded-md border border-rule overflow-hidden ">
                   {/* Title bar */}
                   <div
-                    className="px-3 py-2 text-white font-bold text-sm"
-                    style={{ backgroundColor: meta.color }}
+                    className="px-3 py-2 text-cream font-bold text-sm"
+                    style={{ backgroundColor: accentColor }}
                   >
                     {currentSlide + 1}. {slide.title}
                   </div>
                   {/* Bullets */}
-                  <div className="p-3 bg-white">
+                  <div className="p-3 bg-card">
                     <ul className="space-y-1.5">
                       {slide.bullets.map((bullet, i) => (
                         <li
                           key={i}
-                          className="text-xs text-slate-700 flex gap-1.5 leading-relaxed"
+                          className="text-xs text-ink flex gap-1.5 leading-relaxed"
                         >
                           <span
                             className="flex-shrink-0 w-1.5 h-1.5 rounded-full mt-1.5"
-                            style={{ backgroundColor: meta.color }}
+                            style={{ backgroundColor: accentColor }}
                           />
                           <span>{bullet}</span>
                         </li>
@@ -1145,9 +1202,9 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                     </ul>
                     {/* Speaker notes */}
                     {slide.notes && (
-                      <div className="mt-2 pt-2 border-t border-slate-100">
-                        <div className="text-xs text-slate-400 italic">
-                          📝 {slide.notes}
+                      <div className="mt-2 pt-2 border-t border-rule">
+                        <div className="text-xs text-ink-muted italic">
+                          <Icon name="fileText" size={10} className="inline-block mr-1" />{slide.notes}
                         </div>
                       </div>
                     )}
@@ -1158,27 +1215,27 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   <button
                     onClick={() => setSlideIndex(Math.max(0, currentSlide - 1))}
                     disabled={currentSlide === 0}
-                    className="slide-nav w-7 h-7 rounded-lg border border-slate-200 text-slate-500 text-sm flex items-center justify-center hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                    className="slide-nav w-7 h-7 rounded-md border border-rule text-ink-soft text-sm flex items-center justify-center hover:bg-paper-raised disabled:opacity-30 disabled:cursor-not-allowed transition"
                     title="Previous slide"
                   >
                     ◀
                   </button>
-                  <span className="text-xs text-slate-500 font-medium tabular-nums">
+                  <span className="text-xs text-ink-soft font-medium tabular-nums">
                     {currentSlide + 1} / {slides.length}
                   </span>
                   <button
                     onClick={() => setSlideIndex(Math.min(slides.length - 1, currentSlide + 1))}
                     disabled={currentSlide === slides.length - 1}
-                    className="slide-nav w-7 h-7 rounded-lg border border-slate-200 text-slate-500 text-sm flex items-center justify-center hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                    className="slide-nav flex h-7 w-7 items-center justify-center rounded-sm border border-rule text-ink-soft transition hover:bg-paper-raised disabled:opacity-30 disabled:cursor-not-allowed"
                     title="Next slide"
                   >
-                    ▶
+                    <Icon name="chevron-right" size={13} />
                   </button>
                 </div>
               </div>
             )}
             {!hasSlides && !isRunning && !hasError && (
-              <div className="text-slate-400 text-sm py-8 text-center">
+              <div className="text-ink-muted text-sm py-8 text-center">
                 No slides yet. Connect a Research or Idea box and click <strong>Run</strong>.
               </div>
             )}
@@ -1189,14 +1246,15 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         {!isInputBox && isCode && (
           <div className="flex flex-col h-full min-h-[150px]">
             {isRunning && (
-              <div className="flex flex-col items-center gap-2 text-slate-400 text-sm py-8 justify-center">
-                <span className="animate-spin text-2xl">💻</span>
+              <div className="flex flex-col items-center gap-2 text-ink-muted text-sm py-8 justify-center">
+                <Icon name="loader" size={26} className="animate-spin text-ink-muted" />
                 <span>Writing code...</span>
               </div>
             )}
             {hasError && !isRunning && (
-              <div className="text-red-500 text-sm p-2 bg-red-50 rounded-lg">
-                ⚠️ {boxData.error}
+              <div className="flex items-start gap-1.5 text-[12px] leading-snug text-state-error bg-error-wash border border-error-line p-2 rounded-sm">
+                <Icon name="alert" size={13} className="inline-block mr-1" />
+                <span className="min-w-0 break-words">{boxData.error}</span>
               </div>
             )}
             {boxData.code && !isRunning && (
@@ -1206,23 +1264,26 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   <div className="flex gap-1">
                     <button
                       onClick={() => setCodeTab("code")}
-                      className={"px-3 py-1 rounded-lg text-xs font-medium transition " + (codeTab === "code" ? "bg-slate-700 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}
+                      className={"inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-[11px] font-medium transition " + (codeTab === "code" ? "bg-pine text-cream border-pine" : "bg-card text-ink-soft border-rule hover:border-rule-strong")}
                     >
-                      📝 Code
+                      <Icon name="code" size={12} />
+                      Code
                     </button>
                     <button
                       onClick={() => { setCodeTab("preview"); setPreviewLoading(true); }}
-                      className={"px-3 py-1 rounded-lg text-xs font-medium transition " + (codeTab === "preview" ? "bg-cyan-500 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}
+                      className={"px-2.5 py-1 rounded-sm border text-[11px] font-medium transition " + (codeTab === "preview" ? "bg-pine text-cream border-pine" : "bg-card text-ink-soft border-rule hover:border-rule-strong")}
                     >
-                      👁 Preview
+                      <Icon name="eye" size={11} />
+                      Preview
                     </button>
                   </div>
                   <button
                     onClick={() => setCodeMaximized(true)}
-                    className="px-2.5 py-1 rounded-lg text-xs font-medium text-slate-500 bg-slate-100 hover:bg-slate-200 transition"
+                    className="inline-flex items-center gap-1.5 rounded-sm border border-rule bg-card px-2.5 py-1 text-[11px] font-medium text-ink-soft transition hover:border-rule-strong hover:text-ink"
                     title="Maximise — open code and preview side by side"
                   >
-                    ⛶ Maximise
+                    <Icon name="panel" size={12} />
+                    Maximise
                   </button>
                 </div>
                 {/* Code tab */}
@@ -1230,7 +1291,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   <div className="flex-1 min-h-0 flex flex-col">
                     <Suspense
                       fallback={
-                        <div className="flex-1 flex items-center justify-center text-xs text-slate-400 bg-slate-900 rounded-lg">
+                        <div className="flex-1 flex items-center justify-center text-xs text-ink-muted bg-paper-raised rounded-md border border-rule">
                           Loading editor…
                         </div>
                       }
@@ -1241,19 +1302,19 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                         height="100%"
                       />
                     </Suspense>
-                    <p className="mt-1 text-[10px] text-slate-400">
-                      ✏️ Editable — changes save to the box and update the preview.
+                    <p className="mt-1 text-[11px] text-ink-muted">
+                      Editable — changes save to the box and update the preview.
                     </p>
                   </div>
                 )}
                 {/* Preview tab */}
                 {codeTab === "preview" && (
-                  <div className="flex-1 min-h-0 relative rounded-lg overflow-hidden border border-slate-200 bg-white">
+                  <div className="flex-1 min-h-0 relative rounded-md overflow-hidden border border-rule bg-card">
                     {boxType === "code" ? (
                       <Suspense
                         fallback={
-                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400 text-sm bg-white z-10">
-                            <span className="animate-spin text-2xl">⚙️</span>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-ink-muted text-sm bg-card z-10">
+                            <Icon name="loader" size={26} className="animate-spin text-ink-muted" />
                             <span>Loading preview…</span>
                           </div>
                         }
@@ -1263,13 +1324,17 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                     ) : (
                       <>
                         {previewLoading && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400 text-sm bg-white z-10">
-                            <span className="animate-spin text-2xl">⚙️</span>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-ink-muted text-sm bg-card z-10">
+                            <Icon name="loader" size={26} className="animate-spin text-ink-muted" />
                             <span>Loading preview...</span>
                           </div>
                         )}
                         <iframe
-                          srcDoc={isStitch ? (boxData.code || "") : (boxType === "ui" ? wrapUIInHtml : wrapCodeInHtml)(boxData.code || "")}
+                          srcDoc={
+                            isStitch || (boxType === "ui" && isFullHtmlDocument(boxData.code || ""))
+                              ? boxData.code || ""
+                              : (boxType === "ui" ? wrapUIInHtml : wrapCodeInHtml)(boxData.code || "")
+                          }
                           className="absolute inset-0 w-full h-full border-0"
                           sandbox="allow-scripts allow-popups allow-forms allow-same-origin allow-modals"
                           title="React Preview"
@@ -1298,9 +1363,9 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   placeholder="Describe what you want to build... (e.g. a counter app with increment/decrement buttons)"
                   value={boxData.content}
                   onChange={(e) => updateBoxData(id, { content: e.target.value })}
-                  className="w-full min-h-[80px] resize-y rounded-lg border border-slate-200 p-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-300"
+                  className="w-full min-h-[80px] resize-y rounded-md border border-rule p-2 text-sm text-ink focus:outline-none focus:border-pine focus:ring-2 focus:ring-signal/30"
                 />
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-ink-muted">
                   Type a description above and click Run, or connect a Research/PRD/Idea box.
                 </p>
               </div>
@@ -1309,54 +1374,62 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         )}
       </div>
 
-      {/* Token usage from the last LLM call */}
+      {/* Token usage from the last LLM call — mono data, never prose */}
       {boxData.tokens && (
-        <div className="px-3 py-1.5 border-t border-slate-100 flex items-center justify-end gap-2 text-[10px] text-slate-400">
-          <span title="Input → output tokens used by this call">
-            ⚡ <span className="tabular-nums">{boxData.tokens.promptTokens} in · {boxData.tokens.completionTokens} out</span>
+        <div className="box-tokens">
+          <span className="flex items-center gap-1.5" title="Input → output tokens used by this call">
+            <Icon name="zap" size={10} />
+            {boxData.tokens.promptTokens} in · {boxData.tokens.completionTokens} out
           </span>
-          <span className="font-semibold text-slate-500 tabular-nums">
-            {boxData.tokens.totalTokens} tok
-          </span>
+          <strong>{boxData.tokens.totalTokens} tok</strong>
         </div>
       )}
 
       {/* Footer — AI boxes only */}
       {!isInputBox && !isUtility && (
-        <div className="box-footer px-3 py-2 border-t border-slate-100 flex items-center gap-2">
+        <div className="box-footer">
           <button
             onClick={() => runBox(id)}
             disabled={isRunning}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white transition disabled:opacity-50"
-            style={{ backgroundColor: meta.color }}
+            className="box-run"
           >
-            {isRunning ? (isAgent ? "⏳ Working…" : "⏳ Running...") : ("▶ Run")}
+            {isRunning ? (
+              <>
+                <Icon name="loader" size={13} className="animate-spin" />
+                {isAgent ? "Working…" : "Running…"}
+              </>
+            ) : (
+              <>
+                <span className="sr-only" aria-hidden>▶ </span>
+                <Icon name="play" size={11} />Run
+              </>
+            )}
           </button>
           {isAgent && isRunning && (
             <button
               onClick={() => stopAgent(id)}
-              className="px-2.5 py-1.5 rounded-lg text-sm transition bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-600"
+              className="box-action"
               title="Ask the agent to stop after its current step"
             >
-              ⏹ Stop
+              <span className="sr-only" aria-hidden>⏹ </span><Icon name="stop" size={11} />Stop
             </button>
           )}
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className={"px-2.5 py-1.5 rounded-lg text-sm transition " + (showSettings ? "bg-slate-200 text-slate-700" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}
+            className={"box-action" + (showSettings ? " is-signal" : "")}
             title="Prompt settings"
           >
-            ⚙
+            <Icon name="settings" size={13} />
           </button>
           {/* Download this box's actual outcome (Markdown) — every text-output
               box, including the SDLC stages. */}
           {!isRunning && hasDownloadableOutcome(boxType) && outcome && (
             <button
               onClick={handleDownloadOutcome}
-              className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap"
+              className="box-action"
               title={`Download this box's output as ${outcomeFilename(boxType, (data.title as string) || meta.label)}`}
             >
-              💾 Save
+              <span className="sr-only" aria-hidden>💾 </span><Icon name="download" size={12} />Save
             </button>
           )}
           {/* SDLC stage: copy the artifact, or export the whole gated chain as
@@ -1366,17 +1439,25 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
               <button
                 onClick={handleCopyOutcome}
                 disabled={!outcome}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap disabled:opacity-40"
+                className="box-action"
                 title="Copy the artifact to the clipboard"
               >
-                {copied ? "✅ Copied" : "📋 Copy"}
+                {copied ? (
+                  <>
+                    <Icon name="check" size={12} /> Copied
+                  </>
+                ) : (
+                  <>
+                    <Icon name="copy" size={12} /> Copy
+                  </>
+                )}
               </button>
               <button
                 onClick={handleDownloadAudit}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap"
+                className="box-action"
                 title="Download the whole stage chain as one audit document (artifacts, versions, approvals, findings, history)"
               >
-                🗂 Audit
+                <span className="sr-only" aria-hidden>🗂 </span><Icon name="history" size={12} />Audit
               </button>
             </>
           )}
@@ -1384,32 +1465,42 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             <>
               <button
                 onClick={handleCopyCode}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap"
+                className="box-action"
                 title="Copy code"
               >
-                {copied ? "✅ Copied" : "📋 Copy"}
+                {copied ? (
+                  <>
+                    <Icon name="check" size={12} /> Copied
+                  </>
+                ) : (
+                  <>
+                    <Icon name="copy" size={12} /> Copy
+                  </>
+                )}
               </button>
               <button
                 onClick={handleDownloadCode}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap"
+                className="box-action"
                 title="Download as HTML"
               >
-                💾 Save
+                <span className="sr-only" aria-hidden>💾 </span><Icon name="download" size={12} />Save
               </button>
               <button
                 onClick={() => deployBox(id)}
                 disabled={isRunning}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition bg-indigo-50 text-indigo-700 hover:bg-indigo-100 whitespace-nowrap disabled:opacity-40"
+                className="box-action is-signal"
                 title="Publish this box's code to a live URL (here.now)"
               >
-                🚀 Deploy
+                <Icon name="globe" size={12} />
+                Deploy
               </button>
               <button
                 onClick={handleOpenStackBlitz}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap"
+                className="box-action"
                 title="Open this prototype in StackBlitz (full IDE)"
               >
-                ⚡ Open in StackBlitz
+                <Icon name="zap" size={11} />
+                Open in StackBlitz
               </button>
             </>
           )}
@@ -1418,21 +1509,21 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
       {/* Settings panel — collapsible (AI boxes only) */}
       {!isInputBox && !isUtility && showSettings && (
-        <div className="px-3 py-3 border-t border-slate-100 bg-slate-50 space-y-2">
+        <div className="px-3 py-3 border-t border-rule bg-paper-raised space-y-2">
           {/* SDLC stage: org rule sets (the pipeline's "skills") — injected into
               the spec/review prompts, and into the audit record. */}
           {isSdlc && (sdlcStageMeta(boxType)?.stage === "spec" || sdlcStageMeta(boxType)?.stage === "review") && (
             <div>
-              <label className="text-xs font-medium text-slate-500 block mb-1">
+              <label className="text-xs font-medium text-ink-soft block mb-1">
                 Skills / org rule sets (security, brand, compliance)
               </label>
               <textarea
-                className="nodrag nowheel w-full text-xs rounded-lg border border-slate-200 p-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 min-h-[60px] resize-y"
+                className="nodrag nowheel w-full text-[12px] rounded-sm border border-rule bg-card p-2 text-ink-soft focus:outline-none focus:border-pine focus:ring-2 focus:ring-signal/30 min-h-[60px] resize-y"
                 placeholder={"Paste the rules this stage must obey.\ne.g. - Never log PII\n- All public endpoints must be rate limited"}
                 value={boxData.skills || ""}
                 onChange={(e) => updateBoxData(id, { skills: e.target.value })}
               />
-              <p className="text-[10px] text-slate-400 mt-1">
+              <p className="text-[11px] text-ink-muted mt-1">
                 Applied to every run of this stage. You can also connect a Documents box with the
                 full policy text.
               </p>
@@ -1445,7 +1536,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             const forced = forcedGateReason(boxType, boxData);
             const required = forced !== null ? true : boxData.sdlcGateRequired !== false;
             return (
-              <label className={"flex items-start gap-2 text-xs " + (forced ? "text-slate-400" : "text-slate-600 cursor-pointer")}>
+              <label className={"flex items-start gap-2 text-xs " + (forced ? "text-ink-muted" : "text-ink-soft cursor-pointer")}>
                 <input
                   type="checkbox"
                   className="mt-0.5"
@@ -1458,7 +1549,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 />
                 <span>
                   Require approval before the next stage can run
-                  {forced && <span className="block text-[10px] text-slate-400">Locked — {forced}</span>}
+                  {forced && <span className="block text-[11px] text-ink-muted">Locked — {forced}</span>}
                 </span>
               </label>
             );
@@ -1467,13 +1558,13 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           {/* System prompt — text AI boxes only (not cartoon) */}
           {!isCartoon && (
             <div>
-              <label className="text-xs font-medium text-slate-500 block mb-1">
+              <label className="text-xs font-medium text-ink-soft block mb-1">
                 {isAgent
                   ? "Agent Protocol Prompt (advanced — the JSON action spec)"
                   : "System Prompt (role / behavior)"}
               </label>
               <textarea
-                className="w-full text-xs rounded-lg border border-slate-200 p-2 font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-300 min-h-[60px] resize-y"
+                className="w-full rounded-sm border border-rule bg-card p-2 font-mono text-xs text-ink-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-signal min-h-[60px] resize-y"
                 value={boxData.systemPrompt}
                 onChange={(e) =>
                   updateBoxData(id, { systemPrompt: e.target.value })
@@ -1482,7 +1573,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             </div>
           )}
           <div>
-            <label className="text-xs font-medium text-slate-500 block mb-1">
+            <label className="text-xs font-medium text-ink-soft block mb-1">
               {isCartoon
                 ? "Prompt Template (text-to-image fallback)"
                 : isAgent
@@ -1491,33 +1582,33 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             </label>
             <textarea
               ref={promptRef}
-              className={"w-full text-xs rounded-lg border border-slate-200 p-2 font-mono text-slate-700 focus:outline-none focus:ring-2" + (isCartoon ? " focus:ring-pink-300" : " focus:ring-blue-300") + " min-h-[80px] resize-y"}
+              className={"w-full rounded-sm border border-rule bg-card p-2 font-mono text-xs text-ink-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-signal min-h-[80px] resize-y"}
               value={boxData.prompt}
               onChange={(e) =>
                 updateBoxData(id, { prompt: e.target.value })
               }
             />
             {isCartoon && (
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-ink-muted mt-1">
                 Used when input is text (no image connected). If an Image box is connected, image-to-image is used instead.
               </p>
             )}
             {isSlides && (
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-ink-muted mt-1">
                 Defines the slide structure. The model outputs JSON — the app parses it into visual slides.
               </p>
             )}
             <div className="mt-2">
-              <p className="text-xs font-medium text-slate-500 mb-1">Available inputs (click to insert):</p>
+              <p className="text-xs font-medium text-ink-soft mb-1">Available inputs (click to insert):</p>
               {connectedInputs.length === 0 ? (
-                <p className="text-xs text-slate-400">No boxes connected. Connect an input box to reference it by name.</p>
+                <p className="text-xs text-ink-muted">No boxes connected. Connect an input box to reference it by name.</p>
               ) : (
                 <div className="flex flex-wrap gap-1">
                   {connectedInputs.map((inp) => (
                     <button
                       key={inp.id}
                       onClick={() => insertVariable(inp.name)}
-                      className="text-xs px-2 py-1 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 transition font-mono"
+                      className="text-xs px-2 py-1 rounded-md bg-paper-raised text-ink-soft border border-rule hover:bg-rule transition font-mono"
                       title={"Insert {{" + inp.name + "}} into prompt"}
                     >
                       {"{{" + inp.name + "}}"}
@@ -1525,15 +1616,15 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   ))}
                   <button
                     onClick={() => insertVariable("inputs")}
-                    className="text-xs px-2 py-1 rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 transition font-mono"
+                    className="text-xs px-2 py-1 rounded-md bg-paper-raised text-ink-soft hover:bg-rule transition font-mono"
                     title="Insert {{inputs}} — all inputs combined"
                   >
                     {"{{inputs}}"}
                   </button>
                 </div>
               )}
-              <p className="text-xs text-slate-400 mt-1">
-                Also supports: <code className="bg-slate-200 px-1 rounded">{"{{input_1}}"}</code> (positional)
+              <p className="text-xs text-ink-muted mt-1">
+                Also supports: <code className="bg-rule px-1 rounded">{"{{input_1}}"}</code> (positional)
               </p>
             </div>
           </div>
@@ -1546,7 +1637,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         <Handle
           type="source"
           position={Position.Right}
-          style={{ background: meta.color, width: 10, height: 10 }}
+          style={{ borderColor: accentColor }}
         />
       )}
 

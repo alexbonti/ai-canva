@@ -155,6 +155,7 @@ toy. Depending on your focus, you can learn:
 - **First-time setup:** [Onboarding & Environment Guide](ONBOARDING.md)
 - **Codebase map / deep dive:** [Architecture](ARCHITECTURE.md)
 - **The box system in detail:** [Box Types](BOX_TYPES.md)
+- **Show it to someone:** [Demo Workflows](DEMOS.md) — seven short scripts, one per audience
 - **Backend endpoints:** [API](API.md)
 - **Ship it live:** [Deployment](DEPLOYMENT.md)
 - **Pre-launch checks:** [Open-source readiness](OSS_READINESS.md)

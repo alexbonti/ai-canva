@@ -34,7 +34,13 @@ const QUEUE_NAME = "processStitchJob";
  */
 export const processStitchJob = onTaskDispatched(
   {
-    retryConfig: { maxAttempts: 3, minBackoffSeconds: 5, maxBackoffSeconds: 60 },
+    // generateStitchUI already retries transient transport drops internally
+    // (up to 4 generation attempts, ~60s each). Task-level retries would
+    // MULTIPLY that budget (3 × 4 = 12 generations / ~12 min > the 540s worker
+    // timeout), so a retried task could be killed before writing a final status
+    // and leave the job stuck "running", paying for duplicate screens. One task
+    // attempt is enough: the worker always writes done/error in its catch.
+    retryConfig: { maxAttempts: 1 },
     timeoutSeconds: 540,
     memory: "1GiB",
     maxInstances: 10,

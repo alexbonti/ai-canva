@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -16,11 +16,16 @@ import {
 } from "@xyflow/react";
 import { useBoardStore } from "../store/boardStore.js";
 import { AREA_COLORS } from "../types.js";
+import { lineColorFor } from "../lib/lines.js";
 import { isValidAreaSize, normalizeRect } from "../lib/areas.js";
+import { Icon } from "./ui/Icon";
 import { Button } from "./ui/Button.js";
 import BoxNode from "./BoxNode.js";
 import AreaNode from "./AreaNode.js";
 import Cursors from "./Cursors.js";
+import RouteEdge from "./RouteEdge.js";
+
+const edgeTypes = { route: RouteEdge };
 
 const nodeTypes = {
   agent: BoxNode,
@@ -110,10 +115,16 @@ export default function Canvas() {
       const el = document.querySelector(".react-flow");
       if (!el) return;
       const rect = el.getBoundingClientRect();
+      // Keep the "bottom-centre" spot inside the part of the canvas the user can
+      // actually see — the palette panel (232px, right side) may be open.
+      const sidebar = document.querySelector("[data-sidebar]");
+      const sidebarVisible =
+        !!sidebar && sidebar.getBoundingClientRect().left < rect.right - 8;
+      const usableWidth = rect.width - (sidebarVisible ? 232 : 0);
       const alreadyHere = st.nodes.filter((n) => n.type === "chatbot").length - pending.length;
       pending.forEach((b, i) => {
         const pos = screenToFlowPosition({
-          x: rect.left + rect.width / 2 + (alreadyHere + i) * 150,
+          x: rect.left + usableWidth / 2 + (alreadyHere + i) * 150,
           y: rect.top + rect.height - 130,
         });
         if (pos) placeChatbot(b.id, pos);
@@ -220,11 +231,55 @@ export default function Canvas() {
 
   const draftRect = draft ? normalizeRect(draft.start, draft.current) : null;
 
+  // === The route: edges as transit lines ===
+  // Subscribe to a *string* of running box ids (zustand bails out unless the
+  // string changes), so a streaming output does not re-render the canvas.
+  const runningIds = useBoardStore((s) => {
+    let out = "";
+    for (const id in s.boxData) {
+      if (s.boxData[id]?.status === "running") out += id + ",";
+    }
+    return out;
+  });
+  const selectedNodeId = useMemo(
+    () => nodes.find((n) => n.selected)?.id ?? null,
+    [nodes]
+  );
+  const routeEdges = useMemo(() => {
+    const byId = new Map(nodes.map((n) => [n.id, n]));
+    const running = new Set(runningIds.split(",").filter(Boolean));
+    return edges.map((edge) => {
+      const source = byId.get(edge.source);
+      const color = lineColorFor(
+        ((source?.data as Record<string, unknown> | undefined)?.boxType as string) ||
+          source?.type
+      );
+      const touchesSelection =
+        !!selectedNodeId &&
+        (edge.source === selectedNodeId || edge.target === selectedNodeId);
+      return {
+        ...edge,
+        type: "route",
+        // Our own dash-march marks a running source; React Flow's generic
+        // `animated` style would dash every route.
+        animated: false,
+        data: {
+          ...(edge.data || {}),
+          color,
+          focused: touchesSelection,
+          dimmed: !!selectedNodeId && !touchesSelection,
+          running: running.has(edge.source),
+        },
+      };
+    });
+  }, [edges, nodes, selectedNodeId, runningIds]);
+
   return (
     <ReactFlow
       nodes={nodes}
-      edges={edges}
+      edges={routeEdges}
       nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
@@ -241,17 +296,13 @@ export default function Canvas() {
       className={areaTool ? "area-tool-active" : undefined}
       fitView
       fitViewOptions={{ padding: 0.3 }}
-      defaultEdgeOptions={{
-        animated: true,
-        style: { stroke: "#cbd5e1", strokeWidth: 2 },
-      }}
       proOptions={{ hideAttribution: true }}
       // Treat every node as a "no wheel" zone: when the cursor is over a box,
       // trackpad scroll / pinch must not zoom the canvas (it would fight the
       // box's own scrolling). Zooming still works over empty canvas space.
       noWheelClassName="react-flow__node"
     >
-      <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} />
+      <Background variant={BackgroundVariant.Dots} gap={24} size={1.2} color="#D8CFBA" />
       <Controls />
       <Cursors />
       {/* Area drawing tool */}
@@ -261,20 +312,22 @@ export default function Canvas() {
           variant={areaTool ? "primary" : "secondary"}
           onClick={() => { setAreaTool((t) => !t); setDraft(null); }}
           title="Draw a rectangular area under the boxes"
-          className="shadow-md"
+          className="shadow-float"
         >
-          ▭ {areaTool ? "Drawing areas — Esc to stop" : "Area"}
+          <span className="sr-only" aria-hidden>▭ </span>
+          <Icon name="area" size={12} />
+          {areaTool ? "Drawing — Esc to stop" : "Area"}
         </Button>
         {areaTool && (
-          <div className="flex items-center gap-1.5 rounded-lg bg-white/90 backdrop-blur px-2 py-1.5 shadow-md border border-slate-200">
+          <div className="flex items-center gap-1.5 rounded-md bg-card px-2 py-1.5 shadow-float border border-rule">
             {AREA_COLORS.map((c, i) => (
               <button
                 key={c.fill}
                 onClick={() => setAreaColorIdx(i)}
                 title={`Draw color — ${c.name}`}
                 className={
-                  "w-5 h-5 rounded-md border transition hover:scale-110 " +
-                  (i === areaColorIdx ? "border-slate-600 scale-110" : "border-slate-300")
+                  "w-5 h-5 rounded-sm border transition hover:scale-110 " +
+                  (i === areaColorIdx ? "scale-110 border-ink" : "border-rule-strong")
                 }
                 style={{ backgroundColor: c.fill, borderColor: i === areaColorIdx ? c.border : undefined }}
               />
@@ -287,43 +340,21 @@ export default function Canvas() {
       <MiniMap
         pannable
         zoomable
+        bgColor="#FBF7EC"
+        maskColor="rgba(22,33,28,0.06)"
+        nodeStrokeColor="#DCD4C1"
+        nodeStrokeWidth={1}
         nodeColor={(node: Node) => {
-          const colors: Record<string, string> = {
-            agent: "#4f46e5",
-            chatbot: "#e11d48",
-            idea: "#fbbf24",
-            research: "#60a5fa",
-            summarize: "#a78bfa",
-            image: "#34d399",
-            documents: "#64748b",
-            cartoon: "#f472b6",
-            slides: "#fb923c",
-            code: "#22d3ee",
-            codeedit: "#1d4ed8",
-            prd: "#818cf8",
-            devplan: "#14b8a6",
-            codemap: "#0f766e",
-            ui: "#c026d3",
-            stitch: "#0ea5e9",
-            note: "#fbbf24",
-            label: "#64748b",
-            timer: "#06b6d4",
-            checklist: "#059669",
-            "sdlc-intent": "#7c3aed",
-            "sdlc-spec": "#4338ca",
-            "sdlc-plan": "#0e7490",
-            "sdlc-implement": "#15803d",
-            "sdlc-review": "#b45309",
-            "sdlc-merge": "#be123c",
-          };
           if (node.type === "area") {
-            // Areas are near-white on the minimap — use their border shade.
-            return (node.data as any)?.border || "#cbd5e1";
+            // Areas are flat land on the map — use their border shade.
+            return (node.data as any)?.border || "#DCD4C1";
           }
           if (node.type === "custom") {
-            return (node.data as any)?.customColor || "#6366f1";
+            return (node.data as any)?.customColor || "#6A5A93";
           }
-          return colors[node.type || ""] || "#94a3b8";
+          return lineColorFor(
+            ((node.data as Record<string, unknown> | undefined)?.boxType as string) || node.type
+          );
         }}
       />
     </ReactFlow>
@@ -342,14 +373,14 @@ function AreaDraft({ rect }: { rect: { x: number; y: number; width: number; heig
       }}
     >
       <div
-        className="absolute rounded-xl"
+        className="absolute rounded-md"
         style={{
           left: rect.x,
           top: rect.y,
           width: rect.width,
           height: rect.height,
-          backgroundColor: "rgba(6, 182, 212, 0.06)",
-          border: "1.5px dashed #06b6d4",
+          backgroundColor: "rgba(242, 179, 0, 0.07)",
+          border: "1.5px dashed #B57A00",
         }}
       />
     </div>

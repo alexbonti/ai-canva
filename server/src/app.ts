@@ -24,21 +24,44 @@ type StitchJob = {
   html?: string;
   imageUrl?: string;
   error?: string;
+  /** ms epoch — used to prune finished jobs so the map never grows forever. */
+  createdAt: number;
 };
+
+/** Finished local Stitch jobs are kept this long (the client polls ≤10 min). */
+const STITCH_JOB_TTL_MS = 60 * 60 * 1000;
 
 export function createApp(): express.Express {
   const app = express();
   app.use(cors());
-  app.use(express.json({ limit: "10mb" }));
+  // Must be >= the documented here.now deploy cap (400 files / 25 MB total,
+  // docs/API.md): with the old 10mb limit a legitimate deploy body was rejected
+  // by express before the route ever ran (413 HTML, which the client surfaced
+  // as the generic "Request failed").
+  app.use(express.json({ limit: "30mb" }));
 
   const stitchJobs = new Map<string, StitchJob>();
 
+  function pruneStitchJobs() {
+    const cutoff = Date.now() - STITCH_JOB_TTL_MS;
+    for (const [id, job] of stitchJobs) {
+      const finished = job.status === "done" || job.status === "error";
+      if (finished && job.createdAt < cutoff) stitchJobs.delete(id);
+    }
+  }
+
   function createStitchJob(prompt: string): string {
+    pruneStitchJobs();
     const jobId = randomUUID();
-    const job: StitchJob = { status: "queued" };
+    const job: StitchJob = { status: "queued", createdAt: Date.now() };
     stitchJobs.set(jobId, job);
 
     // Fire-and-forget background generation so the request returns immediately.
+    // The create response must still say "queued" (like production, where the
+    // Cloud Task worker flips it to "running"), so transition on the next tick.
+    setImmediate(() => {
+      if (job.status === "queued") job.status = "running";
+    });
     generateStitchUI(prompt)
       .then((result) => {
         job.status = "done";
@@ -61,9 +84,11 @@ export function createApp(): express.Express {
    */
   app.post("/api/generate", async (req, res) => {
     try {
-      const { systemPrompt, userPrompt } = req.body as {
+      const { systemPrompt, userPrompt, think } = req.body as {
         systemPrompt?: string;
         userPrompt?: string;
+        /** Optional provider reasoning toggle (the UI Design box turns it off). */
+        think?: boolean;
       };
 
       if (!userPrompt || typeof userPrompt !== "string") {
@@ -72,12 +97,16 @@ export function createApp(): express.Express {
 
       const result = await generateContent(
         systemPrompt || "You are a helpful assistant.",
-        userPrompt
+        userPrompt,
+        typeof think === "boolean" ? { think } : {}
       );
 
       res.json({
         content: result.content,
         model: result.model,
+        // True when the model hit its output cap; the client uses it to explain
+        // a cut-off JSX reply instead of blaming a missing App component.
+        truncated: result.truncated,
         usage: {
           promptTokens: result.promptTokens,
           completionTokens: result.completionTokens,
@@ -157,7 +186,15 @@ export function createApp(): express.Express {
     if (!job) {
       return res.status(404).json({ error: "Job not found" });
     }
-    res.json(job);
+    // Explicit shape (nulls rather than absent keys) so the local backend
+    // matches the production function's contract — the client type allows both,
+    // but docs/API.md documents the null form.
+    res.json({
+      status: job.status,
+      html: job.html ?? null,
+      imageUrl: job.imageUrl ?? null,
+      error: job.error ?? null,
+    });
   });
 
   /**
@@ -274,6 +311,23 @@ export function createApp(): express.Express {
   });
 
   /**
+   * GET /api/admin/users — same deviation as the stats stub: listing/blocking
+   * users needs the Admin SDK. Without these the client's Admin Board Users tab
+   * got an HTML 404 and surfaced "HTTP 404" instead of a clear 501.
+   */
+  app.get("/api/admin/users", (_req, res) => {
+    res.status(501).json({
+      error: "User management is only available in the Firebase Cloud Function (production).",
+    });
+  });
+
+  app.post("/api/admin/users/:uid/status", (_req, res) => {
+    res.status(501).json({
+      error: "User management is only available in the Firebase Cloud Function (production).",
+    });
+  });
+
+  /**
    * Workshop guest join proxies to the DEPLOYED Cloud Function. The join
    * endpoint mints Firebase custom tokens, which requires the Admin SDK —
    * the local server has no service account. Proxying (instead of stubbing)
@@ -288,6 +342,8 @@ export function createApp(): express.Express {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(req.body || {}),
+        // A hung production function must not hang the local request forever.
+        signal: AbortSignal.timeout(30_000),
       });
       const data = await r.json();
       res.status(r.status).json(data);
@@ -297,6 +353,27 @@ export function createApp(): express.Express {
         .status(502)
         .json({ error: "Workshop join is unavailable — the production function could not be reached." });
     }
+  });
+
+  // Unknown routes must answer JSON, not Express' HTML page: the client parses
+  // every API response as JSON and an HTML 404 becomes an opaque "HTTP 404".
+  app.use((_req, res) => {
+    res.status(404).json({ error: "Not found." });
+  });
+
+  // Central error handler: malformed JSON (400), oversized bodies (413) and any
+  // unexpected throw become a JSON message instead of an HTML stack trace that
+  // leaks absolute paths. Keep the status Express assigned.
+  app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    const status = typeof err?.status === "number" ? err.status : 500;
+    const message =
+      status === 413
+        ? "Request body too large (limit: 30 MB)."
+        : status === 400
+          ? "Malformed JSON request body."
+          : "Internal server error.";
+    if (status >= 500) console.error("[server] unhandled route error:", err?.message);
+    res.status(status).json({ error: message });
   });
 
   return app;

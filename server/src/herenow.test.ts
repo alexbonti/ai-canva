@@ -283,3 +283,86 @@ describe("deploySite", () => {
     expect(result.expiresAt).toBe("");
   });
 });
+
+describe("deploySite — current here.now publish contract", () => {
+  it("does not finalize when the server says the Site is already live", async () => {
+    // A no-op update can return requiresFinalize:false with no upload targets.
+    // The old unconditional throw reported "nothing was published" even though
+    // the Site was live and unchanged.
+    const calls = stubHereNow({
+      create: () => ({
+        body: {
+          slug: "steady-page-1a2b",
+          siteUrl: "https://steady-page-1a2b.here.now/",
+          requiresFinalize: false,
+          isLive: true,
+          currentVersionId: "ver_7",
+          anonymous: true,
+          expiresAt: "2026-02-19T00:00:00.000Z",
+        },
+      }),
+    });
+
+    const result = await deploySite({ files: [{ path: "index.html", content: "x" }], slug: "steady-page-1a2b" });
+
+    expect(result.slug).toBe("steady-page-1a2b");
+    expect(result.siteUrl).toBe("https://steady-page-1a2b.here.now/");
+    // No finalize request was made.
+    expect(calls.map((c) => `${c.method} ${new URL(c.url).pathname}`)).toEqual([
+      "PUT /api/v1/publish/steady-page-1a2b",
+    ]);
+  });
+
+  it("derives anonymity from publishStatus expiry when `anonymous` is omitted", async () => {
+    stubHereNow({
+      create: () => ({
+        body: {
+          slug: "s",
+          siteUrl: "https://s.here.now/",
+          upload: CREATED.upload,
+          // Keyed/permanent Site: the boolean is omitted but there is no expiry.
+          publishStatus: { requestAuth: "api-key", persistence: "permanent", state: "live" },
+        },
+      }),
+      finalize: () => ({ body: FINALIZED }),
+    });
+    const result = await deploySite({ files: [{ path: "index.html", content: "x" }], apiKey: "k" });
+    expect(result.anonymous).toBe(false);
+    expect(result.expiresAt).toBe("");
+  });
+
+  it("reports an anonymous Site from publishStatus expiry when `anonymous` is omitted", async () => {
+    stubHereNow({
+      create: () => ({
+        body: {
+          slug: "s",
+          siteUrl: "https://s.here.now/",
+          upload: CREATED.upload,
+          publishStatus: { requestAuth: "none", persistence: "temporary", expiresAt: "2026-02-19T00:00:00.000Z", state: "live" },
+        },
+      }),
+      finalize: () => ({ body: FINALIZED }),
+    });
+    const result = await deploySite({ files: [{ path: "index.html", content: "x" }] });
+    expect(result.anonymous).toBe(true);
+    expect(result.expiresAt).toBe("2026-02-19T00:00:00.000Z");
+  });
+
+  it("uploads many files with bounded concurrency (all targets are sent)", async () => {
+    const targets = Array.from({ length: 14 }, (_, i) => ({
+      path: `f${i}.html`,
+      method: "PUT",
+      url: `https://bucket.r2.cloudflarestorage.com/f${i}.html`,
+    }));
+    const calls = stubHereNow({
+      create: () => ({ body: { ...CREATED, upload: { ...CREATED.upload, uploads: targets } } }),
+      finalize: () => ({ body: FINALIZED }),
+    });
+    const result = await deploySite({
+      files: targets.map((t) => ({ path: t.path, content: "x" })),
+    });
+    expect(result.fileCount).toBe(14);
+    const putCalls = calls.filter((c) => c.method === "PUT");
+    expect(putCalls).toHaveLength(14);
+  });
+});

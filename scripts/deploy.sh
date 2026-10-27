@@ -40,12 +40,17 @@ if ! grep -q '^OLLAMA_API_KEY=' server/.env; then
   exit 1
 fi
 
-echo "==> Ensuring OLLAMA_API_KEY is present in functions/.env"
+echo "==> Ensuring provider keys are present in functions/.env"
+# Functions read their own env at runtime; only OLLAMA_API_KEY used to be copied,
+# so FAL_KEY / STITCH_API_KEY / HERENOW_API_KEY / GITHUB_TOKEN had to be maintained
+# in two files by hand (a silent feature loss if one was forgotten).
 touch functions/.env
-if ! grep -q '^OLLAMA_API_KEY=' functions/.env; then
-  grep '^OLLAMA_API_KEY=' server/.env | head -1 >> functions/.env
-  echo "   copied OLLAMA_API_KEY into functions/.env (value not echoed)"
-fi
+for key in OLLAMA_API_KEY FAL_KEY STITCH_API_KEY HERENOW_API_KEY GITHUB_TOKEN; do
+  if grep -q "^${key}=" server/.env && ! grep -q "^${key}=" functions/.env; then
+    grep "^${key}=" server/.env | head -1 >> functions/.env
+    echo "   copied ${key} into functions/.env (value not echoed)"
+  fi
+done
 
 echo "==> Building client (from client/)"
 ( cd client && npm run build )

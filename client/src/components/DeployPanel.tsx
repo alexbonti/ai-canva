@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useBoardStore } from "../store/boardStore.js";
 import type { BoxType } from "../types.js";
 import { deployBlockedReason, deployFilesFor } from "../lib/deploy.js";
+import { Button } from "./ui/Button.js";
+import { Icon } from "./ui/Icon.js";
 
 /**
  * The result of publishing a box's code to here.now, and the button to do it
@@ -15,6 +17,10 @@ import { deployBlockedReason, deployFilesFor } from "../lib/deploy.js";
  * - a redeploy updates the same Site and sends the last live version back, so a
  *   Site that changed elsewhere is refused with a clear message rather than
  *   silently replaced — that message is what `deploy.error` shows.
+ *
+ * Styling follows "The Printed Line": the live site is a printed ticket row —
+ * small-caps caption, a mono URL on its own line, mono counts and timestamps —
+ * with warnings and errors as tinted ruled strips, never as filled cards.
  */
 export default function DeployPanel({ id, boxType }: { id: string; boxType: BoxType }) {
   const boxData = useBoardStore((s) => s.boxData[id]);
@@ -36,53 +42,63 @@ export default function DeployPanel({ id, boxType }: { id: string; boxType: BoxT
   if (!deploy && !files.length) return null;
 
   return (
-    <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50/70">
-      <div className="flex flex-wrap items-center gap-1.5 px-2 py-1.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-          🌐 Live site
+    <div className="mt-2 border-t border-rule">
+      {/* Ticket strip — the site's state and the one action */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-rule bg-paper-raised px-2.5 py-2">
+        <span className="label-caps inline-flex items-center gap-1 text-ink-muted">
+          <Icon name="globe" size={11} />
+          Live site
         </span>
         {live ? (
-          <span className="text-[10px] text-slate-500 tabular-nums">
+          <span className="data-mono text-ink-muted">
             {live.fileCount} file{live.fileCount === 1 ? "" : "s"} · {(live.bytes / 1024).toFixed(1)} KB ·{" "}
             {new Date(live.deployedAt).toLocaleString()}
           </span>
         ) : (
-          <span className="text-[10px] text-slate-400">{blocked || `${files.length} file(s) ready to publish`}</span>
+          <span className="data-mono text-ink-muted">{blocked || `${files.length} file(s) ready to publish`}</span>
         )}
-        <span className="flex-1" />
-        <button
+        <Button
+          variant="primary"
+          size="xs"
           onClick={() => deployBox(id)}
           disabled={isRunning || Boolean(blocked)}
-          className="text-[11px] font-medium px-2 py-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 transition whitespace-nowrap"
+          className="ml-auto whitespace-nowrap"
           title={hasLive ? "Publish the current code to the same site" : "Publish this box's code to a live URL"}
+          icon={<Icon name="globe" size={12} />}
         >
-          {isRunning ? "⏳ Publishing…" : hasLive ? "🚀 Redeploy" : "🚀 Deploy"}
-        </button>
+          {isRunning ? "Publishing…" : hasLive ? "Redeploy" : "Deploy"}
+        </Button>
       </div>
 
       {failed && (
-        <p className="px-2 pb-1.5 text-[10px] text-rose-700 bg-rose-50/70 border-t border-rose-100 pt-1">
-          ⚠ {failed}
-          {deploy?.url ? " The previous site is still live and unchanged." : ""}
+        <p className="flex items-start gap-1.5 border-b border-[rgba(179,58,43,0.20)] bg-[rgba(179,58,43,0.06)] px-2.5 py-1.5 text-[11px] leading-snug text-state-error">
+          <Icon name="alert" size={12} className="mt-[1px]" />
+          <span className="flex-1">
+            {failed}
+            {deploy?.url ? " The previous site is still live and unchanged." : ""}
+          </span>
         </p>
       )}
 
       {live && (
-        <div className="px-2 pb-1.5 border-t border-slate-200 pt-1 space-y-0.5">
+        <div className="space-y-1.5 border-b border-rule px-2.5 py-2 last:border-b-0">
+          {/* The URL is the one fact here: mono, on its own rule, selectable. */}
           <a
             href={live.url}
             target="_blank"
             rel="noreferrer"
-            className="nodrag block text-[11px] font-medium text-indigo-700 hover:underline truncate"
+            className="nodrag data-mono block select-all truncate font-medium text-pine hover:underline hover:decoration-signal hover:underline-offset-2"
             title={live.url}
           >
             {live.url}
           </a>
-          <p className="text-[10px] text-slate-500">
+          <p className="text-[11px] leading-snug text-ink-muted">
             {live.anonymous ? (
               <>
                 Anonymous site —{" "}
-                {live.expiresAt ? `expires ${new Date(live.expiresAt).toLocaleString()}` : "expires in 24 hours"}
+                <span className="data-mono text-state-stale">
+                  {live.expiresAt ? `expires ${new Date(live.expiresAt).toLocaleString()}` : "expires in 24 hours"}
+                </span>
                 . Claim it to keep it permanently:
               </>
             ) : (
@@ -90,31 +106,39 @@ export default function DeployPanel({ id, boxType }: { id: string; boxType: BoxT
             )}
           </p>
           {live.anonymous && live.claimUrl && (
-            <div className="space-y-0.5">
-              <button
+            <div className="space-y-1">
+              <Button
+                variant="secondary"
+                size="xs"
                 onClick={() => setShowClaim((v) => !v)}
-                className="text-[10px] px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition"
                 title="here.now returns this link only once — copy it before it is lost"
+                icon={<Icon name="key" size={11} />}
               >
-                {showClaim ? "Hide claim link" : "🔑 Show claim link"}
-              </button>
+                {showClaim ? "Hide claim link" : "Show claim link"}
+              </Button>
               {showClaim && (
-                <div>
-                  <code className="nodrag block text-[10px] break-all bg-white border border-slate-200 rounded px-1.5 py-1 text-slate-700 select-all">
+                <div className="space-y-1">
+                  <code className="nodrag data-mono block select-all break-all rounded-xs border border-rule bg-card px-1.5 py-1 text-ink-soft">
                     {live.claimUrl}
                   </code>
-                  <p className="text-[10px] text-amber-800 mt-0.5">
-                    ⚠ Returned once and cannot be recovered. Keep it if you want to update this site later —
-                    a modified link will not work.
+                  <p className="flex items-start gap-1.5 text-[11px] leading-snug text-state-stale">
+                    <Icon name="alert" size={11} className="mt-[1px]" />
+                    <span>
+                      Returned once and cannot be recovered. Keep it if you want to update this site later —
+                      a modified link will not work.
+                    </span>
                   </p>
                 </div>
               )}
             </div>
           )}
           {live.warnings.length > 0 && (
-            <ul className="text-[10px] text-amber-800 space-y-0.5">
+            <ul className="space-y-1">
               {live.warnings.map((warning, i) => (
-                <li key={i}>⚠ {warning}</li>
+                <li key={i} className="flex items-start gap-1.5 text-[11px] leading-snug text-state-stale">
+                  <Icon name="alert" size={11} className="mt-[1px]" />
+                  <span>{warning}</span>
+                </li>
               ))}
             </ul>
           )}

@@ -1,0 +1,21 @@
+import { chromium } from "/Users/alessiobonti/dev/ai-canva/client/node_modules/playwright-core/index.mjs";
+const browser = await chromium.launch({ executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless: true });
+const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+await ctx.addInitScript(() => { try { localStorage.clear(); } catch {} });
+const page = await ctx.newPage();
+await page.goto("http://127.0.0.1:5183", { waitUntil: "load" });
+await page.waitForFunction(() => !!window.__dsh && window.__dsh.useAuthStore.getState().loading === false, null, { timeout: 20000 });
+await page.evaluate(() => window.__dsh.useAuthStore.setState({ user: { uid: "a", email: "a@b.c", displayName: "A", photoURL: "" }, loading: false }));
+await page.waitForFunction(() => !!document.querySelector(".app-bar"), null, { timeout: 15000 });
+await page.waitForTimeout(2200);
+await page.evaluate(() => { document.querySelectorAll("button").forEach((b) => { if (b.title === "Hide help") b.click(); }); });
+const out = await page.evaluate(() => {
+  const node = document.querySelector(".box-node");
+  const ta = node.querySelector("textarea");
+  const body = ta?.closest(".box-body") || ta?.parentElement;
+  const m = (el) => { const r = el.getBoundingClientRect(); return { w: Math.round(r.width), x: Math.round(r.x), sw: el.scrollWidth, cw: el.clientWidth }; };
+  const cs = (el) => { const c = getComputedStyle(el); return { w: c.width, minW: c.minWidth, maxW: c.maxWidth, disp: c.display, of: c.overflow, ws: c.whiteSpace }; };
+  return { node: m(node), nodeCs: cs(node), body: m(body), bodyCs: cs(body), ta: m(ta), taCs: cs(ta) };
+});
+console.log(JSON.stringify(out, null, 1));
+await browser.close();

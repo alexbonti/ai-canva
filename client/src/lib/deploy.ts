@@ -1,6 +1,7 @@
 import type { BoxData, BoxType } from "../types.js";
 import { wrapCodeInHtml, wrapUIInHtml } from "./code.js";
 import { renderChangeSet } from "./codeedit.js";
+import { isFullHtmlDocument, wrapHtmlFragment } from "./uidesign.js";
 
 /**
  * Turning a box's code into a publishable site.
@@ -41,9 +42,12 @@ export function deployBytes(files: DeployFile[]): number {
 /**
  * The files a box publishes.
  *
- * - **Code / UI Design:** a self-contained `index.html` (React + Babel from a CDN,
- *   exactly what the box's own preview uses) plus `App.jsx` holding the source, so
- *   the published site shows the running prototype AND the code that produced it.
+ * - **Code:** a self-contained `index.html` (React + Babel from a CDN, exactly
+ *   what the box's own preview uses) plus `App.jsx` holding the source, so the
+ *   published site shows the running prototype AND the code that produced it.
+ * - **UI Design:** its page is already a self-contained HTML document (the box
+ *   builds plain HTML now), so it is published as `index.html` as-is. A legacy
+ *   React-based UI box keeps the old wrapped `index.html` + `App.jsx` pair.
  * - **Stitch UI:** its HTML is already a page — published as `index.html` as-is.
  * - **Code Edit:** the changed files at their repository paths (so a change that
  *   touches a static site deploys as that site) plus `CHANGES.md`, the diff
@@ -57,6 +61,15 @@ export function deployFilesFor(type: BoxType | string, data: BoxData | undefined
 
   if (type === "code" || type === "ui") {
     if (!code) return [];
+    // UI Design now builds a plain, self-contained HTML page: publish it as the
+    // page itself. Boards created before that change still hold React JSX — keep
+    // the old wrapper + source pair for them so redeploys don't break.
+    if (type === "ui") {
+      if (isFullHtmlDocument(code)) return [{ path: "index.html", content: code }];
+      if (!/ReactDOM\.(createRoot|render)/.test(code)) {
+        return [{ path: "index.html", content: wrapHtmlFragment(code) }];
+      }
+    }
     const html = type === "code" ? wrapCodeInHtml(code) : wrapUIInHtml(code);
     return [
       { path: "index.html", content: html },

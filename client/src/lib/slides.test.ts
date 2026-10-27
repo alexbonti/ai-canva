@@ -8,7 +8,7 @@ describe("parseSlidesResponse", () => {
       { title: "Solution", bullets: ["C"], notes: "say this" },
     ]);
     expect(parseSlidesResponse(text)).toEqual([
-      { title: "Problem", bullets: ["A", "B"], notes: undefined },
+      { title: "Problem", bullets: ["A", "B"], notes: "" },
       { title: "Solution", bullets: ["C"], notes: "say this" },
     ]);
   });
@@ -16,7 +16,7 @@ describe("parseSlidesResponse", () => {
   it("strips a markdown ```json fence", () => {
     const text = '```json\n[{"title":"T","bullets":["x"]}]\n```';
     expect(parseSlidesResponse(text)).toEqual([
-      { title: "T", bullets: ["x"], notes: undefined },
+      { title: "T", bullets: ["x"], notes: "" },
     ]);
   });
 
@@ -28,14 +28,14 @@ describe("parseSlidesResponse", () => {
   it("drops items without a string title", () => {
     const text = JSON.stringify([{ bullets: [] }, { title: "Good", bullets: [] }]);
     expect(parseSlidesResponse(text)).toEqual([
-      { title: "Good", bullets: [], notes: undefined },
+      { title: "Good", bullets: [], notes: "" },
     ]);
   });
 
   it("coerces non-string bullets to strings", () => {
     const text = JSON.stringify([{ title: "T", bullets: [1, "two"] }]);
     expect(parseSlidesResponse(text)).toEqual([
-      { title: "T", bullets: ["1", "two"], notes: undefined },
+      { title: "T", bullets: ["1", "two"], notes: "" },
     ]);
   });
 

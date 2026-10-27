@@ -196,10 +196,26 @@ async function request<T>(url: string, init: RequestInit, what: string): Promise
   return body as T;
 }
 
+/**
+ * here.now's authoritative publish state. The API now documents that clients
+ * must report from these fields instead of inferring them from request shape.
+ */
+interface PublishStatus {
+  requestAuth?: string;
+  ownership?: string;
+  persistence?: string;
+  expiresAt?: string;
+  state?: string;
+}
+
 interface CreateResponse {
   slug?: string;
   siteUrl?: string;
   anonymous?: boolean;
+  /** False when the Site is already live and needs no finalize (e.g. a no-op update). */
+  requiresFinalize?: boolean;
+  isLive?: boolean;
+  publishStatus?: PublishStatus;
   expiresAt?: string | null;
   claimToken?: string;
   claimUrl?: string;
@@ -220,6 +236,7 @@ interface FinalizeResponse {
   unchanged?: boolean;
   replayed?: boolean;
   warnings?: string[];
+  publishStatus?: PublishStatus;
 }
 
 /**
@@ -265,50 +282,80 @@ export async function deploySite(opts: {
   );
 
   const upload = created.upload;
-  if (!upload?.finalizeUrl) {
+  // Newer here.now responses carry `requiresFinalize`/`isLive`: a no-op update can
+  // come back already live with no upload targets, and the old unconditional
+  // `throw` turned that into "nothing was published" even though the Site was fine.
+  const alreadyLive =
+    created.requiresFinalize === false ||
+    created.isLive === true && !upload?.finalizeUrl;
+  const needsFinalize = !alreadyLive;
+  if (needsFinalize && !upload?.finalizeUrl) {
     throw new DeployError("here.now accepted the request but returned no upload targets — nothing was published.");
   }
 
-  // Push every file's bytes to its presigned URL (these go to storage, not to
-  // here.now itself).
-  const targets = upload.uploads || [];
+  // Upload the file bytes to their presigned URLs (storage, not here.now itself).
+  // Bounded concurrency: 400 sequential PUTs blew through Hosting's ~60s rewrite
+  // window, so a large deploy never reached finalize and the Site never went live.
+  const targets = upload?.uploads || [];
   const byPath = new Map(files.map((file) => [file.path, file]));
-  for (const target of targets) {
-    const file = byPath.get(target.path);
-    if (!file) continue;
-    const putHeaders: Record<string, string> = { ...(target.headers || {}) };
-    if (file.contentType && !Object.keys(putHeaders).some((h) => h.toLowerCase() === "content-type")) {
-      putHeaders["content-type"] = file.contentType;
+  const deadline = Date.now() + 45_000;
+  const UPLOAD_CONCURRENCY = 6;
+  for (let i = 0; i < targets.length; i += UPLOAD_CONCURRENCY) {
+    if (Date.now() > deadline) {
+      throw new DeployError(
+        "Publishing took longer than 45 seconds — the Site was not finalized. Retry the deploy (the files are cached, so it is faster the second time)."
+      );
     }
-    await request(
-      target.url,
-      { method: target.method || "PUT", headers: putHeaders, body: file.content },
-      `Uploading ${file.path}`
+    await Promise.all(
+      targets.slice(i, i + UPLOAD_CONCURRENCY).map(async (target) => {
+        const file = byPath.get(target.path);
+        if (!file) return;
+        const putHeaders: Record<string, string> = { ...(target.headers || {}) };
+        if (file.contentType && !Object.keys(putHeaders).some((h) => h.toLowerCase() === "content-type")) {
+          putHeaders["content-type"] = file.contentType;
+        }
+        await request(
+          target.url,
+          { method: target.method || "PUT", headers: putHeaders, body: file.content },
+          `Uploading ${target.path}`
+        );
+      })
     );
   }
 
-  // A Site is not live until this succeeds.
-  const finalized = await request<FinalizeResponse>(
-    upload.finalizeUrl,
-    {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ versionId: upload.versionId }),
-    },
-    "The publish finalize"
-  );
+  // A Site is not live until this succeeds — unless here.now already said it is.
+  let finalized: FinalizeResponse = {};
+  if (needsFinalize && upload?.finalizeUrl) {
+    finalized = await request<FinalizeResponse>(
+      upload.finalizeUrl,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ versionId: upload.versionId }),
+      },
+      "The publish finalize"
+    );
+  }
 
   const warnings: string[] = [];
   if (Array.isArray(finalized.warnings)) warnings.push(...finalized.warnings.filter((w): w is string => typeof w === "string"));
   if (created.warning) warnings.push(created.warning);
 
+  // `anonymous` was inferred from an optional field; prefer the documented
+  // publishStatus/expiry signal when the response carries one (a keyed deploy
+  // that omits `anonymous` used to be reported as a temporary anonymous Site).
+  const status = finalized.publishStatus || created.publishStatus;
+  const expiresAt = status?.expiresAt || created.expiresAt || "";
+  const anonymous =
+    typeof created.anonymous === "boolean" ? created.anonymous : Boolean(expiresAt);
+
   return {
     slug: finalized.slug || created.slug || opts.slug || "",
     siteUrl: finalized.siteUrl || created.siteUrl || "",
-    versionId: finalized.currentVersionId || upload.versionId || "",
+    versionId: finalized.currentVersionId || upload?.versionId || "",
     unchanged: Boolean(finalized.unchanged),
-    anonymous: created.anonymous !== false,
-    expiresAt: created.expiresAt || "",
+    anonymous,
+    expiresAt,
     claimToken: created.claimToken || "",
     claimUrl: created.claimUrl || "",
     warnings,

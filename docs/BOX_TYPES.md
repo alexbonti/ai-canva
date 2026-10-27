@@ -122,8 +122,10 @@ Any box that contains code can be published to a live URL — **Code**, **UI Des
 and **Code Edit**. Press **🚀 Deploy** in the box (or the button in the 🌐 Live site strip) and the
 backend publishes it to **here.now**:
 
-- what gets published: Code/UI → a self-contained `index.html` (the same CDN-wrapped page the box
-  previews) **plus `App.jsx`** with the source; Stitch UI → its HTML as-is; Code Edit → the changed
+- what gets published: Code → a self-contained `index.html` (the same CDN-wrapped page the box
+  previews) **plus `App.jsx`** with the source; UI Design → its self-contained HTML page as
+  `index.html` (legacy React-based UI boxes still get the wrapped page + `App.jsx`); Stitch UI →
+  its HTML as-is; Code Edit → the changed
   files at their repository paths **plus `CHANGES.md`** with the diff;
 - the first deploy **creates** the Site and later ones **update the same one**, sending its live
   version back — so a Site that changed elsewhere (the here.now editor, another agent) is refused
@@ -265,16 +267,33 @@ Code/Preview tabs, Copy, and Save (download).
 
 ### ✨ UI Design — `ui`
 
-Generates polished, production-quality React UIs using **Tailwind CSS classes** + Google Fonts
-(production-quality, Google Stitch style). Previewed in an iframe with Tailwind loaded.
+Builds a **simple, self-contained HTML page** — and **simplifies before it builds**. Two small model
+calls instead of one huge generation:
 
-- **AI:** Ollama (text).
-- **Inputs:** `{{inputs}}`.
-- **Output:** `code` (Tailwind-based JSX) + preview.
-- **Settings:** same as Code box; system prompt emphasizes visual polish.
+1. **Simplify:** the box's description + everything connected to it (a Research box, a PRD, an Idea)
+   are condensed into a compact **design brief** (~160 words: 3-4 sections, UI pieces, a 4-colour
+   palette, layout, mock content). No code at this stage.
+2. **Build:** that brief becomes **ONE plain HTML file** — inline `<style>`, no React, no Tailwind
+   CDN, no build step, target ≤300 lines. It is previewed in the iframe as-is, and 🚀 Deploy
+   publishes it as `index.html` unchanged.
+
+- **AI:** Ollama (text), with the provider's **reasoning pass turned off** (`think: false`) for both
+  steps — a straight page build does not need it, and it makes the run ~6× faster (measured: 8 s
+  build / ~3.3k output tokens instead of 64 s / ~22.8k tokens).
+- **Inputs:** the box's own description + `{{inputs}}` (Research / PRD / Dev Plan / Idea all work —
+  the longer the research, the more the brief stage simplifies).
+- **Output:** `designBrief` (the simplified brief, shown in the box's 🧭 **Brief** tab) + `code` /
+  `output` (the HTML page).
+- **Why two steps:** a single "design me a full React app" request produced 20-30k-token JSX replies
+  that overflowed the output budget and failed as "incomplete". Simplifying first cuts the page to
+  ~10 KB of HTML and keeps the run under 15 seconds.
 - **Change requests + versions:** identical to the Code box — the same "Request a change…" field,
-  ✏️ Apply change, 🔀 diff and 🕘 version history with ↩ Revert (`client/src/components/
-  CodeChangePanel.tsx`, shared by both boxes).
+  ✏️ Apply change (rewrites the complete HTML document, guarded so an incomplete reply never
+  replaces a working page), 🔀 diff and 🕘 version history with ↩ Revert
+  (`client/src/components/CodeChangePanel.tsx`, shared by both boxes).
+- **Code:** prompts in `client/src/types.ts` (`UI_*`), pure helpers in `client/src/lib/uidesign.ts`
+  (brief/build/change prompt builders, HTML extraction/normalization, preview + fragment handling,
+  all unit-tested), run path `runUiDesign` in `boardStore.ts`.
 
 ### 🧵 Stitch UI — `stitch`
 

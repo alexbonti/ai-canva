@@ -9,12 +9,26 @@ import {
   type CustomBoxDraft,
 } from "../lib/customBoxes.js";
 import { useUserBoxesStore } from "../store/userBoxesStore.js";
+import { Button } from "./ui/Button.js";
+import { Icon } from "./ui/Icon.js";
+
+/** The one field recipe every dialog in "The Printed Line" uses. */
+const FIELD =
+  "w-full rounded-sm border border-rule bg-card px-2.5 text-[13px] text-ink " +
+  "placeholder:text-ink-muted focus:outline-none focus:border-pine focus:ring-2 focus:ring-signal/30";
+
+const LABEL = "mb-1.5 block label-caps text-ink-muted";
+
+const HINT = "text-[11px] leading-snug text-ink-muted";
 
 /**
  * "Create Custom Box" dialog: names a reusable AI box template, picks an
  * emoji + color, and writes the prompt/systemPrompt templates. Saved to the
  * user's profile (users/{uid}/boxes) so it appears in their palette on every
  * board. Rendered via a portal to document.body.
+ *
+ * The emoji picker is the user's own custom-box icon (user content), so it
+ * keeps emoji; every piece of dialog chrome is the shared icon set.
  */
 export default function CustomBoxModal({ onClose }: { onClose: () => void }) {
   const createDef = useUserBoxesStore((s) => s.create);
@@ -47,34 +61,40 @@ export default function CustomBoxModal({ onClose }: { onClose: () => void }) {
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-slate-200 max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(22,33,28,0.45)] p-4">
+      <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-md border border-rule bg-card shadow-float">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
-          <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-            <span>✨</span> Create a Custom Box
+        <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-rule px-6 py-3.5">
+          <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-[-0.01em] text-ink">
+            <Icon name="custom" size={16} className="text-line-custom" />
+            Create a Custom Box
           </h2>
           <button
             onClick={onClose}
-            className="rounded-lg px-2.5 py-1 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition"
+            aria-label="Close"
+            title="Close"
+            className="-mr-1 inline-flex h-7 w-7 items-center justify-center rounded-sm text-ink-muted transition-colors hover:bg-paper-raised hover:text-ink focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
           >
-            ✕ Close
+            <Icon name="x" size={16} />
           </button>
         </div>
 
         {/* Body */}
-        <div className="px-5 py-4 space-y-4 overflow-y-auto">
-          <p className="text-xs text-slate-500 -mt-1">
+        <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+          <p className="-mt-1 text-[11.5px] leading-snug text-ink-muted">
             Your own reusable AI box — saved to your profile and available on every board.
           </p>
 
           {/* Name + icon */}
           <div className="flex items-end gap-3">
-            <div className="flex-1">
-              <label className="text-xs font-semibold text-slate-600 block mb-1">Name</label>
+            <div className="min-w-0 flex-1">
+              <label htmlFor="custom-box-name" className={LABEL}>
+                Name
+              </label>
               <input
+                id="custom-box-name"
                 autoFocus
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                className={FIELD + " h-8"}
                 placeholder="e.g. Translate to French"
                 value={label}
                 maxLength={40}
@@ -82,25 +102,31 @@ export default function CustomBoxModal({ onClose }: { onClose: () => void }) {
               />
             </div>
             <div
-              className="w-11 h-11 rounded-xl border-2 flex items-center justify-center text-xl flex-shrink-0"
-              style={{ borderColor: color, backgroundColor: color + "20" }}
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md border text-lg"
+              style={{ borderColor: color, backgroundColor: color + "14" }}
               title="Preview"
             >
               {icon}
             </div>
           </div>
 
-          {/* Icon picker */}
+          {/* Icon picker — the user's own custom-box emoji (user content). */}
           <div>
-            <label className="text-xs font-semibold text-slate-600 block mb-1.5">Icon</label>
-            <div className="flex flex-wrap gap-1">
+            <span className={LABEL}>Icon</span>
+            <div className="flex flex-wrap gap-2">
               {CUSTOM_BOX_EMOJIS.map((e) => (
                 <button
                   key={e}
+                  type="button"
                   onClick={() => setIcon(e)}
+                  aria-pressed={icon === e}
+                  aria-label={`Use ${e} as this box's icon`}
                   className={
-                    "w-8 h-8 rounded-lg text-base flex items-center justify-center border transition " +
-                    (icon === e ? "border-indigo-500 bg-indigo-50 scale-110" : "border-slate-200 hover:bg-slate-50")
+                    "flex h-8 w-8 items-center justify-center rounded-sm border text-base transition-colors " +
+                    "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal " +
+                    (icon === e
+                      ? "border-pine bg-paper-raised ring-2 ring-signal ring-offset-2 ring-offset-card"
+                      : "border-rule bg-card hover:border-rule-strong hover:bg-paper-raised")
                   }
                 >
                   {e}
@@ -111,15 +137,21 @@ export default function CustomBoxModal({ onClose }: { onClose: () => void }) {
 
           {/* Color picker */}
           <div>
-            <label className="text-xs font-semibold text-slate-600 block mb-1.5">Color</label>
-            <div className="flex flex-wrap gap-1.5">
+            <span className={LABEL}>Color</span>
+            <div className="flex flex-wrap gap-2">
               {CUSTOM_BOX_COLORS.map((c) => (
                 <button
                   key={c}
+                  type="button"
                   onClick={() => setColor(c)}
+                  aria-pressed={color === c}
+                  aria-label={`Use ${c} as this box's color`}
                   className={
-                    "w-7 h-7 rounded-full border-2 transition " +
-                    (color === c ? "border-slate-800 scale-110" : "border-white")
+                    "h-5 w-5 rounded-pill border transition " +
+                    "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal " +
+                    (color === c
+                      ? "border-pine ring-2 ring-signal ring-offset-2 ring-offset-card"
+                      : "border-rule hover:ring-2 hover:ring-rule")
                   }
                   style={{ backgroundColor: c }}
                   title="Box color"
@@ -130,11 +162,15 @@ export default function CustomBoxModal({ onClose }: { onClose: () => void }) {
 
           {/* Description */}
           <div>
-            <label className="text-xs font-semibold text-slate-600 block mb-1">
-              Description <span className="text-slate-400">(optional)</span>
-            </label>
+            <div className="mb-1.5 flex items-baseline justify-between gap-2">
+              <label htmlFor="custom-box-description" className="label-caps text-ink-muted">
+                Description
+              </label>
+              <span className="text-[11px] text-ink-muted">optional</span>
+            </div>
             <input
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              id="custom-box-description"
+              className={FIELD + " h-8"}
               placeholder="What does this box do?"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -143,27 +179,40 @@ export default function CustomBoxModal({ onClose }: { onClose: () => void }) {
 
           {/* Prompt template */}
           <div>
-            <label className="text-xs font-semibold text-slate-600 block mb-1">
+            <label htmlFor="custom-box-prompt" className={LABEL}>
               Prompt template
             </label>
             <textarea
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-300 min-h-[90px] resize-y"
+              id="custom-box-prompt"
+              className={
+                FIELD +
+                " min-h-[90px] resize-y py-2 font-mono text-[11.5px] leading-[1.5]"
+              }
               placeholder={"What the AI should do. Use connected inputs:\n\nTranslate the following to French:\n{{input_1}}"}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
             />
-            <p className="text-[10px] text-slate-400 mt-1">
-              Supports {"{{input_1}}"}, {"{{Box Name}}"}, {"{{inputs}}"} — just like the built-in boxes.
+            <p className={"mt-1 " + HINT}>
+              Supports <span className="font-mono">{"{{input_1}}"}</span>,{" "}
+              <span className="font-mono">{"{{Box Name}}"}</span>,{" "}
+              <span className="font-mono">{"{{inputs}}"}</span> — just like the built-in boxes.
             </p>
           </div>
 
           {/* System prompt */}
           <div>
-            <label className="text-xs font-semibold text-slate-600 block mb-1">
-              System prompt <span className="text-slate-400">(the AI's role)</span>
-            </label>
+            <div className="mb-1.5 flex items-baseline justify-between gap-2">
+              <label htmlFor="custom-box-system" className="label-caps text-ink-muted">
+                System prompt
+              </label>
+              <span className="text-[11px] text-ink-muted">the AI's role</span>
+            </div>
             <textarea
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-300 min-h-[60px] resize-y"
+              id="custom-box-system"
+              className={
+                FIELD +
+                " min-h-[60px] resize-y py-2 text-[12.5px] leading-[1.5]"
+              }
               placeholder="e.g. You are a professional translator. Reply only with the translation."
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
@@ -171,29 +220,28 @@ export default function CustomBoxModal({ onClose }: { onClose: () => void }) {
           </div>
 
           {errors.length > 0 && (
-            <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 space-y-0.5">
+            <div className="rounded-sm border border-error-line bg-error-wash px-3 py-2">
               {errors.map((e) => (
-                <p key={e} className="text-xs text-red-600">• {e}</p>
+                <p
+                  key={e}
+                  className="flex items-start gap-1.5 py-0.5 text-[11.5px] leading-snug text-state-error"
+                >
+                  <Icon name="alert" size={13} className="mt-px" />
+                  <span>{e}</span>
+                </p>
               ))}
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3.5 border-t border-slate-100 flex items-center justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition"
-          >
+        <div className="flex flex-shrink-0 items-center justify-end gap-2 border-t border-rule bg-paper-raised px-6 py-3">
+          <Button variant="ghost" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-indigo-500 hover:bg-indigo-400 transition disabled:opacity-50"
-          >
+          </Button>
+          <Button variant="primary" onClick={handleSave} disabled={saving}>
             {saving ? "Saving…" : "Save to my profile"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>,

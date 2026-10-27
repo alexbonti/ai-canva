@@ -4,11 +4,14 @@ import { useAuthStore } from "../store/authStore.js";
 import { groupRoster, type RosterEntry } from "../lib/presence.js";
 
 /**
- * Header presence UI: a stack of avatars of everyone currently on the board
- * plus a "N online" pill. Clicking it opens the full roster — online users
- * (with names/emails and a "you" marker) and, below, collaborators the board
- * is shared with who are not online right now. Shown whenever a board is
- * open, so the roster works both for solo boards ("only you") and shared ones.
+ * Header presence UI: a stack of coloured presence dots for everyone on the
+ * board plus a "N online" pill. Clicking it opens the full roster — online
+ * users (names, emails and a mono "you" chip) and, below, collaborators the
+ * board is shared with who are not online right now. Shown whenever a board is
+ * open, so the roster reads both as "only you" and as a live list.
+ *
+ * Styling: "The Printed Line" — a cream popover over the pine app bar, hairline
+ * separators, 8px presence dots and small-caps captions.
  */
 export default function PresenceRoster() {
   const activeUsers = useBoardStore((s) => s.activeUsers);
@@ -43,23 +46,31 @@ export default function PresenceRoster() {
     <div ref={wrapRef} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 transition"
+        aria-expanded={open}
         title="Who is on this board right now"
+        className={
+          "flex h-8 items-center gap-2 rounded-pill border pl-2 pr-2.5 text-cream transition-colors " +
+          "focus:outline-none focus-visible:outline focus-visible:outline-2 " +
+          "focus-visible:outline-offset-2 focus-visible:outline-signal " +
+          (open
+            ? "border-[rgba(242,237,225,0.44)] bg-[rgba(242,237,225,0.10)]"
+            : "border-[rgba(242,237,225,0.28)] hover:border-[rgba(242,237,225,0.44)] hover:bg-[rgba(242,237,225,0.10)]")
+        }
       >
-        <span className="flex items-center -space-x-1.5">
+        <span className="flex items-center -space-x-1">
           {shown.map((u) => (
             <span
               key={u.email}
-              className="w-6 h-6 rounded-full text-white text-xs font-bold flex items-center justify-center border-2 border-white"
+              className="h-2 w-2 rounded-pill border border-pine"
               style={{ backgroundColor: u.color }}
               title={u.email}
-            >
-              {u.initials}
-            </span>
+            />
           ))}
+          {extra > 0 && (
+            <span className="data-mono pl-1.5 text-cream/70">+{extra}</span>
+          )}
         </span>
-        <span className="text-xs font-medium text-slate-600 flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+        <span className="whitespace-nowrap text-[11px] font-medium text-cream/80">
           {roster.online.length} online
         </span>
       </button>
@@ -67,65 +78,73 @@ export default function PresenceRoster() {
       {open && (
         <div
           data-testid="roster-popover"
-          className="absolute right-0 top-full mt-2 w-72 rounded-xl bg-white border border-slate-200 shadow-xl z-50 overflow-hidden"
+          className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-md border border-rule bg-cream shadow-float"
         >
-          <div className="px-3.5 py-2.5 border-b border-slate-100">
-            <p className="text-sm font-semibold text-slate-800">On this board now</p>
-            <p className="text-[11px] text-slate-400">
-              {roster.online.length === 1
-                ? "Only you — share the board to collaborate."
-                : `${roster.online.length} people have this board open.`}
-            </p>
+          <div className="flex items-start justify-between gap-3 border-b border-rule px-3.5 py-2.5">
+            <div className="min-w-0">
+              <p className="label-caps text-ink-muted">On this board now</p>
+              <p className="mt-1 text-[11.5px] leading-snug text-ink-soft">
+                {roster.online.length === 1
+                  ? "Only you — share the board to collaborate."
+                  : `${roster.online.length} people have this board open.`}
+              </p>
+            </div>
+            <span className="data-mono text-ink-muted">{roster.online.length}</span>
           </div>
 
-          <div className="max-h-64 overflow-y-auto py-1">
+          <div className="max-h-64 overflow-y-auto">
             {roster.online.map((u: RosterEntry) => (
-              <div key={u.email} data-testid="roster-row" className="flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-50">
+              <div
+                key={u.email}
+                data-testid="roster-row"
+                className="flex items-center gap-2.5 border-b border-rule px-3.5 py-2 last:border-b-0"
+              >
                 <span
-                  className="w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center flex-shrink-0"
+                  className="h-2 w-2 flex-shrink-0 rounded-pill"
                   style={{ backgroundColor: u.color }}
-                >
-                  {u.initials}
-                </span>
-                <span className="flex-1 min-w-0">
+                  title="Online"
+                />
+                <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
-                    <span className="text-sm font-medium text-slate-700 truncate">{u.name}</span>
+                    <span className="truncate text-[12.5px] font-medium text-ink">{u.name}</span>
                     {u.isSelf && (
-                      <span data-testid="you-chip" className="text-[10px] font-semibold text-cyan-700 bg-cyan-50 border border-cyan-200 rounded-full px-1.5 py-0.5">
+                      <span
+                        data-testid="you-chip"
+                        className="data-mono rounded-pill border border-rule bg-card px-1.5 py-px text-ink-muted"
+                      >
                         you
                       </span>
                     )}
                   </span>
-                  <span className="block text-xs text-slate-400 truncate">{u.email}</span>
+                  <span className="data-mono block truncate text-ink-muted">{u.email}</span>
                 </span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" title="Online" />
               </div>
             ))}
 
             {roster.offline.length > 0 && (
               <>
-                <div className="px-3.5 pt-2 pb-1 border-t border-slate-100 mt-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                    Shared with · offline
-                  </p>
+                <div className="flex items-baseline justify-between gap-2 border-b border-rule px-3.5 pb-1 pt-2">
+                  <span className="label-caps text-ink-muted">Shared with · offline</span>
+                  <span className="data-mono text-ink-muted">{roster.offline.length}</span>
                 </div>
                 {roster.offline.map((email) => (
-                  <div key={email} className="flex items-center gap-2.5 px-3.5 py-1.5">
-                    <span className="w-7 h-7 rounded-full bg-slate-200 text-slate-500 text-xs font-bold flex items-center justify-center flex-shrink-0">
-                      {email.slice(0, 2).toUpperCase()}
-                    </span>
-                    <span className="flex-1 min-w-0">
-                      <span className="block text-sm text-slate-500 truncate">{email}</span>
-                    </span>
-                    <span className="w-2 h-2 rounded-full bg-slate-300 flex-shrink-0" title="Offline" />
+                  <div
+                    key={email}
+                    className="flex items-center gap-2.5 border-b border-rule px-3.5 py-1.5 last:border-b-0"
+                  >
+                    <span
+                      className="h-2 w-2 flex-shrink-0 rounded-pill border border-rule-strong bg-card"
+                      title="Offline"
+                    />
+                    <span className="data-mono min-w-0 flex-1 truncate text-ink-soft">{email}</span>
                   </div>
                 ))}
               </>
             )}
           </div>
 
-          <div className="px-3.5 py-2 border-t border-slate-100 bg-slate-50">
-            <p className="text-[10px] text-slate-400">
+          <div className="border-t border-rule bg-paper-raised px-3.5 py-2">
+            <p className="text-[11px] leading-snug text-ink-muted">
               People appear here while they have the board open.
             </p>
           </div>

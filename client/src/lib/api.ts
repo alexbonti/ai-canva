@@ -1,8 +1,45 @@
 const API_BASE = "/api";
 
+/**
+ * `fetch` with a hard deadline.
+ *
+ * Every AI call used to be a bare `fetch`: a hung model/backend left the box in
+ * `status: "running"` forever, and `runBox` refuses to start a run on a running
+ * box — so the box died until the page was reloaded (and, before load-time
+ * normalization, forever). A timeout turns that into an ordinary error the box
+ * can display and the user can retry.
+ */
+async function apiFetch(
+  url: string,
+  opts: { timeoutMs: number; timeoutMessage: string } & RequestInit = {
+    timeoutMs: 60_000,
+    timeoutMessage: "The request timed out.",
+  }
+): Promise<Response> {
+  const { timeoutMs, timeoutMessage, ...init } = opts;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err: any) {
+    const aborted =
+      err?.name === "AbortError" || /abort/i.test(String(err?.message || ""));
+    if (aborted) throw new Error(timeoutMessage);
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export interface GenerateRequest {
   systemPrompt: string;
   userPrompt: string;
+  /**
+   * Provider reasoning toggle. `false` disables the model's "thinking" — used by
+   * the UI Design box, whose two small steps (brief + simple HTML page) do not
+   * need reasoning and get much faster without it. Omitted = provider default.
+   */
+  think?: boolean;
 }
 
 export interface TokenUsage {
@@ -15,19 +52,31 @@ export interface GenerateResponse {
   content: string;
   model?: string;
   usage?: TokenUsage;
+  /** The provider hit its output cap — the reply is cut off mid-artifact. */
+  truncated?: boolean;
   error?: string;
 }
 
 /**
  * Calls the backend to generate text content via the Ollama backend.
+ *
+ * `opts.timeoutMs` — long-form artifacts (UI Design / Code) can take 2-3
+ * minutes because they emit up to 8-11k tokens; give them a bigger deadline
+ * than a normal text box.
  */
 export async function generate(
-  req: GenerateRequest
+  req: GenerateRequest,
+  opts: { timeoutMs?: number; timeoutMessage?: string } = {}
 ): Promise<GenerateResponse> {
-  const res = await fetch(`${API_BASE}/generate`, {
+  const timeoutMs = opts.timeoutMs ?? 120_000;
+  const res = await apiFetch(`${API_BASE}/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(req),
+    timeoutMs,
+    timeoutMessage:
+      opts.timeoutMessage ??
+      "The model did not answer within 2 minutes. Check your connection and run the box again.",
   });
 
   if (!res.ok) {
@@ -56,10 +105,13 @@ export interface GenerateImageResponse {
 export async function generateImage(
   req: GenerateImageRequest
 ): Promise<GenerateImageResponse> {
-  const res = await fetch(`${API_BASE}/generate-image`, {
+  const res = await apiFetch(`${API_BASE}/generate-image`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(req),
+    timeoutMs: 180_000,
+    timeoutMessage:
+      "Image generation did not finish within 3 minutes. Run the box again.",
   });
 
   if (!res.ok) {
@@ -92,10 +144,12 @@ interface StitchJobResponse {
  * `pollStitchJob` until it reports "done" or "error".
  */
 export async function startStitchJob(prompt: string): Promise<string> {
-  const res = await fetch(`${API_BASE}/stitch-generate`, {
+  const res = await apiFetch(`${API_BASE}/stitch-generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt }),
+    timeoutMs: 30_000,
+    timeoutMessage: "Could not start the Stitch job — the backend did not answer.",
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Request failed" }));
@@ -140,7 +194,13 @@ export async function pollStitchJob(
 }
 
 async function readStitchJob(jobId: string): Promise<StitchJobResponse> {
-  const res = await fetch(`${API_BASE}/stitch-status/${encodeURIComponent(jobId)}`);
+  const res = await apiFetch(
+    `${API_BASE}/stitch-status/${encodeURIComponent(jobId)}`,
+    {
+      timeoutMs: 20_000,
+      timeoutMessage: "Could not read the Stitch job status.",
+    }
+  );
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Request failed" }));
     throw new Error(err.error || `HTTP ${res.status}`);
@@ -161,7 +221,10 @@ export async function checkHealth(): Promise<{
   ollamaKey: string;
   falKey: string;
 }> {
-  const res = await fetch(`${API_BASE}/health`);
+  const res = await apiFetch(`${API_BASE}/health`, {
+    timeoutMs: 10_000,
+    timeoutMessage: "The health check timed out.",
+  });
   return res.json();
 }
 
@@ -199,10 +262,13 @@ export interface RepoDigestResponse {
  * repositories without the token ever reaching the client.
  */
 export async function fetchRepoDigest(repoUrl: string, paths?: string[]): Promise<RepoDigestResponse> {
-  const res = await fetch(`${API_BASE}/repo-digest`, {
+  const res = await apiFetch(`${API_BASE}/repo-digest`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(paths && paths.length > 0 ? { repoUrl, paths } : { repoUrl }),
+    timeoutMs: 90_000,
+    timeoutMessage:
+      "Reading the repository took longer than 90 seconds — try a smaller repository or retry.",
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Request failed" }));
@@ -250,10 +316,13 @@ export async function publishSite(req: {
   displayName?: string;
   displayDescription?: string;
 }): Promise<DeployResponse> {
-  const res = await fetch(`${API_BASE}/herenow-deploy`, {
+  const res = await apiFetch(`${API_BASE}/herenow-deploy`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(req),
+    timeoutMs: 120_000,
+    timeoutMessage:
+      "Publishing did not finish within 2 minutes. The live site may still be updating — check the site link before retrying.",
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Request failed" }));

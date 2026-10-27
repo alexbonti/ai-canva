@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sprint Task Plan — Assigning Tasks to the Students</title>
+<style>
+  :root { --ink:#1c1c1a; --green:#3F6B2A; --green-dark:#2F5220; --green-light:#EAF5DF; --cream:#f4efe6; --card:#fff; --grey:#6b6b60; --line:#e0d6c8; --blue:#2c3e50; --red:#c0392b; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Plus Jakarta Sans',-apple-system,system-ui,sans-serif; background:var(--cream); color:var(--ink); line-height:1.55; }
+  .wrap { max-width:880px; margin:0 auto; padding:48px 48px 80px; }
+  .kicker { font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--green); margin-bottom:10px; }
+  h1 { font-size:32px; font-weight:800; line-height:1.12; letter-spacing:-.02em; }
+  .sub { font-size:16px; color:var(--grey); margin-top:10px; }
+  .meta { display:flex; gap:20px; flex-wrap:wrap; margin:18px 0 26px; }
+  .meta div { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:8px 14px; font-size:13px; }
+  .meta b { color:var(--green); }
+  h2 { font-size:21px; font-weight:800; margin:34px 0 12px; padding-top:22px; border-top:1px solid var(--line); }
+  h2 .n { color:var(--green); }
+  h3 { font-size:16px; font-weight:800; margin:18px 0 8px; color:var(--green-dark); }
+  h4 { font-size:14px; font-weight:800; margin:14px 0 6px; color:var(--blue); }
+  p { margin:10px 0; font-size:15px; }
+  ul,ol { margin:10px 0 10px 22px; }
+  li { margin:6px 0; font-size:15px; }
+  table { width:100%; border-collapse:collapse; margin:14px 0; background:var(--card); font-size:14px; }
+  th { background:var(--ink); color:#fff; text-align:left; padding:8px 12px; }
+  td { border:1px solid var(--line); padding:8px 12px; vertical-align:top; }
+  tr:nth-child(even) td { background:#faf8f3; }
+  code { background:#eef0f2; font-family:ui-monospace,monospace; font-size:12.5px; padding:2px 6px; border-radius:5px; }
+  .callout { background:var(--green-light); border-left:4px solid var(--green); border-radius:10px; padding:13px 16px; margin:16px 0; font-size:14px; }
+  .callout b { color:var(--green-dark); }
+  .warn { background:#fdf0df; border-left:4px solid #d97706; border-radius:10px; padding:13px 16px; margin:16px 0; font-size:14px; }
+  .warn b { color:#a06a00; }
+  .role { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--blue); border-radius:10px; padding:13px 16px; margin:14px 0; }
+  .role b { color:var(--blue); }
+  pre.block { background:#1f2933; color:#e6edf3; border-radius:10px; padding:14px 16px; margin:12px 0; font-family:ui-monospace,SFMono-Regular,monospace; font-size:12px; line-height:1.7; white-space:pre-wrap; }
+  .footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--line); color:var(--grey); font-size:13px; }
+  @media print { body{background:#fff} .wrap{max-width:100%;padding:16mm} h2{break-before:auto} tr,pre.block{break-inside:avoid} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">AI-Assisted Software Project · Instructor's handout</div>
+  <h1>Sprint Task Plan</h1>
+  <div class="sub">Assigning tasks to the students working on the projects — the five tracks, sprint by sprint, with paste-ready task lists for the team boards.</div>
+  <div class="meta">
+    <div>Tracks: <b>5</b></div>
+    <div>Group sprints: <b>3</b> (8 weeks)</div>
+    <div>Individual: <b>M1–M5</b></div>
+    <div>Tasks: <b>per role, per sprint</b></div>
+  </div>
+
+  <h2><span class="n">1.</span> The five project tracks</h2>
+  <table>
+    <tr><th>Track</th><th>Brief</th><th>Mode</th><th>Work shape</th><th>Where tasks come from</th></tr>
+    <tr><td>🧑‍🎓 <b>One Student, One Box</b></td><td><code>individual-project/brief.md</code></td><td>Individual</td><td>1 box per student + 2,000–2,500 word research report</td><td>Its own folder: <code>individual-project/sprint-tasks.md</code> (3-week sprint, 30 h)</td></tr>
+    <tr><td>🛡️ <b>Cybersecurity &amp; Compliance</b></td><td><code>03_cyber_group_brief.md</code></td><td>Group (4–5)</td><td>≥3 boxes (design / check / assistant) + 3,000–4,000 word report</td><td>3 sprints, 8 weeks</td></tr>
+    <tr><td>🩺 <b>UX Support Tool (Telstra Health)</b></td><td><code>04_ux_health_group_brief.md</code></td><td>Group (4)</td><td>≥3 boxes (design / check / assistant) + team report</td><td>3 sprints, 8 weeks</td></tr>
+    <tr><td>💡 <b>Telstra Innovation Lab</b></td><td><code>06_telstra_innovation_brief.md</code></td><td>Group (4)</td><td>≥3 boxes (design / check / assistant) + team report</td><td>3 sprints, 8 weeks</td></tr>
+    <tr><td>🤝 <b>NBN Collaboration Tool</b></td><td><code>07_nbn_collab_brief.md</code></td><td>Group (4)</td><td>≥3 boxes (author / review / assistant) + team report</td><td>3 sprints, 8 weeks</td></tr>
+  </table>
+  <p><b>Group sprint spine (all four group briefs):</b> Sprint 1 = Weeks 1–2 (20 hrs/student) · Sprint 2 = Weeks 3–5 (30 hrs/student) · Sprint 3 = Weeks 6–8 (30 hrs/student). Each student is budgeted <b>10 hrs/week</b>.</p>
+  <div class="warn"><b>Timeline discrepancy to settle before you hand this out:</b> the individual brief ends at <b>Week 10</b> (M5, mega-pipeline) while the intro message says "3 sprints (8 weeks)". Decide which is authoritative and fix whichever doc is wrong — students get confused when the two disagree.</div>
+
+  <h2><span class="n">2.</span> How to actually give the tasks to students</h2>
+  <table>
+    <tr><th>Route</th><th>What the student sees</th><th>Tracking you get</th></tr>
+    <tr><td><b>A. In-app Checklist</b> (recommended)</td><td>The task list on their team board, live, shared with the whole team</td><td>Per-task tick, who ticked it and when, assignee, progress bar</td></tr>
+    <tr><td><b>B. Printed / HTML handout</b></td><td>This plan's per-track tables, as a PDF or print-out</td><td>Nothing automatic — collect it in class</td></tr>
+    <tr><td><b>C. Both</b></td><td>Checklist for tracking + handout for the briefing</td><td>Best: they read the <i>why</i> on paper, tick the <i>what</i> in the app</td></tr>
+  </table>
+
+  <h3>2.1 Route A — set up the team boards (facilitator path)</h3>
+  <p>You need an account that is <b>admin or facilitator</b> (grant it from the Admin board, or <code>POST /api/admin/roles</code>). Once granted, the header shows the <b>🧑‍🏫 Facilitator</b> button.</p>
+  <ol>
+    <li><b>Create one template board per track.</b> Header → <i>Facilitator</i> → <b>Templates</b> tab → create a template board per track (e.g. <i>"Cyber — Sprint tasks"</i>). Templates stay out of the normal board list.</li>
+    <li><b>Add the task list to the template.</b> Open the template board → <b>+ Add Box</b> → <b>Collaboration</b> → <b>Checklist</b>. In the box's <b>Add a task…</b> field, paste that track's block from §5 — a multi-line paste becomes one task per line.</li>
+    <li><b>Create the workshop.</b> <i>Facilitator</i> → <b>Workshops</b> tab → new workshop for the class.</li>
+    <li><b>Create one team per student team.</b> <i>Facilitator</i> → <b>Teams</b> tab → create the team from the track's template. Each team gets its own <b>copy</b> of the board (so Team A's ticks never touch Team B's) plus a <b>per-seat join code</b>.</li>
+    <li><b>Hand each team its join code</b> (one code per seat, up to 5 seats).</li>
+    <li><b>Students join:</b> landing page → <b>🎟️ Have a workshop code?</b> → paste the code → pick a name (<b>and an email — see the caveat below</b>) → <b>Join my team</b> → their team board opens with the checklist already on it.</li>
+    <li><b>Run it from the board each day:</b> students tick tasks off, rename a task by clicking its text, pick an owner in the <b>＋ assign</b> dropdown, reorder with ▲▼, and <b>📋 Copy</b> exports the list as a Markdown checklist (that export is exactly the <i>"evidence of collaboration / task tracking"</i> the group briefs' teamwork mark asks for). <b>🧹 Clear done</b> at a sprint boundary for a clean board.</li>
+  </ol>
+
+  <div class="callout"><b>Local vs deployed:</b> granting the facilitator role (<code>POST /api/admin/roles</code>) needs the Firebase Admin SDK, so it returns <b>501 on the local dev server</b> — do it from the deployed site (or the Firebase console). Guest joining <i>does</i> work on <code>localhost</code>: the dev server proxies <code>/api/workshop/join</code> to the deployed function, so you can rehearse the whole flow locally.</div>
+
+  <h3>2.2 What the app does and doesn't do (verified against the code)</h3>
+  <ul>
+    <li>The list is <b>shared and live</b> — one list per Checklist box, everyone on the board sees the same tasks; writes are last-write-wins, like a Note.</li>
+    <li>A tick records <b>who</b> ticked it and <b>when</b> (<code>✓ alice</code> next to the task), and a <b>progress bar</b> shows <i>"2 of 5 done"</i> — enough to grade the task-tracking part of the teamwork mark.</li>
+    <li><b>Caps:</b> max <b>200 tasks per board</b>, <b>500 characters per task</b> — keep a sprint's list to ~20–25 tasks and clear finished ones between sprints.</li>
+    <li><b>Guest caveat (matters for workshop students):</b> the <b>＋ assign</b> dropdown and the <code>✓ name</code> attribution are email-based (board owner + collaborators + people currently on the board). A student who joins with a <b>seat code</b> has no auth email, so their tick shows <b>no name</b>, and they only appear as an assignable person <b>if they typed an email</b> at the profile step (that email is stored on the board's collaborator list; it is never used to log them in). Students who sign in with a <b>Google account</b> have none of these limits. Making seat-code guests properly assignable and credited needs a small code change (use the guest's uid + chosen name for checklist identity).</li>
+    <li>The Checklist box is a <b>collaboration box</b>: no AI, no Run button, no connectors. It is a to-do list that lives on the board.</li>
+  </ul>
+
+  <h2><span class="n">3.</span> Individual project — its own folder</h2>
+  <p>The individual <b>"One Student, One Box"</b> project has moved out of this course-wide handout into its own folder, so there is exactly one place for its brief and its tasks:</p>
+  <ul>
+    <li><b>Brief:</b> <code>individual-project/brief.md</code> (+ the print handout <code>brief.html</code>)</li>
+    <li><b>Sprint tasks:</b> <code>individual-project/sprint-tasks.md</code> — a <b>3-week sprint (30 h)</b> cut week by week, with Wednesday checkpoints, Friday deliverables and paste-ready Checklist blocks</li>
+    <li><b>Index:</b> <code>individual-project/README.md</code></li>
+  </ul>
+  <p>Everything from §4 onwards is the <b>group tracks</b> (cyber, UX/Telstra Health, Telstra Innovation, NBN).</p>
+
+  <h2><span class="n">4.</span> Group tracks — sprint tasks by role</h2>
+  <p>All four group briefs share the same spine and the same rubric shape (<b>Build 40% · Research &amp; Design 40% · Teamwork &amp; Demo 20%</b>). Roles differ per track; the <i>pattern</i> is identical: <b>author → check → guide</b>.</p>
+  <table>
+    <tr><th>Sprint</th><th>Weeks</th><th>Hrs/student</th><th>Exit criterion (from the briefs)</th></tr>
+    <tr><td><b>Sprint 1</b> — Research &amp; scaffold</td><td>1–2</td><td>20</td><td>A clear plan and a scaffolded repo</td></tr>
+    <tr><td><b>Sprint 2</b> — Main build</td><td>3–5</td><td>30</td><td>A working tool with all boxes chaining</td></tr>
+    <tr><td><b>Sprint 3</b> — Finish, report &amp; demo</td><td>6–8</td><td>30</td><td>Final report + live demo + evidence of collaboration</td></tr>
+  </table>
+
+  <h3>4.1 Sprint 1 — every track (same tasks, role-owned)</h3>
+  <table>
+    <tr><th>ID</th><th>Task</th><th>Owner</th><th>Due</th><th>Done when</th></tr>
+    <tr><td>S1-01</td><td>Read your brief + <code>01_what_is_ai_canva.md</code> + <code>05_how_to_build_a_box.md</code>; get <code>npm run dev</code> working</td><td><b>All</b></td><td>Wk 1</td><td>Every member can add a box and ▶ Run it locally</td></tr>
+    <tr><td>S1-02</td><td>Lock team roles; write each role's owner + weekly availability on the board</td><td><b>All</b></td><td>Wk 1</td><td>Role table filled in with real names; nobody owns two roles silently</td></tr>
+    <tr><td>S1-03</td><td>Choose your <b>3+ boxes (one per role)</b> and draw the demo pipeline on the team board</td><td><b>All</b></td><td>Wk 2</td><td>Pipeline drawn (boxes + edges) and the box list agreed</td></tr>
+    <tr><td>S1-04</td><td>Register the chosen boxes in <code>types.ts</code> with draft prompts</td><td><b>Dev</b> (others review)</td><td>Wk 2</td><td>Boxes show up in the palette; PR open with the entries</td></tr>
+    <tr><td>S1-05</td><td>Research question + 3 sources <b>per member</b></td><td><b>All</b></td><td>Wk 2</td><td>12+ sources collected into the report's shared reference list</td></tr>
+    <tr><td>S1-06</td><td>Sprint 1 demo: walk through the plan + the scaffolded repo (15 min)</td><td><b>All</b></td><td>Wk 2</td><td>Facilitator signs off on the plan and the pipeline</td></tr>
+    <tr><td>S1-07</td><td><b>UX:</b> sketch the canvas/box experience — how a non-expert navigates and where each box's output shows</td><td>UX</td><td>Wk 2</td><td>2–3 sketched screens or a wireframe set on the board</td></tr>
+    <tr><td>S1-08</td><td><b>BA:</b> requirements doc skeleton + map each user need to a chosen box</td><td>BA</td><td>Wk 2</td><td>Requirements doc started, traceable need → box</td></tr>
+    <tr><td>S1-09</td><td><b>Dev:</b> branch/PR workflow set up + backend running locally (model env documented)</td><td>Dev</td><td>Wk 2</td><td>Each dev can push a branch and run a prompt through the local API</td></tr>
+    <tr><td>S1-10</td><td><b>Domain:</b> shortlist the frameworks/standards the <i>check</i> boxes must cite + the guardrails list</td><td>Domain</td><td>Wk 2</td><td>Frameworks named per check box; "what the tool must never claim" written down</td></tr>
+  </table>
+  <p><b>The Domain task, per track</b> — this is where the four briefs differ:</p>
+  <table>
+    <tr><th>Track</th><th>Domain role</th><th>Frameworks / standards to shortlist in S1-10</th></tr>
+    <tr><td>🛡️ Cyber</td><td>Cybersecurity</td><td>NIST CSF / 800-30 / 800-53, ISO 27001, OWASP ASVS + Top 10, GDPR, STRIDE, FAIR</td></tr>
+    <tr><td>🩺 UX (Telstra Health)</td><td>Health/Domain Expert</td><td>Nielsen's 10 heuristics, WCAG 2.2, cognitive load / COGA, patient-safety review, Australian health regulation &amp; privacy</td></tr>
+    <tr><td>💡 Telstra Innovation</td><td>Domain/Business Expert</td><td>JTBD, RICE/ICE scoring, The Mom Test, feasibility &amp; build-vs-buy, pre-mortems, FTO/IP basics</td></tr>
+    <tr><td>🤝 NBN</td><td>4th non-technical (Product/Content/Research)</td><td>User stories + INVEST, WCAG 2.2 (POUR), plain-language/readability, requirements traceability, ubiquitous language</td></tr>
+  </table>
+
+  <h3>4.2 Sprint 2 — the main build (all four tracks)</h3>
+  <table>
+    <tr><th>ID</th><th>Task</th><th>Owner</th><th>Due</th><th>Done when</th></tr>
+    <tr><td>S2-01</td><td>Implement the <code>runBox</code> branch for <b>box #1</b> end-to-end (inputs → model → usable output)</td><td>Dev</td><td>Wk 3</td><td>Box #1 produces real output on demand</td></tr>
+    <tr><td>S2-02</td><td><b>Mid-sprint check:</b> at least one box fully working end-to-end</td><td><b>All</b></td><td>Wk 4</td><td>Demonstrated to the facilitator, not just claimed</td></tr>
+    <tr><td>S2-03</td><td>Implement the remaining boxes; wire the AI backend and output formatting</td><td>Dev</td><td>Wk 5</td><td>Every chosen box runs and returns well-formed output</td></tr>
+    <tr><td>S2-04</td><td>Box UI: output layout, empty/error states, how the box reads at a glance</td><td>UX</td><td>Wk 5</td><td>A teammate can use each box without being told how</td></tr>
+    <tr><td>S2-05</td><td>Write the domain-research section of the team report (frameworks + why they matter)</td><td>BA</td><td>Wk 5</td><td>Section drafted with citations</td></tr>
+    <tr><td>S2-06</td><td>Verify each <i>check</i> box cites the right framework and states its limits</td><td>Domain</td><td>Wk 5</td><td>No check box gives false assurance; limits written into prompt/output</td></tr>
+    <tr><td>S2-07</td><td>Build the full demo pipeline from the brief's §4 (the complete author → check → guide flow)</td><td><b>All</b></td><td>Wk 5</td><td>The whole chain runs end-to-end on a real scenario</td></tr>
+    <tr><td>S2-08</td><td>Sprint 2 demo + update the task board</td><td><b>All</b></td><td>Wk 5</td><td>Working tool with all boxes chaining (sprint exit criterion)</td></tr>
+  </table>
+
+  <h3>4.3 Sprint 3 — finish, report &amp; demo (all four tracks)</h3>
+  <table>
+    <tr><th>ID</th><th>Task</th><th>Owner</th><th>Due</th><th>Done when</th></tr>
+    <tr><td>S3-01</td><td>Fix everything the Sprint 2 demo exposed; <b>freeze scope</b> (no new boxes after this)</td><td><b>All</b></td><td>Wk 6</td><td>The tool is stable; the box list is fixed</td></tr>
+    <tr><td>S3-02</td><td>Write the team report, 3,000–4,000 words, all 6 sections (problem, domain research, design rationale, alternatives, ethics &amp; limits, team reflection)</td><td><b>All</b> (BA leads)</td><td>Wk 7</td><td>Report submitted with a real reference list</td></tr>
+    <tr><td>S3-03</td><td>Collect <b>evidence of collaboration</b>: PRs, reviews, and this board's task history</td><td><b>All</b></td><td>Wk 7</td><td>Exported checklist + PR links attached to the submission</td></tr>
+    <tr><td>S3-04</td><td>Rehearse + polish the live demo on a real scenario (the brief's example use case)</td><td>UX (all rehearse)</td><td>Wk 8</td><td>A full dry run with no fixes mid-demo</td></tr>
+    <tr><td>S3-05</td><td>Final demo, report hand-in, completed task board</td><td><b>All</b></td><td>Wk 8</td><td>Build + research + teamwork marks all have evidence</td></tr>
+  </table>
+
+  <h2><span class="n">5.</span> Paste-ready Checklist blocks</h2>
+  <p>Paste a whole block into a Checklist box's <b>Add a task…</b> field — a multi-line paste imports one task per line. Each line carries its ID, owner and due week, and students can rename, assign and tick them in place. For group tracks use that track's Sprint 1 block, then paste the Sprint 2 block at the Week 3 boundary and the Sprint 3 block at Week 6.</p>
+
+  <h3>5.1 Individual project — see its own folder</h3>
+  <p>The individual project's paste blocks live in <code>individual-project/sprint-tasks.md</code> §7 — one block per week of its 3-week sprint. Use those; the blocks below are the <b>group</b> tracks.</p>
+
+  <h3>5.2 Cybersecurity &amp; Compliance — Sprint 1</h3>
+  <pre class="block">- [ ] CY-S1-01 (Wk1) Read the cyber brief + the two guides; get npm run dev working for every member
+- [ ] CY-S1-02 (Wk1) Lock team roles (UX / BA / Dev / Cyber) and write each owner + availability on the board
+- [ ] CY-S1-03 (Wk2) Choose 3+ boxes, one per role, and draw the design -> check -> assistant demo pipeline
+- [ ] CY-S1-04 (Wk2) Dev: register the chosen boxes in types.ts with draft prompts (PR open)
+- [ ] CY-S1-05 (Wk2) Everyone: research question + 3 sources per member into the shared reference list
+- [ ] CY-S1-06 (Wk2) Sprint 1 demo: walk the plan + scaffolded repo, get facilitator sign-off
+- [ ] CY-S1-07 (Wk2) UX: sketch how a non-expert navigates the tool and where each box's output shows
+- [ ] CY-S1-08 (Wk2) BA: requirements doc skeleton, mapping each user need to a chosen box
+- [ ] CY-S1-09 (Wk2) Dev: branch/PR workflow set up + backend running locally with the AI model wired
+- [ ] CY-S1-10 (Wk2) Cyber: shortlist the frameworks (NIST CSF/800-30/800-53, ISO 27001, OWASP ASVS + Top 10, GDPR, STRIDE, FAIR) and write the guardrails list</pre>
+
+  <h3>5.3 UX Support Tool (Telstra Health) — Sprint 1</h3>
+  <pre class="block">- [ ] UXH-S1-01 (Wk1) Read the Telstra Health brief + the two guides; get npm run dev working for every member
+- [ ] UXH-S1-02 (Wk1) Lock team roles (UX / BA / Dev / Health-Domain) and write each owner + availability on the board
+- [ ] UXH-S1-03 (Wk2) Choose 3+ boxes, one per role, and draw the design -> check -> guide demo pipeline
+- [ ] UXH-S1-04 (Wk2) Dev: register the chosen boxes in types.ts with draft prompts (PR open)
+- [ ] UXH-S1-05 (Wk2) Everyone: research question + 3 sources per member into the shared reference list
+- [ ] UXH-S1-06 (Wk2) Sprint 1 demo: walk the plan + scaffolded repo, get facilitator sign-off
+- [ ] UXH-S1-07 (Wk2) UX: sketch how a senior designer navigates the tool and reads each box's output
+- [ ] UXH-S1-08 (Wk2) BA: requirements doc skeleton for the design -> check pipeline
+- [ ] UXH-S1-09 (Wk2) Dev: branch/PR workflow set up + backend running locally with the AI model wired
+- [ ] UXH-S1-10 (Wk2) Health-Domain: shortlist the methods (Nielsen heuristics, WCAG 2.2, cognitive load/COGA, patient safety, Australian health regulation) and the guardrails list</pre>
+
+  <h3>5.4 Telstra Innovation Lab — Sprint 1</h3>
+  <pre class="block">- [ ] TI-S1-01 (Wk1) Read the Innovation Lab brief + the two guides; get npm run dev working for every member
+- [ ] TI-S1-02 (Wk1) Lock team roles (UX / BA / Dev / Domain-Business) and write each owner + availability on the board
+- [ ] TI-S1-03 (Wk2) Choose 3+ boxes, one per role, and draw the design -> check -> guide demo pipeline
+- [ ] TI-S1-04 (Wk2) Dev: register the chosen boxes in types.ts with draft prompts (PR open)
+- [ ] TI-S1-05 (Wk2) Everyone: research question + 3 sources per member into the shared reference list
+- [ ] TI-S1-06 (Wk2) Sprint 1 demo: walk the plan + scaffolded repo, get facilitator sign-off
+- [ ] TI-S1-07 (Wk2) UX: sketch the opportunity/scorecard visualisations and the canvas experience
+- [ ] TI-S1-08 (Wk2) BA: market-research synthesis skeleton + the scorecard weighting you'll use
+- [ ] TI-S1-09 (Wk2) Dev: branch/PR workflow set up + backend running locally with the AI model wired
+- [ ] TI-S1-10 (Wk2) Domain-Business: shortlist the methods (JTBD, RICE/ICE, The Mom Test, feasibility &amp; build-vs-buy, pre-mortems, FTO/IP basics) and the guardrails list</pre>
+
+  <h3>5.5 NBN Collaboration Tool — Sprint 1</h3>
+  <pre class="block">- [ ] NBN-S1-01 (Wk1) Read the NBN brief + the two guides; get npm run dev working for every member
+- [ ] NBN-S1-02 (Wk1) Lock team roles (UX / BA / Dev / 4th non-technical) and write each owner + availability on the board
+- [ ] NBN-S1-03 (Wk2) Choose 3+ boxes, one per role, and draw the author -> review -> hand-off demo pipeline
+- [ ] NBN-S1-04 (Wk2) Dev: register the chosen boxes in types.ts with draft prompts (PR open)
+- [ ] NBN-S1-05 (Wk2) Everyone: research question + 3 sources per member into the shared reference list
+- [ ] NBN-S1-06 (Wk2) Sprint 1 demo: walk the plan + scaffolded repo, get facilitator sign-off
+- [ ] NBN-S1-07 (Wk2) UX: sketch the artifact boxes (journey map, UX brief) and the canvas experience
+- [ ] NBN-S1-08 (Wk2) BA: requirements skeleton (user stories + acceptance criteria) and the traceability view
+- [ ] NBN-S1-09 (Wk2) Dev: branch/PR workflow set up + backend running locally with the AI model wired
+- [ ] NBN-S1-10 (Wk2) 4th role: shortlist the methods (INVEST, WCAG 2.2 POUR, plain language/readability, alignment checks, ubiquitous language) and the guardrails list</pre>
+
+  <h3>5.6 Any group track — Sprint 2 (paste at the start of Week 3)</h3>
+  <pre class="block">- [ ] G-S2-01 (Wk3) Dev: implement the runBox branch for box #1 end-to-end (inputs -> model -> usable output)
+- [ ] G-S2-02 (Wk4) MID-SPRINT CHECK: at least one box fully working end-to-end, demonstrated to the facilitator
+- [ ] G-S2-03 (Wk5) Dev: implement the remaining boxes; wire the backend and the output formatting
+- [ ] G-S2-04 (Wk5) UX: box UI — output layout, empty/error states, readable at a glance
+- [ ] G-S2-05 (Wk5) BA: draft the domain-research section of the team report (frameworks + why they matter)
+- [ ] G-S2-06 (Wk5) Domain: verify each check box cites the right framework and states its limits
+- [ ] G-S2-07 (Wk5) All: build the full demo pipeline from the brief (author -> check -> guide)
+- [ ] G-S2-08 (Wk5) All: sprint 2 demo + update the task board</pre>
+
+  <h3>5.7 Any group track — Sprint 3 (paste at the start of Week 6)</h3>
+  <pre class="block">- [ ] G-S3-01 (Wk6) All: fix everything the sprint-2 demo exposed; FREEZE SCOPE (no new boxes)
+- [ ] G-S3-02 (Wk7) All (BA leads): write the team report, 3,000-4,000 words, all 6 sections
+- [ ] G-S3-03 (Wk7) All: collect evidence of collaboration — PRs, reviews, and this board's task history
+- [ ] G-S3-04 (Wk8) UX + all: rehearse and polish the live demo on the brief's real scenario
+- [ ] G-S3-05 (Wk8) All: final demo, report hand-in, task board complete</pre>
+
+  <h2><span class="n">6.</span> Instructor's per-sprint routine</h2>
+  <table>
+    <tr><th>When</th><th>What you do</th><th>Evidence you keep</th></tr>
+    <tr><td>Start of sprint</td><td>Paste that sprint's block onto each team board and hand out the seat codes</td><td>Board screenshots per team</td></tr>
+    <tr><td>Mid-sprint (S2 only)</td><td>Watch the <b>mid-sprint check</b>: one box running end-to-end</td><td>A note of who demoed what</td></tr>
+    <tr><td>End of sprint</td><td>15-minute team demo, then <b>📋 Copy</b> the checklist before <b>🧹 Clear done</b></td><td>The exported Markdown = their task-tracking evidence</td></tr>
+    <tr><td>Weekly</td><td>Skim each board: unassigned tasks and untouched lists are your early-warning signal</td><td>Assign-blockers list for the next class</td></tr>
+    <tr><td>Final</td><td>Collect report + repo PRs + demo recording</td><td>Rubric scores: Build / Research / Teamwork &amp; Demo</td></tr>
+  </table>
+
+  <h2><span class="n">7.</span> Notes that keep this honest</h2>
+  <ul>
+    <li><b>Tasks map to the briefs' own criteria</b> — no hidden extra marks. If you change a rubric, change the matching task row here too.</li>
+    <li><b>The board is the artefact.</b> A team that finishes the tool but leaves an empty checklist has no task-tracking evidence for the 20% teamwork mark.</li>
+    <li><b>Caps:</b> 200 tasks per Checklist box, 500 characters per task — clear done tasks between sprints.</li>
+    <li><b>Guests:</b> seat-code students should type an <b>email</b> at the profile step, otherwise they can't be assigned tasks and their ticks are anonymous (see §2.2).</li>
+  </ul>
+
+  <div class="footer">AI Canva · <code>docs/course/08_sprint_task_plan.md</code> — the Markdown version is the source; keep both in sync when a brief or rubric changes.</div>
+</div>
+</body>
+</html>

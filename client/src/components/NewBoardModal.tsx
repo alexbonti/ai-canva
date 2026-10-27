@@ -1,10 +1,17 @@
 import { useState, useEffect, useRef } from "react";
+import { Button } from "./ui/Button.js";
+import { Icon } from "./ui/Icon.js";
 
 interface NewBoardModalProps {
   open: boolean;
   onClose: () => void;
   onCreate: (name: string) => void;
 }
+
+/** The one field recipe every dialog in "The Printed Line" uses. */
+const FIELD =
+  "w-full h-8 rounded-sm border border-rule bg-card px-2.5 text-[13px] text-ink " +
+  "placeholder:text-ink-muted focus:outline-none focus:border-pine focus:ring-2 focus:ring-signal/30";
 
 export default function NewBoardModal({ open, onClose, onCreate }: NewBoardModalProps) {
   const [name, setName] = useState("");
@@ -35,52 +42,51 @@ export default function NewBoardModal({ open, onClose, onCreate }: NewBoardModal
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(22,33,28,0.45)] p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
+        className="w-full max-w-md overflow-hidden rounded-md border border-rule bg-card shadow-float"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-800">Create New Board</h2>
+        <div className="flex items-center justify-between gap-3 border-b border-rule px-6 py-3.5">
+          <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Create New Board</h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100"
+            aria-label="Close"
+            title="Close"
+            className="-mr-1 inline-flex h-7 w-7 items-center justify-center rounded-sm text-ink-muted transition-colors hover:bg-paper-raised hover:text-ink focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
           >
-            ✕
+            <Icon name="x" size={16} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
-          <div>
-            <label className="text-sm font-medium text-slate-600 block mb-1.5">
+        <form onSubmit={handleSubmit}>
+          <div className="px-6 py-5">
+            <label htmlFor="new-board-name" className="mb-1.5 block label-caps text-ink-muted">
               Board Name
             </label>
             <input
+              id="new-board-name"
               ref={inputRef}
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Startup Pitch Deck, Meal Planner App..."
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
+              className={FIELD}
             />
+            <p className="mt-1.5 text-[11px] leading-snug text-ink-muted">
+              You can rename it any time from the board bar.
+            </p>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition"
-            >
+          <div className="flex items-center justify-end gap-2 border-t border-rule bg-paper-raised px-6 py-3">
+            <Button variant="ghost" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 rounded-lg text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 transition shadow-sm"
-            >
+            </Button>
+            <Button type="submit" variant="primary" icon={<Icon name="plus" size={14} />}>
               Create Board
-            </button>
+            </Button>
           </div>
         </form>
       </div>

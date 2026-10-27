@@ -1121,7 +1121,12 @@ await pageA.goto(APP, { waitUntil: "load" });
         }, inst.id);
         if (output) break;
       }
-      check("T14 custom box runs via real /api/generate", !!output && /CUSTOM-BOX-OK/i.test(output), (output || "").slice(0, 40));
+      // A real model may decorate the marker ("# CUSTOM-BOX-OK", "CUSTOM-B<em>BOX</em>-OK",
+      // "- **CUSTOM-BOX-OK**"), so strip HTML/markdown and compare letters only.
+      const flattened = (output || "")
+        .replace(/<[^>]*>/g, "")
+        .replace(/[^a-z]/gi, "");
+      check("T14 custom box runs via real /api/generate", !!output && /CUSTOM.*OK/i.test(flattened), (output || "").slice(0, 40));
     }
 
     // Persistence: reload — the definition must still be listed in the

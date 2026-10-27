@@ -1,0 +1,21 @@
+import { chromium } from "/Users/alessiobonti/dev/ai-canva/client/node_modules/playwright-core/index.mjs";
+const browser = await chromium.launch({ executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless: true });
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+await page.goto("http://127.0.0.1:5183", { waitUntil: "load" });
+await page.waitForFunction(() => !!window.__dsh, null, { timeout: 30000 });
+await page.evaluate(() => window.__dsh.useAuthStore.setState({ user: { uid: "u", email: "a@b.c", displayName: "A", photoURL: "" }, loading: false }));
+await page.waitForTimeout(2000);
+await page.evaluate(() => { const b = Array.from(document.querySelectorAll("button")).find((x) => x.textContent.trim() === "Research"); b?.click(); });
+await page.waitForTimeout(500);
+await page.evaluate(() => { const st = window.__dsh.useBoardStore; st.setState({ nodes: st.getState().nodes.map((n) => ({ ...n, selected: true })) }); });
+await page.waitForTimeout(400);
+const out = await page.evaluate(() => {
+  const box = document.querySelector(".box-node.selected");
+  if (!box) return "no box";
+  const cs = getComputedStyle(box);
+  const lines = Array.from(document.querySelectorAll(".react-flow__resize-control.line")).map((l) => getComputedStyle(l).borderColor);
+  const handles = Array.from(document.querySelectorAll(".react-flow__resize-control.handle")).map((l) => getComputedStyle(l).backgroundColor);
+  return { border: cs.borderColor, outline: cs.outlineColor, boxShadow: cs.boxShadow, lines: lines.slice(0, 2), handles: handles.slice(0, 2) };
+});
+console.log(JSON.stringify(out, null, 1));
+await browser.close();

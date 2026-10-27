@@ -14,6 +14,7 @@ vi.mock("./ollama.js", () => ({
     promptTokens: 10,
     completionTokens: 5,
     totalTokens: 15,
+    truncated: false,
   })),
 }));
 
@@ -84,6 +85,7 @@ describe("POST /api/generate", () => {
     expect(res.body).toMatchObject({
       content: "response for: hello",
       model: "mock-model",
+      truncated: false,
       usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
     });
   });
@@ -261,5 +263,66 @@ describe("POST /api/repo-digest", () => {
     const res = await request(createApp()).post("/api/repo-digest").send({ repoUrl: "owner/missing" });
     expect(res.status).toBe(502);
     expect(res.body.error).toMatch(/GITHUB_TOKEN/);
+  });
+});
+
+describe("JSON error contract (local dev server)", () => {
+  it("answers an unknown route with JSON, not Express HTML", async () => {
+    const res = await request(createApp()).get("/api/does-not-exist");
+    expect(res.status).toBe(404);
+    expect(res.type).toBe("application/json");
+    expect(res.body.error).toMatch(/not found/i);
+  });
+
+  it("answers malformed JSON with a JSON 400", async () => {
+    const res = await request(createApp())
+      .post("/api/generate")
+      .set("Content-Type", "application/json")
+      .send("{not json");
+    expect(res.status).toBe(400);
+    expect(res.type).toBe("application/json");
+    expect(res.body.error).toMatch(/malformed json/i);
+  });
+
+  it("accepts a body larger than the old 10 MB limit (deploy payloads)", async () => {
+    // Regression: express.json({limit:"10mb"}) rejected a legitimate here.now
+    // deploy (documented cap is 400 files / 25 MB) with an HTML 413 before the
+    // route ran. 11 MB must now parse.
+    const files = [{ path: "index.html", content: "x".repeat(11 * 1024 * 1024) }];
+    const res = await request(createApp()).post("/api/herenow-deploy").send({ files, slug: "big" });
+    // The route may succeed or fail on network, but MUST NOT be a 413/HTML.
+    expect(res.status).not.toBe(413);
+    expect(res.type).toBe("application/json");
+  });
+});
+
+describe("local admin user routes", () => {
+  it("returns a JSON 501 for user listing (Admin Board Users tab)", async () => {
+    const res = await request(createApp()).get("/api/admin/users");
+    expect(res.status).toBe(501);
+    expect(res.body.error).toMatch(/production/i);
+  });
+
+  it("returns a JSON 501 for blocking a user", async () => {
+    const res = await request(createApp())
+      .post("/api/admin/users/some-uid/status")
+      .send({ disabled: true });
+    expect(res.status).toBe(501);
+    expect(res.body.error).toMatch(/production/i);
+  });
+});
+
+describe("GET /api/stitch-status/:jobId shape", () => {
+  it("always returns status/html/imageUrl/error keys (null when absent)", async () => {
+    const app = createApp();
+    // Unknown job → 404 (the shape test below uses a real job).
+    const created = await request(app)
+      .post("/api/stitch-generate")
+      .send({ prompt: "a dashboard" });
+    expect(created.status).toBe(200);
+    const status = await request(app).get(`/api/stitch-status/${created.body.jobId}`);
+    expect(status.status).toBe(200);
+    expect(Object.keys(status.body).sort()).toEqual(["error", "html", "imageUrl", "status"]);
+    expect(["queued", "running", "done", "error"]).toContain(status.body.status);
   });
 });

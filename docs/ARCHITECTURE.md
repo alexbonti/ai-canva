@@ -135,15 +135,17 @@ hoisted ahead of `dotenv.config()`:
 - **`ollama.ts`** — `generateContent(systemPrompt, userPrompt)` calls Ollama's `/api/chat`
   endpoint. It targets **Ollama Cloud** at `https://ollama.com` by default (Bearer auth with
   `OLLAMA_API_KEY`), but respects `OLLAMA_HOST` so a local daemon also works. The model is set by
-  `OLLAMA_MODEL` (default `deepseek-v4.1-flash`).
+  `OLLAMA_MODEL` (default `deepseek-v4.1-flash:1017`).
 - **`fal.ts`** — `generateCartoonImage({ prompt, imageUrl })`:
   - Image present → upload to fal storage (if base64), then `fal-ai/qwen-image-edit`
     (image-to-image).
   - No image → `fal-ai/flux/schnell` (text-to-image).
 - **`stitch.ts`** — `generateStitchUI(prompt)` uses the Google Stitch SDK to create/reuse a
   project and generate a screen, then fetches and returns the HTML + screenshot URL. Prompts are
-  capped (`MAX_PROMPT_CHARS`, default 6000) and use the fast `GEMINI_3_FLASH` model so real
-  pipelines (large `{{inputs}}`) neither time out nor degrade into written specs.
+  capped (`MAX_PROMPT_CHARS`, default 6000) and use a fast flash model so real pipelines (large
+  `{{inputs}}`) neither time out nor degrade into written specs. The model id is chosen from a
+  candidate list at runtime (see "Model ids are not stable" in `MODELS.md`): the Stitch API's
+  `modelId` enum is server-side and changes, so a retired id must never hard-fail the box.
 - **`stitchJobs.ts`** *(functions only)* — the async job worker. Stitch generation is slow (40s+)
   and exceeds the ~60s Firebase Hosting rewrite timeout, so it runs on a Cloud Task queue. See
   `POST /api/stitch-generate` / `GET /api/stitch-status/:jobId` below.

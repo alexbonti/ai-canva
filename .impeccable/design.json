@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-25T00:00:00.000Z",
+  "title": "Design System: AI Canva",
+  "extensions": {
+    "colorMeta": {
+      "paper": { "role": "neutral", "displayName": "Timetable Paper", "canonical": "#F4EFE4", "tonalRamp": ["#241F16", "#3B3425", "#544A35", "#6F6249", "#8D7E60", "#AC9C7A", "#CCBB96", "#E8DCC4"] },
+      "paper-raised": { "role": "neutral", "displayName": "Raised Paper", "canonical": "#FBF7EC", "tonalRamp": ["#262117", "#3E3626", "#574D38", "#72654C", "#8F8063", "#AC9D7E", "#CBBE9E", "#EDE5D1"] },
+      "card": { "role": "neutral", "displayName": "Card Stock", "canonical": "#FFFDF7", "tonalRamp": ["#29241A", "#41392A", "#5A503C", "#75684F", "#928366", "#B0A182", "#D0C3A4", "#F3ECDA"] },
+      "ink": { "role": "neutral", "displayName": "Pine Ink", "canonical": "#16211C", "tonalRamp": ["#141F1A", "#29372F", "#3E4E43", "#556658", "#6E7F70", "#8B9989", "#ADB8A8", "#D3DACC"] },
+      "pine": { "role": "primary", "displayName": "Pine Signage", "canonical": "#123229", "tonalRamp": ["#0B221C", "#123229", "#1B4436", "#255844", "#336E56", "#4C876B", "#7BA98F", "#BBD3C1"] },
+      "signal": { "role": "primary", "displayName": "Marigold Signal", "canonical": "#F2B300", "tonalRamp": ["#3A2A00", "#5C4300", "#806000", "#A67D00", "#CC9C00", "#F2B300", "#FFD158", "#FFE9A8"] },
+      "line-input": { "role": "secondary", "displayName": "Amber Input", "canonical": "#B57A00", "tonalRamp": ["#3A2A00", "#5C4300", "#806000", "#A06C00", "#B57A00", "#D8961C", "#F0B648", "#FFE1A6"] },
+      "line-sdlc": { "role": "secondary", "displayName": "Oxblood SDLC", "canonical": "#9C3A31", "tonalRamp": ["#3F130F", "#5D1E18", "#7C2A23", "#9C3A31", "#BC5146", "#D4756B", "#EAA39B", "#F8D3CE"] },
+      "line-worker": { "role": "secondary", "displayName": "Blue Worker", "canonical": "#2A5A94", "tonalRamp": ["#0D2238", "#173855", "#214874", "#2A5A94", "#3C73B2", "#6290C6", "#9DB9DC", "#D3E2F2"] },
+      "line-companion": { "role": "secondary", "displayName": "Coral Companion", "canonical": "#BF543C", "tonalRamp": ["#3D1710", "#5C2519", "#843726", "#A34533", "#BF543C", "#D77662", "#E8A495", "#F8D8CF"] },
+      "line-collab": { "role": "secondary", "displayName": "Green Collaboration", "canonical": "#3B7557", "tonalRamp": ["#10271B", "#1B3E2C", "#28573E", "#3B7557", "#51936F", "#77AD8E", "#A9CBB8", "#D8E8DE"] },
+      "line-custom": { "role": "secondary", "displayName": "Violet Custom", "canonical": "#6A5A93", "tonalRamp": ["#1D1830", "#2E2748", "#443A66", "#574A80", "#6A5A93", "#8778AD", "#B0A5CC", "#DDD6EB"] },
+      "state-running": { "role": "tertiary", "displayName": "Running Blue", "canonical": "#1F6FEB", "tonalRamp": ["#0A2440", "#103B68", "#15518F", "#1F6FEB", "#4A8CF0", "#7DABF5", "#B3CEFA", "#E0EBFD"] },
+      "state-error": { "role": "tertiary", "displayName": "Error Red", "canonical": "#B33A2B", "tonalRamp": ["#3E120D", "#5C1D15", "#80281E", "#9C3226", "#B33A2B", "#CE6052", "#E59A90", "#F7D5D0"] },
+      "state-stale": { "role": "tertiary", "displayName": "Stale Amber", "canonical": "#9A6A00", "tonalRamp": ["#332300", "#4F3600", "#6E4B00", "#855C00", "#9A6A00", "#BE880F", "#E0B045", "#F7E1A8"] },
+      "state-ok": { "role": "tertiary", "displayName": "Approved Green", "canonical": "#2E7D4F", "tonalRamp": ["#0C2417", "#143A25", "#1F5536", "#2A6C45", "#2E7D4F", "#4B9C6A", "#7FC09A", "#C4E3D2"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Landing headline only — one loud line per page." },
+      "headline": { "displayName": "Headline", "purpose": "Landing section titles, admin lead numbers." },
+      "title": { "displayName": "Title", "purpose": "Board title, box names, dialog titles." },
+      "body": { "displayName": "Body", "purpose": "Output prose, descriptions, help copy." },
+      "label": { "displayName": "Label", "purpose": "Nav items, section captions, button verbs — uppercase small caps." },
+      "data": { "displayName": "Data", "purpose": "Station codes, timestamps, token counts, versions, model names." }
+    },
+    "shadows": [
+      { "name": "card-rest", "value": "0 1px 1px rgba(22,33,28,.05), 0 6px 16px -8px rgba(22,33,28,.18)", "purpose": "Boxes on the canvas at rest." },
+      { "name": "floating", "value": "0 8px 28px -12px rgba(22,33,28,.35), 0 1px 2px rgba(22,33,28,.12)", "purpose": "Menus, popovers, floating canvas tools, dialogs." },
+      { "name": "selection", "value": "0 0 0 2px #F2B300, 0 0 0 4px rgba(242,179,0,.22)", "purpose": "Marigold you-are-here ring on the selected box or control." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.2, 0.8, 0.2, 1)", "purpose": "Default state transition (120–180ms)." },
+      { "name": "ease-paper", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Panels and landing reveals (280–420ms)." },
+      { "name": "route-march", "value": "stroke-dashoffset 1.1s linear infinite", "purpose": "A running box's outgoing route." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The standard action: pine signage ground, cream text.",
+      "html": "<button class=\"ds-btn-primary\">Add Box</button>",
+      "css": ".ds-btn-primary { display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border:1px solid #123229;border-radius:5px;background:#123229;color:#F2EDE1;font-family:Archivo,system-ui,sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:background 150ms cubic-bezier(0.2,0.8,0.2,1); } .ds-btn-primary:hover { background:#0B221C;border-color:#0B221C; } .ds-btn-primary:focus-visible { outline:2px solid #F2B300;outline-offset:2px; }"
+    },
+    {
+      "name": "Signal Button",
+      "kind": "button",
+      "refersTo": "button-signal",
+      "description": "The one loud action per screen (landing Get started, unshared Share).",
+      "html": "<button class=\"ds-btn-signal\">Get started</button>",
+      "css": ".ds-btn-signal { display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 20px;border:1px solid #F2B300;border-radius:5px;background:#F2B300;color:#2A2100;font-family:Archivo,system-ui,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;transition:background 150ms cubic-bezier(0.2,0.8,0.2,1); } .ds-btn-signal:hover { background:#E0A600;border-color:#E0A600; } .ds-btn-signal:focus-visible { outline:2px solid #123229;outline-offset:2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Card-stock button with a hairline border for secondary actions.",
+      "html": "<button class=\"ds-btn-secondary\">Boards (4)</button>",
+      "css": ".ds-btn-secondary { display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border:1px solid #DCD4C1;border-radius:5px;background:#FFFDF7;color:#3D4A42;font-family:Archivo,system-ui,sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:background 150ms,border-color 150ms; } .ds-btn-secondary:hover { background:#FBF7EC;border-color:#C8BEA8;color:#16211C; } .ds-btn-secondary:focus-visible { outline:2px solid #F2B300;outline-offset:2px; }"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Hairline field on card stock; marigold focus ring.",
+      "html": "<input class=\"ds-input\" placeholder=\"Untitled board\" />",
+      "css": ".ds-input { height:32px;padding:0 10px;border:1px solid #DCD4C1;border-radius:5px;background:#FFFDF7;color:#16211C;font-family:Archivo,system-ui,sans-serif;font-size:13px;transition:border-color 150ms,box-shadow 150ms; } .ds-input::placeholder { color:#66736A; } .ds-input:focus { outline:none;border-color:#123229;box-shadow:0 0 0 2px rgba(242,179,0,0.30); }"
+    },
+    {
+      "name": "Station Chip",
+      "kind": "chip",
+      "refersTo": "button-secondary",
+      "description": "Mono uppercase metadata chip — station code, state, version.",
+      "html": "<span class=\"ds-chip\"><span class=\"ds-chip-dot\"></span>RUNNING</span>",
+      "css": ".ds-chip { display:inline-flex;align-items:center;gap:5px;padding:2px 6px;border:1px solid #DCD4C1;border-radius:3px;background:#FBF7EC;color:#3D4A42;font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:10px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase; } .ds-chip-dot { width:5px;height:5px;border-radius:50%;background:#1F6FEB; }"
+    },
+    {
+      "name": "Box Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A pipeline stop: header with station dot, category wash and code; ruled body; footer actions.",
+      "html": "<article class=\"ds-box\"><header class=\"ds-box-head\"><span class=\"ds-box-dot\"></span><strong class=\"ds-box-name\">Research</strong><span class=\"ds-box-code\">RES-02</span></header><div class=\"ds-box-body\">Market snapshot output…</div><footer class=\"ds-box-foot\"><button class=\"ds-box-run\">▶ Run</button></footer></article>",
+      "css": ".ds-box { width:280px;border:1px solid #DCD4C1;border-radius:8px;background:#FFFDF7;box-shadow:0 1px 1px rgba(22,33,28,.05),0 6px 16px -8px rgba(22,33,28,.18);overflow:hidden;font-family:Archivo,system-ui,sans-serif; } .ds-box-head { display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #DCD4C1;background:color-mix(in srgb,#2A5A94 7%,#FFFDF7); } .ds-box-dot { width:8px;height:8px;border-radius:50%;background:#2A5A94; } .ds-box-name { color:#16211C;font-size:13px;font-weight:600;flex:1; } .ds-box-code { font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:9.5px;letter-spacing:0.1em;color:#66736A;text-transform:uppercase; } .ds-box-body { padding:10px 12px;color:#3D4A42;font-size:12.5px;line-height:1.5; } .ds-box-foot { padding:8px 10px;border-top:1px solid #DCD4C1; } .ds-box-run { width:100%;height:30px;border:1px solid #123229;border-radius:5px;background:#123229;color:#F2EDE1;font-size:12px;font-weight:600;cursor:pointer; } .ds-box-run:hover { background:#0B221C; }"
+    },
+    {
+      "name": "App Bar",
+      "kind": "nav",
+      "refersTo": "button-bar",
+      "description": "Pine signage bar: roundel mark, line name, quiet cream controls.",
+      "html": "<header class=\"ds-bar\"><span class=\"ds-roundel\"></span><strong class=\"ds-line-name\">My First Board</strong><span class=\"ds-save\">Saved</span><nav class=\"ds-bar-actions\"><button class=\"ds-bar-btn\">Add Box</button><button class=\"ds-bar-btn ds-bar-btn-signal\">Share</button></nav></header>",
+      "css": ".ds-bar { display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;background:#123229;color:#F2EDE1;font-family:Archivo,system-ui,sans-serif; } .ds-roundel { width:28px;height:28px;border-radius:50%;border:2px solid #F2EDE1;display:inline-flex;align-items:center;justify-content:center; } .ds-roundel::after { content:'';width:8px;height:8px;border-radius:50%;background:#F2B300; } .ds-line-name { font-size:13px;font-weight:600;letter-spacing:-0.01em; } .ds-save { font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:10px;color:rgba(242,237,225,.55); } .ds-bar-actions { margin-left:auto;display:flex;align-items:center;gap:4px; } .ds-bar-btn { height:32px;padding:0 10px;border:1px solid transparent;border-radius:5px;background:transparent;color:#F2EDE1;font-family:inherit;font-size:12px;font-weight:500;cursor:pointer; } .ds-bar-btn:hover { background:rgba(242,237,225,.10); } .ds-bar-btn:focus-visible { outline:2px solid #F2B300;outline-offset:2px; } .ds-bar-btn-signal { background:#F2B300;border-color:#F2B300;color:#2A2100;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;font-size:11px; }"
+    },
+    {
+      "name": "Route Edge",
+      "kind": "custom",
+      "description": "The signature move: a transit line between stops, with a station knot at the target.",
+      "html": "<svg class=\"ds-route\" viewBox=\"0 0 220 40\"><path d=\"M2 20 H110 Q118 20 118 28 V36\" stroke=\"#2A5A94\" stroke-width=\"3\" fill=\"none\" stroke-linecap=\"round\"/><circle cx=\"2\" cy=\"20\" r=\"2.5\" fill=\"#2A5A94\"/><circle cx=\"118\" cy=\"34\" r=\"4.5\" fill=\"#FFFDF7\" stroke=\"#2A5A94\" stroke-width=\"2.5\"/></svg>",
+      "css": ".ds-route { width:220px;height:40px; } .ds-route path { stroke:#2A5A94;stroke-width:3;fill:none;stroke-linecap:round; } .ds-route circle:last-child { fill:#FFFDF7;stroke:#2A5A94;stroke-width:2.5; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Printed Line",
+    "overview": "AI Canva is a working transit system for ideas. Every pipeline is a printed line on cream timetable paper: boxes are stops with station codes, connections are route lines with station knots, and running a box is a departure. The chrome is the signage — a deep-pine bar, a marigold signal that means \"action here\", and per-category line colours that do real work instead of decorating. The character is printed, not glossy. There are no gradients, no glass, no floating chrome. Type does the heavy lifting: Archivo at a signage scale for the one loud line on a screen, small uppercase labels for navigation, and IBM Plex Mono for station codes, versions, counts and timestamps. Density is high but ruled — hairlines separate, small caps label, numbers align.",
+    "keyCharacteristics": [
+      "Cream paper ground, pine signage shell, marigold signal, one line colour per category.",
+      "Flat surfaces and hairline rules; depth is paper, not glass.",
+      "Archivo + IBM Plex Mono; small caps labels; tabular figures.",
+      "One signature move: the route — connections read as transit lines, and selecting a box lights its route end-to-end while the rest recedes.",
+      "Status is a timetable state (running, error, stale), never a mood."
+    ],
+    "rules": [
+      { "name": "The Line-Owns-Colour Rule", "body": "Colour is assigned by category and by state, never by box instance. A board with twenty boxes must still read as six lines, not a rainbow.", "section": "colors" },
+      { "name": "The Paper-Shows-Through Rule", "body": "Areas are flat, committed colour fields at low tint so the paper ground still reads through them. They are land on the map, not cards behind cards.", "section": "colors" },
+      { "name": "The One Loud Line Rule", "body": "Each viewport gets exactly one large display line. Everything else is small, and the scale contrast is the hierarchy.", "section": "typography" },
+      { "name": "The Mono-Is-Data Rule", "body": "IBM Plex Mono appears only where the content is a code, a count, a version or a time. Never as a costume for \"technical\".", "section": "typography" }
+    ],
+    "dos": [
+      "Do name the category once — station dot + route colour — and let the label carry the rest.",
+      "Do keep every number in mono with tabular figures.",
+      "Do use the marigold signal for exactly one destination per screen.",
+      "Do let areas be flat colour fields at ≤12% tint so the paper shows through.",
+      "Do use the hidden legacy-glyph spans to keep the automated suite's text markers while the visible chrome stays on the icon set."
+    ],
+    "donts": [
+      "Don't use gradients, glass, blurred chrome, or coloured glows.",
+      "Don't give each of the 26 box types its own hue; colour is per category and per state.",
+      "Don't put a coloured left border on a card (the old rainbow rail), or an emoji where an icon belongs — custom boxes keep the user's own emoji, which is user content.",
+      "Don't repeat a box's type in the header, the body and the footer.",
+      "Don't animate anything that doesn't signal state; no page-load choreography in the app."
+    ]
+  }
+}

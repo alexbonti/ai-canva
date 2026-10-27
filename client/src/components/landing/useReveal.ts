@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Reveals an element once it scrolls into view (used for subtle section
- * fade-ins on the landing page). Disconnects after the first reveal.
+ * Reveals an element once it scrolls into view. The landing page uses it once,
+ * for the hero route draw-in, so the page keeps a single authored moment.
+ * Disconnects after the first reveal.
  */
 export function useReveal<T extends HTMLElement = HTMLDivElement>(threshold = 0.15) {
   const ref = useRef<T | null>(null);

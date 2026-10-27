@@ -315,6 +315,81 @@ Change request:
 {{request}}`;
 
 /**
+ * UI Design box, stage 1 — **simplify before building**.
+ *
+ * The UI Design box used to ask the model for a full React prototype in one
+ * shot. Long research/description inputs then produced 20-30k-token replies that
+ * overflowed the output budget. It now runs two small steps: this prompt turns
+ * the (possibly long) request into a compact design brief, and the build prompt
+ * below turns that brief into ONE simple self-contained HTML page. Simplifying
+ * first is what keeps the page small and previewable.
+ */
+export const UI_BRIEF_SYSTEM_PROMPT = `You are a senior product designer. You turn a long or vague design request into ONE compact, concrete design brief that a developer can build from. You simplify ruthlessly: pick the few sections that matter, cut optional features, and write the exact copy. Output Markdown only — no code, no CSS.`;
+
+export const UI_BRIEF_PROMPT = `Here is the design request. It may be long — it can include research notes, several competing ideas and feature lists.
+
+Simplify it into ONE design brief for a SINGLE, SIMPLE page. Rules:
+- Maximum 160 words total.
+- One line: the page type and its single purpose.
+- List **3-4 sections** (never more — drop the rest of the requested features, they are out of scope) in the order they appear. For each: its heading text and one line about what it shows.
+- List the UI pieces needed (cards, table, form, chart…) — at most 6, names only.
+- Palette: 4 hex colors (background, surface, text, accent).
+- Layout in one sentence: prefer a single centered column; only say "sidebar" if the request is explicitly an app shell.
+- Type in one sentence (system font stack, 2 sizes).
+- Mock content: 3-5 example items with their exact labels/values.
+- No code, no CSS, no markdown fences.
+
+Request:
+{{request}}`;
+
+/**
+ * UI Design box, stage 2 — build ONE simple self-contained HTML page.
+ * Plain HTML + one `<style>` block: no React, no Tailwind CDN, no build step.
+ * That keeps the reply small (a few thousand tokens instead of tens of
+ * thousands), quick to preview, and directly deployable.
+ */
+export const UI_BUILD_SYSTEM_PROMPT = `You are a front-end developer building a simple, good-looking page. You write ONE self-contained HTML file: plain HTML with a single <style> block in the head. No React, no frameworks, no external JavaScript, no external CSS. Use a clear visual hierarchy, one accent color, generous spacing and a responsive layout. Output ONLY the HTML file — no explanation, no markdown fences.`;
+
+export const UI_BUILD_PROMPT = `Build the page described by this design brief. Follow the brief exactly — do not add sections it does not list.
+
+Rules for the file:
+- Start with <!DOCTYPE html> and end with </html>. Nothing else in the reply.
+- All CSS goes in ONE <style> block in the head; use CSS custom properties for the palette.
+- **Keep it simple: under 300 lines total, with the CSS under 140 lines.** Compact beats exhaustive.
+- Exactly the sections the brief lists — no extra nav items, panels or features.
+- Semantic HTML (header/main/section) with real hover and focus states.
+- Charts/graphs: plain CSS bars or gradient blocks. No canvas, no SVG libraries, no icon fonts.
+- No fixed/sticky positioning and no animations beyond a 0.15s hover transition (unless the brief asks for them).
+- At most one short inline script, and only if the brief lists a control that needs it (≤15 lines).
+- Mock content only: no fetch, no external assets.
+- Responsive: a max-width container, flex/grid, and one breakpoint at 700px.
+
+Design brief:
+{{brief}}`;
+
+/**
+ * The change-request template for a UI Design box whose code is now a plain HTML
+ * page (see `lib/uidesign.ts`). Fixed, like CODE_CHANGE_PROMPT: its rules are
+ * what stop an AI change from quietly dropping sections.
+ */
+export const UI_CHANGE_PROMPT = `Here is the current HTML page of a working design prototype, followed by a change request. Apply ONLY that change and return the complete updated HTML document.
+
+Rules:
+- Return the COMPLETE HTML file, starting with <!DOCTYPE html> and ending with </html> — never a fragment, never a diff, never an explanation.
+- Keep every part the request does not mention exactly as it is: no reformatting, no renaming, no "improvements", no dropping sections.
+- Change as little as the request allows; keep the existing palette, layout and style.
+- Keep all CSS in the existing <style> block; do not add external scripts or stylesheets.
+
+The current HTML:
+
+\`\`\`html
+{{code}}
+\`\`\`
+
+Change request:
+{{request}}`;
+
+/**
  * Code Map worker — reads a GitHub repository (via the backend's
  * /api/repo-digest endpoint, which fetches the tree and the files that matter
  * most) and writes an orientation brief: what the code does, how it is
@@ -566,6 +641,12 @@ export interface BoxData {
   slides?: Slide[];
   /** For Code boxes: the generated React component code (JSX). */
   code?: string;
+  /**
+   * For UI Design boxes: the compact design brief the page was built from —
+   * stage 1 of the run (the request/research simplified), kept so the design can
+   * be re-explained, changed and audited without re-reading the research.
+   */
+  designBrief?: string;
   /** Code boxes: the change request to apply to the current code (AI edit). */
   changePrompt?: string;
   /** Code boxes: append-only history of every code version (never rewritten). */
@@ -870,14 +951,17 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     label: "UI Design",
     icon: "✨",
     color: "#c026d3",
-    description: "Generate beautiful, production-quality React UIs with Tailwind CSS.",
+    description:
+      "Simplify the research/description into a short design brief, then build ONE simple, self-contained HTML page from it.",
     hasAI: true,
     category: "worker",
     roles: ["designer"],
+    // The prompt is the *material* handed to the brief stage (connected boxes +
+    // this box's own description). The two fixed prompts in lib/uidesign.ts do
+    // the actual work: simplify → build one HTML page.
     defaultPrompt:
-      "Design a beautiful React UI for the following. Use Tailwind CSS classes for ALL styling (no inline styles). Make it look like a real polished product.\n\nDesign requirements:\n- Modern, clean design with attention to detail\n- Good spacing, typography, and color harmony\n- Use gradients, shadows, rounded corners, and smooth transitions\n- Hover states on interactive elements\n- Include at least one gradient or glassmorphism effect\n- Make it responsive\n- Use small mock data (3-5 items)\n\nOutput ONLY JavaScript/JSX code. Use React hooks (React.useState, React.useEffect). Define a component called App. End with ReactDOM.createRoot(document.getElementById('root')).render(<App />).\n\nDescription:\n{{inputs}}",
-    defaultSystemPrompt:
-      "You are an expert UI designer and React developer. You create beautiful, modern, production-quality user interfaces using Tailwind CSS classes. Focus on visual polish: gradients, shadows, rounded corners, good typography, proper spacing, and smooth transitions. Make it look like a real product — not a demo. Output ONLY JavaScript/JSX code. Use the React.* API. Define App component. End with ReactDOM.createRoot(document.getElementById('root')).render(<App />).",
+      "Design a page for the following. Research notes, feature lists and several competing ideas are welcome — they will be simplified into a short design brief first.\n\nWhat to design:\n{{inputs}}",
+    defaultSystemPrompt: UI_BUILD_SYSTEM_PROMPT,
     defaultWidth: 440,
     defaultHeight: 420,
   },
@@ -1046,7 +1130,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
 };
 
 /** Preset pill colors for Label boxes (index 0 = default). */
-export const LABEL_COLORS = ["#e2e8f0", "#fde68a", "#fecdd3", "#a5f3fc", "#a7f3d0"];
+export const LABEL_COLORS = ["#EAE4D6", "#F6E7C6", "#F7E0D8", "#DCE7F2", "#DDEADF"];
 
 /**
  * Preset area colors for drawn rectangular areas: intentionally VERY light
@@ -1055,12 +1139,15 @@ export const LABEL_COLORS = ["#e2e8f0", "#fde68a", "#fecdd3", "#a5f3fc", "#a7f3d
  * notes, or edges on top of them.
  */
 export const AREA_COLORS: { fill: string; border: string; name: string }[] = [
-  { fill: "#fef3c7", border: "#fde68a", name: "Amber" },
-  { fill: "#dbeafe", border: "#bfdbfe", name: "Blue" },
-  { fill: "#d1fae5", border: "#a7f3d0", name: "Emerald" },
-  { fill: "#fce7f3", border: "#fbcfe8", name: "Pink" },
-  { fill: "#ede9fe", border: "#ddd6fe", name: "Violet" },
-  { fill: "#cffafe", border: "#a5f3fc", name: "Cyan" },
-  { fill: "#ffedd5", border: "#fed7aa", name: "Orange" },
-  { fill: "#f1f5f9", border: "#e2e8f0", name: "Slate" },
+  // Warm land tints on cream paper. Names are load-bearing (the E2E picks
+  // "Draw color — Emerald" / "Area color — Violet"), and Violet's fill is
+  // asserted exactly by the suite — keep those two strings stable.
+  { fill: "#F6E7C6", border: "#E0C382", name: "Amber" },
+  { fill: "#DCE7F2", border: "#A9C2DB", name: "Blue" },
+  { fill: "#DDEADF", border: "#A9C7B0", name: "Emerald" },
+  { fill: "#F7E0D8", border: "#E2B4A4", name: "Pink" },
+  { fill: "#ede9fe", border: "#C3B9DA", name: "Violet" },
+  { fill: "#DFE9E4", border: "#B4C9BE", name: "Cyan" },
+  { fill: "#F7EBC9", border: "#DFCB8E", name: "Orange" },
+  { fill: "#EAE4D6", border: "#CFC6B3", name: "Slate" },
 ];

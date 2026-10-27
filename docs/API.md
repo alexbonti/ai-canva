@@ -8,6 +8,11 @@ The API surface is identical between the **local Express server** (`server/`) an
 > server/function can trigger paid AI generations. Rate-limit or protect them before exposing a
 > public deployment (see [OSS_READINESS.md](OSS_READINESS.md)).
 
+**Error format.** Every API error is JSON: `{ "error": "human-readable message" }`, with the HTTP
+status in the header (400 validation, 404 unknown route/job, 413 body over the 30 MB limit, 501
+feature only available in the production function, 502 upstream provider refused, 500 unexpected).
+There is no HTML error page and no stack trace in a response body — the client always parses JSON.
+
 ## Endpoints
 
 ### `GET /api/health`
@@ -21,7 +26,9 @@ Lightweight health check. Returns which API keys are configured.
   "status": "ok",
   "ollamaKey": "configured" | "missing",
   "falKey": "configured" | "missing",
-  "stitchKey": "configured" | "missing"
+  "stitchKey": "configured" | "missing",
+  "githubToken": "configured" | "optional",
+  "herenowKey": "configured" | "anonymous"
 }
 ```
 
@@ -35,22 +42,35 @@ PRD, Dev Plan, Slides, Code, UI Design).
 ```json
 {
   "systemPrompt": "string (optional, defaults to 'You are a helpful assistant.')",
-  "userPrompt": "string (required)"
+  "userPrompt": "string (required)",
+  "think": false
 }
 ```
+
+`think` is optional and forwarded to the provider: `false` disables the model's reasoning pass
+(reasoning tokens are counted but never returned). The UI Design box sets it for its brief/build/
+change calls; omitting it keeps the provider default (thinking on). See `docs/MODELS.md`.
 
 **Response** — `200`
 
 ```json
 {
   "content": "string",
-  "model": "deepseek-v4.1-flash",
+  "model": "deepseek-v4.1-flash:1017",
+  "truncated": false,
   "usage": { "promptTokens": 120, "completionTokens": 450, "totalTokens": 570 }
 }
 ```
 
 `usage` reports the model's **token usage** for this call (`promptTokens` = input, `completionTokens`
-= output) from Ollama's `prompt_eval_count` / `eval_count`. The client displays this per box and
+= output) from Ollama's `prompt_eval_count` / `eval_count`.
+
+The backend streams from Ollama internally (NDJSON) and returns a single JSON body; nothing
+changes for API consumers.
+
+`truncated` is `true` when the model hit its output budget (`num_predict`, 32 768 tokens) before
+finishing — Ollama stops with `done_reason: "length"`. The reply is then incomplete (e.g. JSX cut
+mid-component), so the client asks for a retry/shorter prompt instead of treating it as an artifact. The client displays this per box and
 persists it to Firestore (see "Token usage" below).
 
 **Errors**
@@ -60,7 +80,7 @@ persists it to Firestore (see "Token usage" below).
 | `400` | `userPrompt` missing or not a string |
 | `500` | Ollama call failed (e.g. missing `OLLAMA_API_KEY`) |
 
-The model defaults to `deepseek-v4.1-flash` and can be overridden with `OLLAMA_MODEL`. Requests go to
+The model defaults to `deepseek-v4.1-flash:1017` and can be overridden with `OLLAMA_MODEL`. Requests go to
 `{OLLAMA_HOST}/api/chat` (default `https://ollama.com` for Ollama Cloud) authenticated with
 `OLLAMA_API_KEY`.
 
@@ -132,7 +152,10 @@ immediately. The client polls [`GET /api/stitch-status/:jobId`](#get-apistitch-s
 **Errors**
 
 | `400` | `prompt` missing or not a string |
-| `500` | Failed to start the job (e.g. missing `STITCH_API_KEY`) |
+
+A missing `STITCH_API_KEY` (or a provider failure) does **not** fail this request: the job is
+created and then fails asynchronously, so the client sees it through `GET /api/stitch-status/:jobId`
+(that is why the box shows the real provider message instead of a generic 500).
 
 ### `GET /api/stitch-status/:jobId`
 
@@ -218,6 +241,9 @@ How the digest is built (see `server/src/repo.ts`, duplicated as `functions/src/
   file contents, 400 tree entries. Files over 400 KB are assumed generated and never downloaded.
   Every cap that bites is reported in `notes`, and the box tells the model the digest is partial so
   the brief can't claim completeness.
+- The whole digest has a **45 s budget** (GitHub API/tree + raw file reads). It is a synchronous
+  endpoint behind Firebase Hosting's ~60 s rewrite ceiling, so a slow GitHub or a huge repository
+  returns a partial digest (reported in `notes`) instead of an opaque Hosting timeout.
 
 Text generation needs no key, so a **public repository works with no configuration**.
 
@@ -276,7 +302,9 @@ everything first:
 - files must be site-relative; **`.herenow/` paths are refused** (those are here.now configuration
   manifests, so a generated box can never ship server-side config), as are traversal and absolute
   paths;
-- caps: 400 files, 8 MB per file, 25 MB total (well inside here.now's own 2,500 files / 10 GB);
+- caps: 400 files, 8 MB per file, 25 MB total (well inside here.now's own 2,500 files / 10 GB).
+  The API's JSON body limit is **30 MB** (both backends) so a valid 25 MB deploy is not rejected by
+  Express before the route runs;
 - `warnings` from finalize are passed through rather than swallowed.
 
 **Anonymous vs permanent:** without `HERENOW_API_KEY` the Site is anonymous — live immediately,
@@ -331,7 +359,9 @@ Authorization: Bearer <Firebase ID token>
 
 ### `GET /api/admin/users?pageToken=...`
 
-Admin-only. Lists registered users from Firebase Auth (paginated, up to 200 per page).
+Admin-only. Lists registered users from Firebase Auth (paginated, up to 200 per page). The local dev
+server answers a JSON `501` for this route and for `POST /api/admin/users/:uid/status` (they need the
+Admin SDK); the production function implements both.
 
 **Auth**
 
@@ -380,6 +410,10 @@ via `auth.updateUser`. An admin cannot block their own account.
 { "disabled": true }
 ```
 
+`disabled` must be a JSON **boolean** — a missing/typed body is a `400` (a bodyless POST used to be
+read as "unblock the account"). The facilitator role endpoint (`POST /api/admin/roles`) requires an
+explicit boolean `grant` the same way (a missing `grant` used to revoke the role).
+
 **Response** — `200`
 
 ```json
@@ -403,7 +437,7 @@ via `auth.updateUser`. An admin cannot block their own account.
 | Variable            | Required for      | Description                                    |
 | ------------------- | ----------------- | ---------------------------------------------- |
 | `OLLAMA_API_KEY`    | Text boxes        | Ollama Cloud API key (https://ollama.com/settings/keys) |
-| `OLLAMA_MODEL`      | Optional          | Model name (default `deepseek-v4.1-flash`)      |
+| `OLLAMA_MODEL`      | Optional          | Model name (default `deepseek-v4.1-flash:1017`)      |
 | `OLLAMA_HOST`       | Optional          | Ollama host (default `https://ollama.com`)     |
 | `FAL_KEY`           | Cartoon box       | fal.ai API key                                 |
 | `STITCH_API_KEY`    | Stitch UI box     | Google Stitch API key                          |

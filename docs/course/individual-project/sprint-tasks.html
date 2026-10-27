@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Individual Project — Sprint Tasks (3 weeks, 30 hours)</title>
+<style>
+  :root { --ink:#1c1c1a; --green:#3F6B2A; --green-dark:#2F5220; --green-light:#EAF5DF; --cream:#f4efe6; --card:#fff; --grey:#6b6b60; --line:#e0d6c8; --blue:#2c3e50; --red:#c0392b; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Plus Jakarta Sans',-apple-system,system-ui,sans-serif; background:var(--cream); color:var(--ink); line-height:1.55; }
+  .wrap { max-width:880px; margin:0 auto; padding:48px 48px 80px; }
+  .kicker { font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--green); margin-bottom:10px; }
+  h1 { font-size:32px; font-weight:800; line-height:1.12; letter-spacing:-.02em; }
+  .sub { font-size:16px; color:var(--grey); margin-top:10px; }
+  .meta { display:flex; gap:20px; flex-wrap:wrap; margin:18px 0 26px; }
+  .meta div { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:8px 14px; font-size:13px; }
+  .meta b { color:var(--green); }
+  h2 { font-size:21px; font-weight:800; margin:34px 0 12px; padding-top:22px; border-top:1px solid var(--line); }
+  h2 .n { color:var(--green); }
+  h3 { font-size:16px; font-weight:800; margin:18px 0 8px; color:var(--green-dark); }
+  p { margin:10px 0; font-size:15px; }
+  ul,ol { margin:10px 0 10px 22px; }
+  li { margin:6px 0; font-size:15px; }
+  table { width:100%; border-collapse:collapse; margin:14px 0; background:var(--card); font-size:14px; }
+  th { background:var(--ink); color:#fff; text-align:left; padding:8px 12px; }
+  td { border:1px solid var(--line); padding:8px 12px; vertical-align:top; }
+  tr:nth-child(even) td { background:#faf8f3; }
+  code { background:#eef0f2; font-family:ui-monospace,monospace; font-size:12.5px; padding:2px 6px; border-radius:5px; }
+  .callout { background:var(--green-light); border-left:4px solid var(--green); border-radius:10px; padding:13px 16px; margin:16px 0; font-size:14px; }
+  .callout b { color:var(--green-dark); }
+  .warn { background:#fdf0df; border-left:4px solid #d97706; border-radius:10px; padding:13px 16px; margin:16px 0; font-size:14px; }
+  .warn b { color:#a06a00; }
+  pre.block { background:#1f2933; color:#e6edf3; border-radius:10px; padding:14px 16px; margin:12px 0; font-family:ui-monospace,SFMono-Regular,monospace; font-size:12px; line-height:1.7; white-space:pre-wrap; }
+  .footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--line); color:var(--grey); font-size:13px; }
+  @media print { body{background:#fff} .wrap{max-width:100%;padding:16mm} h2{break-before:auto} tr,pre.block{break-inside:avoid} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">AI-Assisted Software Project · Individual Project · Sprint pack</div>
+  <h1>Sprint Tasks — 3 Weeks, 30 Hours</h1>
+  <div class="sub">"One Student, One Box": the whole project in a three-week sprint, 10 hours per week, with the research (70% of the mark) spread across all three weeks.</div>
+  <div class="meta">
+    <div>Sprint: <b>3 weeks</b></div>
+    <div>Per week: <b>10 h</b></div>
+    <div>Total: <b>30 h</b></div>
+    <div>Must-do: <b>6 h/week</b></div>
+    <div>Weighting: <b>Research 70% · Build 30%</b></div>
+  </div>
+
+  <div class="callout">Everything here maps onto the brief (<code>brief.md</code>): the same three deliverables, the same rubric, no extra marks. <b>The app already runs</b> — <code>npm run dev</code> works — so no setup time is budgeted anywhere below.</div>
+
+  <h2><span class="n">1.</span> The sprint at a glance</h2>
+  <table>
+    <tr><th>Week</th><th>Focus</th><th>Exit — the week is done when…</th></tr>
+    <tr><td><b>Week 1</b></td><td>Choose it, prove you need it, register it</td><td>Box locked · research question written · 3 annotated sources · box registered in <code>types.ts</code> with a PR open · demo pipeline sketched on a board</td></tr>
+    <tr><td><b>Week 2</b></td><td>Make it run</td><td>Prompt templated · <code>runBox</code> branch produces real output · the demo pipeline runs end-to-end · empty/error paths handled · guardrails tested · report sections 1–2 drafted</td></tr>
+    <tr><td><b>Week 3</b></td><td>Justify it, demo it</td><td>Full 2,000–2,500 word report · rehearsed 5-minute demo · box connected into the class mega-pipeline · reflection submitted</td></tr>
+  </table>
+  <p><b>No model call is required in Week 1.</b> That is deliberate: the box earns its 30% in Week 2, and the report that earns the other 70% is written across all three weeks.</p>
+
+  <h2><span class="n">2.</span> How the hours are cut</h2>
+  <table>
+    <tr><th>Marker</th><th>Meaning</th></tr>
+    <tr><td>🔴</td><td><b>Must</b> — the week fails without it (6 h)</td></tr>
+    <tr><td>🟡</td><td><b>Should</b> — finish these in a normal week (3 h)</td></tr>
+    <tr><td>🔵</td><td><b>Stretch</b> — the last hour (1 h)</td></tr>
+  </table>
+  <div class="warn"><b>The cut line:</b> if you only get ~6 hours in a week, do the 🔴 rows and nothing else — and tell your instructor which rows you traded off, rather than reporting "10 hours" with the must-dos unfinished. Each week totals exactly 10 h (6 🔴 + 3 🟡 + 1 🔵); the three weeks total 30 h.</div>
+
+  <h2><span class="n">3.</span> Week 1 — choose it, prove you need it, register it (10 h)</h2>
+  <table>
+    <tr><th>ID</th><th>Task</th><th>Hrs</th><th></th><th>Done when</th></tr>
+    <tr><td>IP-W1-01</td><td>Read <code>brief.md</code> end-to-end, including the rubric — internalise that <b>research is 70%</b> of the mark</td><td>1</td><td>🔴</td><td>You can name the 3 rubric rows you are weakest on right now</td></tr>
+    <tr><td>IP-W1-02</td><td>Shortlist 3 boxes from the brief's menu that fit a problem you actually care about; write a one-line research question for each</td><td>1.5</td><td>🟡</td><td>3 candidate boxes, each with a one-line question</td></tr>
+    <tr><td>IP-W1-03</td><td>Lock <b>one</b> box and write the research question as a paragraph: what problem, for whom, why it matters</td><td>1</td><td>🔴</td><td>Written on your board where the instructor can read it</td></tr>
+    <tr><td>IP-W1-04</td><td>Find 3 credible sources and write a ~150-word annotated entry for each (what it says, why it matters to your question)</td><td>3</td><td>🔴</td><td>An annotated bibliography with 3 full references</td></tr>
+    <tr><td>IP-W1-05</td><td>Build the pipeline sketch on a board: 💡 Idea (your problem) → <b>your box</b> → 🔍 Summarize, connected</td><td>1</td><td>🔴</td><td>3 boxes and their edges on the canvas, ready to run next week</td></tr>
+    <tr><td>IP-W1-06</td><td>Register the box in <code>types.ts</code>: <code>BoxType</code> + a <code>BOX_TYPES</code> entry — label, icon, colour, category, default prompt, default system prompt</td><td>1.5</td><td>🟡</td><td>The box appears in the <b>+ Add Box</b> palette and can be placed on the canvas</td></tr>
+    <tr><td>IP-W1-07</td><td>Write the report skeleton: the 6 section headings plus 3 bullets on what goes in each; paste your 3 sources into a reference list</td><td>1</td><td>🔵</td><td>A skeleton file exists with headings, bullets and a reference list</td></tr>
+  </table>
+  <p><b>10 h · Wednesday checkpoint:</b> IP-W1-01 and IP-W1-03 — box locked, question written.<br>
+  <b>Friday deliverable:</b> board with the pipeline sketch · PR open with the <code>types.ts</code> entry · research question + annotated bibliography.</p>
+
+  <h2><span class="n">4.</span> Week 2 — make it run (10 h)</h2>
+  <table>
+    <tr><th>ID</th><th>Task</th><th>Hrs</th><th></th><th>Done when</th></tr>
+    <tr><td>IP-W2-01</td><td>Write the <code>defaultPrompt</code> using <code>{{inputs}}</code> / <code>{{input_1}}</code> / <code>{{Box Name}}</code>, and state the exact output format the box must return</td><td>2</td><td>🔴</td><td>Prompt written in the box's ⚙ panel, variables documented in a comment</td></tr>
+    <tr><td>IP-W2-02</td><td>Implement the <code>runBox</code> branch: gather connected inputs → call the backend → post-process the reply into your format</td><td>3</td><td>🔴</td><td>▶ Run produces real model output, shaped as you specified</td></tr>
+    <tr><td>IP-W2-03</td><td>Run it on the demo pipeline; fix the empty-input and error paths so the box never shows a blank output</td><td>1</td><td>🔴</td><td>The pipeline runs end-to-end without a manual fix-up</td></tr>
+    <tr><td>IP-W2-04</td><td>Guardrail tests: empty input, huge input (paste a whole document), off-topic input — record what happens in all three</td><td>1.5</td><td>🟡</td><td>3 documented behaviours, each with what you'd change</td></tr>
+    <tr><td>IP-W2-05</td><td>Draft report sections 1–2 (problem &amp; motivation, domain context), ~800 words with citations</td><td>1.5</td><td>🟡</td><td>Draft in the skeleton, citations in the reference list</td></tr>
+    <tr><td>IP-W2-06</td><td>Update the PR: what changed and why, a screenshot of real output, and the <code>runBox</code> branch explained in 5 lines</td><td>1</td><td>🔵</td><td>PR description readable by someone who has never seen your box</td></tr>
+  </table>
+  <p><b>10 h · Mid-week checkpoint (≈5 h):</b> IP-W2-01 and IP-W2-02 — the box runs once, even badly.<br>
+  <b>Friday deliverable:</b> working <code>runBox</code> branch + templated prompt + the pipeline running + guardrail notes + report sections 1–2.</p>
+
+  <h2><span class="n">5.</span> Week 3 — justify it, demo it (10 h)</h2>
+  <table>
+    <tr><th>ID</th><th>Task</th><th>Hrs</th><th></th><th>Done when</th></tr>
+    <tr><td>IP-W3-01</td><td>Finish the report: sections 3–6 — design rationale, alternatives, ethics &amp; limits, and the answer to your research question — to the full 2,000–2,500 words</td><td>3.5</td><td>🔴</td><td>Report complete, every claim cited, question answered explicitly</td></tr>
+    <tr><td>IP-W3-02</td><td>Rehearse the 5-minute demo twice: your box in the pipeline plus the research answer</td><td>1.5</td><td>🔴</td><td>A full run-through with no fix-ups mid-demo</td></tr>
+    <tr><td>IP-W3-03</td><td>Connect your box into the class <b>mega-pipeline</b> and check it composes with a neighbour's box</td><td>1</td><td>🔴</td><td>Your box runs inside the assembled class pipeline</td></tr>
+    <tr><td>IP-W3-04</td><td>Peer review: read one classmate's report, give 3 specific comments — and act on the 3 you receive</td><td>1.5</td><td>🟡</td><td>Comments given and received; your report updated</td></tr>
+    <tr><td>IP-W3-05</td><td>Output polish: make the output read well — headings, a verdict/score line, consistent formatting (a custom render is optional)</td><td>1.5</td><td>🟡</td><td>Someone else can read the output without being told what it means</td></tr>
+    <tr><td>IP-W3-06</td><td>Final tidy + reflection: clean diff, final PR description, 200–300 word reflection ("what the AI got right/wrong, what I'd change"), submit report + links</td><td>1</td><td>🔵</td><td>Report + PR + board links + reflection submitted together</td></tr>
+  </table>
+  <p><b>10 h · Exit:</b> the three deliverables are all in (§6).<br>
+  <b>Friday deliverable:</b> the report, the demo, the merged/tidy PR, and the reflection.</p>
+
+  <h2><span class="n">6.</span> What the sprint produces, and where it is marked</h2>
+  <table>
+    <tr><th>Brief deliverable</th><th>Built in</th><th>Brief rubric rows it feeds</th></tr>
+    <tr><td><b>A. Working box</b></td><td><code>types.ts</code> entry → W1 (IP-W1-06) · prompt template → W2 (IP-W2-01) · <code>runBox</code> branch → W2 (IP-W2-02) · demo pipeline → W2 (IP-W2-03) · clean code → W2/W3</td><td>Functionality 15% · Scaffold integration 10% · Demo 5% (= Build 30%)</td></tr>
+    <tr><td><b>B. Written research report</b></td><td>Skeleton → W1 (IP-W1-07) · sections 1–2 → W2 (IP-W2-05) · sections 3–6 → W3 (IP-W3-01)</td><td>Problem &amp; motivation 15% · Research &amp; sources 15% · Design rationale 15% · Alternatives 10% · Ethics &amp; limits 10% · Question answered 5% (= Research 70%)</td></tr>
+    <tr><td><b>C. Demo &amp; reflection</b></td><td>Rehearsal → W3 (IP-W3-02) · mega-pipeline → W3 (IP-W3-03) · reflection → W3 (IP-W3-06)</td><td>Demo 5% (inside Build) · the reflection is evidence for Design rationale / Ethics &amp; limits</td></tr>
+  </table>
+  <div class="warn"><b>One thing to settle with your instructor:</b> the brief's §4 labels C as <i>"(30%)"</i> on top of A's 30% and B's 70%, which adds to 130%. The rubric adds to exactly 100% (Build 15+10+5, Research 15+15+15+10+10+5), so the demo is already inside the build mark and the "30%" on C is a duplicate. Treat the <b>rubric</b> as authoritative unless you are told otherwise.</div>
+
+  <h2><span class="n">7.</span> Paste-ready task blocks (one per week)</h2>
+  <p>Paste a whole block into a <b>Checklist box</b>'s <b>Add a task…</b> field on your board — a multi-line paste imports one task per line. At the end of the week: <b>📋 Copy</b> (that export is your task-tracking evidence), then <b>🧹 Clear done</b> and paste the next week's block.</p>
+
+  <h3>Week 1</h3>
+  <pre class="block">- [ ] IP-W1-01 (1h) Read brief.md end-to-end incl. the rubric — research is 70% of the mark
+- [ ] IP-W1-02 (1.5h) Shortlist 3 boxes you'd care about + a one-line research question for each
+- [ ] IP-W1-03 (1h) Lock ONE box + write your research question: problem, for whom, why it matters
+- [ ] IP-W1-04 (3h) Find 3 credible sources + a ~150-word annotated entry for each
+- [ ] IP-W1-05 (1h) Build the pipeline sketch: Idea -> your box -> Summarize, connected
+- [ ] IP-W1-06 (1.5h) Register the box in types.ts: BoxType + BOX_TYPES entry (label, icon, colour, category, prompts)
+- [ ] IP-W1-07 (1h) Write the report skeleton: 6 headings + 3 bullets each, plus the reference list</pre>
+
+  <h3>Week 2</h3>
+  <pre class="block">- [ ] IP-W2-01 (2h) Write the defaultPrompt with {{inputs}} / {{input_1}} / {{Box Name}} + define the output format
+- [ ] IP-W2-02 (3h) Implement the runBox branch: gather inputs -> call the backend -> post-process the reply
+- [ ] IP-W2-03 (1h) Run the demo pipeline end-to-end; fix the empty-input and error paths
+- [ ] IP-W2-04 (1.5h) Guardrail tests: empty, huge (whole document), off-topic input — record all 3 behaviours
+- [ ] IP-W2-05 (1.5h) Draft report sections 1-2 (problem &amp; motivation, domain context), ~800 words, cited
+- [ ] IP-W2-06 (1h) Update the PR: what/why, a screenshot of real output, the runBox branch in 5 lines</pre>
+
+  <h3>Week 3</h3>
+  <pre class="block">- [ ] IP-W3-01 (3.5h) Finish the report: sections 3-6 (design rationale, alternatives, ethics &amp; limits, answer) to 2,000-2,500 words
+- [ ] IP-W3-02 (1.5h) Rehearse the 5-minute demo twice: box in the pipeline + the research answer
+- [ ] IP-W3-03 (1h) Connect your box into the class mega-pipeline and check it composes with a neighbour's box
+- [ ] IP-W3-04 (1.5h) Peer review a classmate's report (3 comments) and act on the 3 you receive
+- [ ] IP-W3-05 (1.5h) Output polish: headings, a verdict/score line, consistent formatting
+- [ ] IP-W3-06 (1h) Final tidy + reflection (200-300 words) and submit report + PR + board links</pre>
+
+  <h2><span class="n">8.</span> What the instructor checks, week by week</h2>
+  <table>
+    <tr><th>Week</th><th>Evidence</th><th>Fail signal</th></tr>
+    <tr><td>1</td><td>Board pipeline sketch · PR open with the <code>types.ts</code> entry · research question · 3 annotated sources</td><td>Box chosen but no sources — that is the 70% half, deferred</td></tr>
+    <tr><td>2</td><td><code>runBox</code> branch producing real output · templated prompt · guardrail notes · report sections 1–2 drafted</td><td>"It works on my machine" with no output shown in the PR</td></tr>
+    <tr><td>3</td><td>Full report (2,000–2,500 words, cited) · demo run · box in the mega-pipeline · reflection</td><td>Report left to the last night, or a demo that fails without a fix-up</td></tr>
+  </table>
+  <div class="warn"><b>Hour reality check:</b> each week is exactly 10 h (6 🔴 + 3 🟡 + 1 🔵). If a student reports a full week but the 🔴 rows are unticked, ask which rows they traded off — that conversation is more useful than the total.</div>
+
+  <div class="footer">AI Canva · <code>docs/course/individual-project/sprint-tasks.md</code> — the Markdown version is the source. Brief: <code>brief.md</code> / <code>brief.html</code> in this folder.</div>
+</div>
+</body>
+</html>

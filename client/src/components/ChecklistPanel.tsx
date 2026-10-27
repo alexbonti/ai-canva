@@ -16,6 +16,9 @@ import {
 } from "../lib/checklist.js";
 import { useBoardStore } from "../store/boardStore.js";
 import { useAuthStore } from "../store/authStore.js";
+import { Button } from "./ui/Button.js";
+import { Icon } from "./ui/Icon.js";
+import { LINE_COLORS } from "../lib/lines.js";
 
 interface ChecklistPanelProps {
   boxId: string;
@@ -35,6 +38,12 @@ interface ChecklistPanelProps {
  * This component owns its own store subscriptions: BoxNode must not subscribe
  * to collaborators/presence (that would re-render every box on the canvas
  * whenever someone moves their cursor).
+ *
+ * Styling follows "The Printed Line": a ruled timetable of tasks — hairline
+ * rows, a 16px square check, mono assignee chips and progress figures, and a
+ * marigold focus ring from the global rule. The class names the touch CSS
+ * targets (`.checklist-check`, `.checklist-row-actions`, `.checklist-assign`,
+ * `.checklist-add-input`, `.checklist-add-btn`) are kept on the same elements.
  */
 export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
   const setChecklistItems = useBoardStore((s) => s.setChecklistItems);
@@ -110,42 +119,55 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
       {/* Progress + list-level actions */}
       <div className="flex-shrink-0">
         <div className="flex items-center justify-between gap-2">
-          <span className="checklist-progress text-[11px] font-semibold text-slate-500 tabular-nums">
-            {stats.total === 0 ? "No tasks yet" : `${stats.done} of ${stats.total} done`}
+          <span className="checklist-progress data-mono text-ink-muted">
+            {stats.total === 0 ? "0 tasks" : `${stats.done} of ${stats.total} done`}
           </span>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             {stats.done > 0 && (
-              <button
-                className="checklist-clear-done rounded-md px-1.5 py-0.5 text-[10px] font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+              <Button
+                variant="ghost"
+                size="xs"
+                className="checklist-clear-done font-medium text-ink-muted"
                 title={`Remove the ${stats.done} finished task${stats.done === 1 ? "" : "s"}`}
                 onClick={() => mutate((current) => clearDoneChecklistItems(current))}
+                icon={<Icon name="trash" size={11} />}
               >
-                🧹 Clear done
-              </button>
+                Clear done
+              </Button>
             )}
-            <button
-              className="checklist-copy rounded-md px-1.5 py-0.5 text-[10px] font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40"
+            <Button
+              variant="ghost"
+              size="xs"
+              className="checklist-copy font-medium text-ink-muted"
               title="Copy the list as a Markdown checklist"
               onClick={copyMarkdown}
               disabled={stats.total === 0}
+              icon={<Icon name={copied ? "check" : "copy"} size={11} />}
             >
-              {copied ? "✅ Copied" : "📋 Copy"}
-            </button>
+              {copied ? "Copied" : "Copy"}
+            </Button>
           </div>
         </div>
-        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+        {/* Progress: one printed rule, filled in the category line colour.
+            Not rendered at all for an empty list — a 0% rule is noise. */}
+        {stats.total > 0 && (
           <div
-            className="h-full rounded-full transition-[width] duration-300"
-            style={{ width: `${stats.percent}%`, backgroundColor: "#059669" }}
-          />
-        </div>
+            className="mt-1.5 h-[3px] overflow-hidden rounded-pill bg-rule"
+            title={`${stats.percent}% complete`}
+          >
+            <div
+              className="h-full rounded-pill transition-[width] duration-300"
+              style={{ width: `${stats.percent}%`, backgroundColor: LINE_COLORS.collab }}
+            />
+          </div>
+        )}
       </div>
 
       {/* Add a task — multi-line pastes become several tasks at once. */}
       <div className="flex flex-shrink-0 items-center gap-1.5">
         <input
           ref={inputRef}
-          className="checklist-add-input nodrag min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[12px] text-slate-700 transition placeholder:text-slate-400 focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:bg-slate-50"
+          className="checklist-add-input nodrag h-8 min-w-0 flex-1 rounded-sm border border-rule bg-card px-2 text-[12px] text-ink placeholder:text-ink-muted disabled:opacity-45"
           placeholder={full ? "List is full" : "Add a task…"}
           value={draft}
           disabled={full}
@@ -166,23 +188,24 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
             if (addDraft(text) > 0) setDraft("");
           }}
         />
-        <button
-          className="checklist-add-btn flex-shrink-0 rounded-lg px-2 py-1 text-[12px] font-medium text-white transition disabled:opacity-40"
-          style={{ backgroundColor: "#059669" }}
+        <Button
+          variant="primary"
+          size="xs"
+          className="checklist-add-btn flex-shrink-0"
           disabled={!draft.trim() || full}
           onClick={submitDraft}
           title="Add the task (or paste a whole list)"
+          icon={<Icon name="plus" size={12} />}
         >
-          ＋ Add
-        </button>
+          Add
+        </Button>
       </div>
 
-      {/* The shared list */}
-      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+      {/* The shared list — ruled rows, no cards inside the card. */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {list.length === 0 && (
-          <p className="checklist-empty px-1 pt-2 text-[11px] leading-snug text-slate-400">
-            No tasks yet. Add the first one above — everyone on this board sees this list and
-            can tick tasks off.
+          <p className="checklist-empty border-t border-rule px-1 py-3 text-[11px] leading-snug text-ink-muted">
+            Add the first task above — everyone on this board sees this list.
           </p>
         )}
         {list.map((item, index) => (
@@ -191,16 +214,11 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
             data-testid="checklist-item"
             data-item-id={item.id}
             data-done={item.done ? "true" : "false"}
-            className={
-              "checklist-item group flex items-start gap-1.5 rounded-lg border px-1.5 py-1 transition " +
-              (item.done
-                ? "border-slate-100 bg-slate-50/70"
-                : "border-slate-200/70 bg-white hover:border-slate-300")
-            }
+            className="checklist-item group flex items-start gap-2 border-b border-rule px-1 py-1.5 last:border-b-0"
           >
             <input
               type="checkbox"
-              className="checklist-check nodrag mt-0.5 h-4 w-4 flex-shrink-0 cursor-pointer accent-emerald-600"
+              className="checklist-check nodrag mt-0.5 h-4 w-4 flex-shrink-0 cursor-pointer rounded-xs border border-rule-strong accent-pine"
               checked={item.done}
               onChange={() => mutate((current) => toggleChecklistItem(current, item.id, me))}
               title={item.done ? "Put this task back" : "Tick this task off"}
@@ -209,7 +227,7 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
               {editingId === item.id ? (
                 <input
                   autoFocus
-                  className="nodrag w-full rounded border border-slate-300 bg-white px-1 py-0.5 text-[12px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  className="nodrag w-full rounded-xs border border-rule-strong bg-card px-1 py-0.5 text-[12px] text-ink"
                   value={editDraft}
                   onChange={(e) => setEditDraft(e.target.value)}
                   onBlur={commitEdit}
@@ -222,7 +240,7 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
                 <span
                   className={
                     "checklist-text block cursor-text break-words text-[12px] leading-snug " +
-                    (item.done ? "text-slate-400 line-through" : "text-slate-700")
+                    (item.done ? "text-ink-muted line-through" : "text-ink-soft")
                   }
                   title={`Added by ${checklistDisplayName(item.createdBy) || "someone"} — click to edit`}
                   onClick={() => startEditing(item)}
@@ -230,13 +248,13 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
                   {item.text}
                 </span>
               )}
-              <div className="mt-0.5 flex items-center gap-1.5">
+              <div className="mt-1 flex items-center gap-2">
                 <select
                   className={
-                    "checklist-assign nodrag max-w-[110px] rounded-full border px-1 py-0 text-[10px] font-medium transition focus:outline-none " +
+                    "checklist-assign nodrag h-[18px] max-w-[130px] rounded-pill border px-1.5 data-mono transition-colors " +
                     (item.assignee
-                      ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-                      : "border-slate-200 bg-white text-slate-400")
+                      ? "border-[rgba(18,50,41,0.22)] bg-[rgba(18,50,41,0.06)] text-pine"
+                      : "border-rule bg-card text-ink-muted")
                   }
                   value={item.assignee}
                   onChange={(e) =>
@@ -244,7 +262,7 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
                   }
                   title="Assign this task to a teammate on this board"
                 >
-                  <option value="">＋ assign</option>
+                  <option value="">assign</option>
                   {people.map((email) => (
                     <option key={email} value={email}>
                       {checklistDisplayName(email)}
@@ -255,9 +273,12 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
                     <option value={item.assignee}>{checklistDisplayName(item.assignee)}</option>
                   )}
                 </select>
-                {item.done && item.doneBy && (
-                  <span className="checklist-done-by text-[10px] text-slate-400">
-                    ✓ {checklistDisplayName(item.doneBy)}
+                {/* The ticker is only worth printing when it differs from the
+                    assignee — otherwise the row repeats the same name twice. */}
+                {item.done && item.doneBy && item.doneBy !== item.assignee && (
+                  <span className="checklist-done-by inline-flex items-center gap-1 data-mono text-ink-muted">
+                    <Icon name="check" size={9} />
+                    {checklistDisplayName(item.doneBy)}
                   </span>
                 )}
               </div>
@@ -266,27 +287,27 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
                 visible on touch devices via .touch-visible). */}
             <div className="checklist-row-actions touch-visible flex flex-shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100">
               <button
-                className="checklist-move flex h-5 w-5 items-center justify-center rounded text-[9px] text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30"
+                className="checklist-move flex h-5 w-5 items-center justify-center rounded-xs text-ink-muted transition-colors hover:bg-paper-raised hover:text-ink disabled:opacity-30"
                 title="Move up"
                 disabled={index === 0}
                 onClick={() => mutate((current) => moveChecklistItem(current, item.id, -1))}
               >
-                ▲
+                <Icon name="chevronDown" size={12} className="rotate-180" />
               </button>
               <button
-                className="checklist-move flex h-5 w-5 items-center justify-center rounded text-[9px] text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30"
+                className="checklist-move flex h-5 w-5 items-center justify-center rounded-xs text-ink-muted transition-colors hover:bg-paper-raised hover:text-ink disabled:opacity-30"
                 title="Move down"
                 disabled={index === list.length - 1}
                 onClick={() => mutate((current) => moveChecklistItem(current, item.id, 1))}
               >
-                ▼
+                <Icon name="chevronDown" size={12} />
               </button>
               <button
-                className="checklist-delete flex h-5 w-5 items-center justify-center rounded text-[10px] text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+                className="checklist-delete flex h-5 w-5 items-center justify-center rounded-xs text-ink-muted transition-colors hover:bg-error-wash hover:text-state-error"
                 title="Delete this task"
                 onClick={() => mutate((current) => removeChecklistItem(current, item.id))}
               >
-                ✕
+                <Icon name="trash" size={11} />
               </button>
             </div>
           </div>

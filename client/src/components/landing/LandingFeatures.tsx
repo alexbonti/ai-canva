@@ -1,63 +1,114 @@
-import Reveal from "./Reveal.js";
+import { Icon } from "../ui/Icon.js";
+import type { IconName } from "../ui/Icon.js";
 
-const FEATURES = [
+interface Capability {
+  icon: IconName;
+  title: string;
+  body: string;
+}
+
+const CAPABILITIES: Capability[] = [
   {
-    icon: "🧩",
-    title: "11 AI box types",
-    body: "Idea, Research, PRD, Dev Plan, Code, UI Design, Stitch and more — each a focused, reusable AI step.",
+    icon: "history",
+    title: "Versioned by default",
+    body: "Builds and design changes append a version. Revert restores an old one as a new version, so the history never forks.",
   },
   {
-    icon: "🔗",
-    title: "Visual pipelines",
-    body: "Chain boxes on a canvas and watch content flow from research to a working prototype.",
+    icon: "branch",
+    title: "Gates that hold",
+    body: "Six SDLC stages, review findings that actually block, and downstream stages that go stale the moment an upstream artifact changes.",
   },
   {
-    icon: "👥",
-    title: "Real-time collaboration",
-    body: "Share a board, see live cursors and presence, and build together on the same canvas.",
+    icon: "zap",
+    title: "Tokens, counted",
+    body: "In and out per box, plus a running total in the header. A long run reports what it spent when it lands.",
   },
   {
-    icon: "💻",
-    title: "Live code preview",
-    body: "Code and UI boxes render a working React prototype in a sandboxed iframe — no setup.",
+    icon: "panel",
+    title: "Palettes, not permissions",
+    body: "Designer, developer, product and SDLC views narrow the Add Box palette. Board access is untouched.",
   },
   {
-    icon: "⚡",
-    title: "Token tracking",
-    body: "See per-box and cumulative LLM token usage so you know exactly what each run costs.",
+    icon: "globe",
+    title: "Yours to publish",
+    body: "Code, UI and Stitch boxes deploy to a live page. The browser never holds the key.",
   },
-  {
-    icon: "🎨",
-    title: "Role-based palettes",
-    body: "Designer, Developer and Product views surface the boxes each role needs, without hiding the pipeline.",
-  },
+];
+
+const PRESENCE = [
+  { initials: "AL", color: "var(--pine)", action: "is editing", target: "PRD-01" },
+  { initials: "MK", color: "var(--line-worker)", action: "is running", target: "RES-01" },
+  { initials: "JD", color: "var(--line-collab)", action: "ticked", target: "Launch checklist" },
 ];
 
 export default function LandingFeatures() {
   return (
-    <section id="features" className="border-t border-white/5 py-20">
-      <div className="mx-auto max-w-6xl px-5">
-        <Reveal className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-            Everything you need to ship with AI
-          </h2>
-          <p className="mt-3 text-slate-400">
-            A whiteboard that turns ideas into working software, step by step.
+    <section id="features" className="lp-section">
+      <div className="lp-shell">
+        <div className="lp-section-head">
+          <h2 className="lp-section-title">The work is the interface.</h2>
+          <p className="lp-section-lede">
+            No settings pane owns the state. Each box carries its line, its code,
+            its state and its token count, so the board explains itself. The rest
+            is built for a team in a room.
           </p>
-        </Reveal>
+        </div>
 
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f, i) => (
-            <Reveal key={f.title} delay={(i % 3) * 100}>
-              <div className="h-full rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:border-white/20 hover:bg-white/[0.07]">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 to-cyan-500/20 text-2xl">
-                  {f.icon}
-                </div>
-                <h3 className="mt-4 text-lg font-semibold text-white">{f.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-400">{f.body}</p>
+        <div className="lp-features">
+          <div className="lp-feature-lead">
+            <h3>The whole room, on one sheet.</h3>
+            <p>
+              Presence cursors, a live roster and shared notes, checklists and
+              timers. Hand a guest a seat code and they land on the same board the
+              team is working in — no account, no second copy.
+            </p>
+
+            <div className="lp-presence">
+              <div className="lp-presence-top">
+                <span className="label-caps">On this board</span>
+                <ul className="lp-roster" aria-label="Present collaborators">
+                  {PRESENCE.map((person) => (
+                    <li
+                      key={person.initials}
+                      className="lp-avatar"
+                      style={{ backgroundColor: person.color }}
+                    >
+                      {person.initials}
+                    </li>
+                  ))}
+                </ul>
+                <span className="data-mono">3 live</span>
               </div>
-            </Reveal>
-          ))}
+              <div className="lp-presence-rows">
+                {PRESENCE.map((person) => (
+                  <div key={person.initials} className="lp-presence-row">
+                    <span
+                      className="lp-presence-dot"
+                      style={{ backgroundColor: person.color }}
+                      aria-hidden
+                    />
+                    <span className="data-mono">{person.initials}</span>
+                    <span>{person.action}</span>
+                    <span className="data-mono">{person.target}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <ul className="lp-feature-list">
+            {CAPABILITIES.map((capability) => (
+              <li key={capability.title} className="lp-feature">
+                <span className="lp-feature-icon" aria-hidden>
+                  <Icon name={capability.icon} size={16} />
+                </span>
+                <div>
+                  <h3>{capability.title}</h3>
+                  <p>{capability.body}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </section>

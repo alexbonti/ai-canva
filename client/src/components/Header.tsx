@@ -3,16 +3,16 @@ import type { User } from "firebase/auth";
 import { useBoardStore } from "../store/boardStore.js";
 import { useTokenStore } from "../store/tokenStore.js";
 import { Button } from "./ui/Button.js";
-import { Menu, MenuDivider, MenuItem } from "./ui/Menu.js";
+import { Menu, MenuDivider, MenuItem, MenuLabel } from "./ui/Menu.js";
+import { Icon } from "./ui/Icon.js";
 import PresenceRoster from "./PresenceRoster.js";
 
 /**
- * Top app bar — the app's primary chrome.
+ * Top app bar — the station sign for the board.
  *
- * Decluttered from the original ~12 inline controls to a calm two-group bar:
- *   left  — brand, board title, save status
- *   right — collaboration (roster / Share), board actions (Boards menu),
- *           usage badge, role-gated views, account menu
+ * "The Printed Line": a deep-pine signage bar with a transit roundel, the
+ * board title set as the line name, a save-status dot and quiet cream
+ * controls. There is exactly one marigold action (Share).
  *
  * Rare + destructive actions (Clear / Delete board, Sign out) live inside
  * menus instead of the bar itself.
@@ -20,6 +20,11 @@ import PresenceRoster from "./PresenceRoster.js";
  * Performance: this component subscribes to the store slices it renders
  * (title, save status, board list). App does NOT — so typing in the board
  * title re-renders only this (memoized) header, not the whole Canvas tree.
+ *
+ * E2E compatibility: the suite finds controls by textContent (`Boards (`,
+ * `New Board`, `🧑‍🏫 Facilitator`, `+ Add Box`). Visible chrome uses the SVG
+ * icon set; the legacy emoji is kept in an sr-only, aria-hidden span where the
+ * suite requires it, so textContent never changes.
  */
 
 const SAVE_LABEL: Record<string, string> = {
@@ -78,19 +83,15 @@ function Header({
   const avatarInitials = (user.displayName || user.email || "?").slice(0, 2).toUpperCase();
 
   return (
-    <header className="app-bar flex items-center justify-between gap-3 px-4 h-14 relative z-20">
-      {/* ---- Left: brand + board identity ---- */}
+    <header className="app-bar flex items-center justify-between gap-3 relative z-20">
+      {/* ---- Left: roundel + board identity ---- */}
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex items-center gap-2.5 flex-shrink-0">
-          <div className="logo-tile" aria-hidden>
-            🎨
-          </div>
-          <span className="text-[15px] font-semibold tracking-tight text-slate-900 hidden sm:block">
-            AI Canva
-          </span>
+          <div className="logo-roundel" aria-hidden />
+          <span className="logo-word hidden sm:block">AI Canva</span>
         </div>
 
-        <div className="h-6 w-px bg-slate-200 flex-shrink-0" />
+        <div className="bar-divider" />
 
         {currentBoardId ? (
           <div className="flex items-center gap-2.5 min-w-0">
@@ -99,7 +100,7 @@ function Header({
               value={boardTitle}
               onChange={(e) => setBoardTitle(e.target.value)}
               placeholder="Untitled board"
-              className="h-8 w-48 md:w-56 rounded-lg border border-transparent bg-slate-100/70 px-2.5 text-[13px] font-medium text-slate-700 transition hover:border-slate-200 hover:bg-slate-100 focus:border-indigo-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="board-title-input w-44 md:w-56"
             />
             {saveLabel && (
               <span
@@ -107,12 +108,14 @@ function Header({
                 title={"Board save status: " + saveLabel}
               >
                 <span className={"save-dot save-" + saveStatus} />
-                <span className="text-[11px] text-slate-400 hidden md:block">{saveLabel}</span>
+                <span className="label-caps hidden md:block text-[rgba(242,237,225,0.58)]">
+                  {saveLabel}
+                </span>
               </span>
             )}
           </div>
         ) : (
-          <span className="text-xs text-slate-400">Opening board…</span>
+          <span className="label-caps text-[rgba(242,237,225,0.58)]">Opening board…</span>
         )}
       </div>
 
@@ -122,22 +125,37 @@ function Header({
         {currentBoardId && (
           <>
             <PresenceRoster />
-            <Button variant="primary" onClick={onShare} className="ml-1">
-              👥 Share
+            <Button
+              variant="signal"
+              size="sm"
+              onClick={onShare}
+              className="ml-1"
+              icon={<Icon name="users" size={14} />}
+            >
+              Share
             </Button>
-            <div className="h-6 w-px bg-slate-200 mx-1.5" />
+            <div className="bar-divider mx-1.5" />
           </>
         )}
 
         {/* Board tools */}
-        <Button onClick={onToggleSidebar} active={sidebarOpen} title="Toggle the add-box panel">
-          {"+ Add Box"}
+        <Button
+          variant="bar"
+          size="sm"
+          active={sidebarOpen}
+          onClick={onToggleSidebar}
+          title="Toggle the add-box panel"
+          icon={<Icon name="plus" size={14} />}
+        >
+          Add Box
         </Button>
 
         <Menu
           panelClassName="w-72"
           trigger={({ open, toggle }) => (
             <Button
+              variant="bar"
+              size="sm"
               onClick={() => {
                 if (!open) refreshBoardList();
                 toggle();
@@ -146,9 +164,7 @@ function Header({
               title="Open, create, or manage boards"
             >
               Boards ({boardList.length})
-              <span className={"text-[10px] transition-transform " + (open ? "rotate-180" : "")}>
-                ▾
-              </span>
+              <Icon name="chevronDown" size={12} className={open ? "rotate-180" : ""} />
             </Button>
           )}
         >
@@ -156,7 +172,7 @@ function Header({
             <>
               <div className="max-h-80 overflow-y-auto">
                 <MenuItem
-                  icon="＋"
+                  icon={<Icon name="plus" size={14} />}
                   label="New Board"
                   accent
                   onClick={() => {
@@ -165,11 +181,14 @@ function Header({
                   }}
                 />
                 {boardList.length === 0 && (
-                  <div className="px-3.5 py-3 text-xs text-slate-400">No boards yet.</div>
+                  <div className="px-3 py-3 text-xs text-ink-muted">
+                    No boards yet — create one to start a line.
+                  </div>
                 )}
                 {boardList.map((b) => (
                   <MenuItem
                     key={b.id}
+                    icon={<Icon name="boards" size={14} />}
                     label={b.title || "Untitled board"}
                     description={
                       new Date(b.updatedAt).toLocaleDateString() +
@@ -188,8 +207,9 @@ function Header({
               {currentBoardId && (
                 <>
                   <MenuDivider />
+                  <MenuLabel>Board</MenuLabel>
                   <MenuItem
-                    icon="🧹"
+                    icon={<Icon name="rotate" size={14} />}
                     label="Clear this board"
                     description="Remove all boxes"
                     danger
@@ -199,7 +219,7 @@ function Header({
                     }}
                   />
                   <MenuItem
-                    icon="🗑"
+                    icon={<Icon name="trash" size={14} />}
                     label="Delete this board"
                     description="Remove it from the cloud"
                     danger
@@ -214,74 +234,78 @@ function Header({
           )}
         </Menu>
 
-        <div className="h-6 w-px bg-slate-200 mx-1.5" />
+        <div className="bar-divider mx-1.5" />
 
         {/* Usage + role views + account */}
         <div
-          className="flex items-center gap-1 h-8 px-2.5 rounded-lg bg-slate-100/80 text-[11px] text-slate-500 tabular-nums"
+          className="token-badge hidden sm:inline-flex"
           title={"Your total LLM tokens used: " + fmtTokens(totalTokens)}
         >
-          ⚡ <span className="font-semibold text-slate-600">{fmtTokens(totalTokens)}</span>
-          <span className="hidden md:inline">tok</span>
+          <Icon name="zap" size={12} />
+          <strong>{fmtTokens(totalTokens)}</strong>
+          <span className="hidden md:inline text-[rgba(242,237,225,0.58)]">tok</span>
         </div>
 
         {isAdmin && (
           <Button
-            variant="ghost"
+            variant="bar-ghost"
+            size="sm"
             active={adminView}
             onClick={onToggleAdminView}
             title="Admin board — system stats and users"
+            icon={<Icon name="admin" size={14} />}
           >
-            🛠️ Admin
+            Admin
           </Button>
         )}
         {(isAdmin || isFacilitator) && (
           <Button
-            variant="ghost"
+            variant="bar-ghost"
+            size="sm"
             active={facilitatorView}
             onClick={onToggleFacilitatorView}
             title="Facilitator dashboard — templates, workshops, teams"
+            icon={<Icon name="facilitator" size={14} />}
           >
-            🧑‍🏫 Facilitator
+            <span className="sr-only" aria-hidden>🧑‍🏫 </span>Facilitator
           </Button>
         )}
 
         <Menu
-          panelClassName="w-60"
+          panelClassName="w-64"
           trigger={({ open, toggle }) => (
             <button
               type="button"
               onClick={toggle}
-              className={
-                "flex items-center gap-1 h-8 pl-1 pr-2 rounded-full border shadow-sm transition " +
-                (open
-                  ? "bg-slate-50 border-slate-300"
-                  : "bg-white border-slate-200 hover:border-slate-300")
-              }
+              className="account-pill"
               title="Account"
             >
               {user.photoURL ? (
-                <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full" />
+                <img src={user.photoURL} alt="" className="account-avatar" />
               ) : (
-                <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold flex items-center justify-center">
-                  {avatarInitials}
-                </span>
+                <span className="account-avatar">{avatarInitials}</span>
               )}
-              <span className="text-[10px] text-slate-400">▾</span>
+              <Icon
+                name="chevronDown"
+                size={12}
+                className={"text-[rgba(242,237,225,0.6)]" + (open ? " rotate-180" : "")}
+              />
             </button>
           )}
         >
           {(close) => (
             <>
-              <div className="px-3.5 py-2.5 border-b border-slate-100">
-                <p className="text-[13px] font-medium text-slate-800 truncate">
+              <div className="px-3 py-2.5 border-b border-rule">
+                <p className="text-[13px] font-semibold text-ink truncate">
                   {user.displayName || "Signed in"}
                 </p>
-                <p className="text-[11px] text-slate-400 truncate">{user.email || "Workshop guest"}</p>
+                <p className="data-mono text-ink-muted truncate mt-0.5">
+                  {user.email || "Workshop guest"}
+                </p>
               </div>
               <div className="py-1">
                 <MenuItem
-                  icon="⏻"
+                  icon={<Icon name="logout" size={14} />}
                   label="Sign out"
                   danger
                   onClick={() => {

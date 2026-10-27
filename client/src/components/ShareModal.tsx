@@ -2,11 +2,18 @@ import { useState, useEffect, useRef } from "react";
 import { useBoardStore } from "../store/boardStore.js";
 import { useAuthStore } from "../store/authStore.js";
 import { copyToClipboard } from "../lib/code.js";
+import { Button } from "./ui/Button.js";
+import { Icon } from "./ui/Icon.js";
 
 interface ShareModalProps {
   open: boolean;
   onClose: () => void;
 }
+
+/** The one field recipe every dialog in "The Printed Line" uses. */
+const FIELD =
+  "w-full rounded-sm border border-rule bg-card px-2.5 text-[13px] text-ink " +
+  "placeholder:text-ink-muted focus:outline-none focus:border-pine focus:ring-2 focus:ring-signal/30";
 
 export default function ShareModal({ open, onClose }: ShareModalProps) {
   const currentBoardId = useBoardStore((s) => s.currentBoardId);
@@ -67,46 +74,55 @@ export default function ShareModal({ open, onClose }: ShareModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(22,33,28,0.45)] p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
+        className="w-full max-w-md overflow-hidden rounded-md border border-rule bg-card shadow-float"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-800">Share Board</h2>
+        <div className="flex items-center justify-between gap-3 border-b border-rule px-6 py-3.5">
+          <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Share Board</h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100"
+            aria-label="Close"
+            title="Close"
+            className="-mr-1 inline-flex h-7 w-7 items-center justify-center rounded-sm text-ink-muted transition-colors hover:bg-paper-raised hover:text-ink focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
           >
-            ✕
+            <Icon name="x" size={16} />
           </button>
         </div>
 
         {/* Body */}
-        <div className="px-6 py-5 space-y-5">
+        <div className="space-y-5 px-6 py-5">
           {/* Share link */}
           <div>
-            <label className="text-sm font-medium text-slate-600 block mb-1.5">
+            <label htmlFor="share-link" className="mb-1.5 block label-caps text-ink-muted">
               Share Link
             </label>
             <div className="flex gap-2">
               <input
+                id="share-link"
                 type="text"
                 readOnly
                 value={shareLink}
-                className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-500 bg-slate-50 focus:outline-none"
+                className={
+                  "h-8 min-w-0 flex-1 rounded-sm border border-rule bg-card px-2.5 " +
+                  "font-mono text-[11px] text-ink focus:outline-none focus:border-pine " +
+                  "focus:ring-2 focus:ring-signal/30"
+                }
               />
-              <button
+              <Button
+                variant="secondary"
                 onClick={handleCopy}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 transition whitespace-nowrap"
+                icon={<Icon name={copied ? "check" : "copy"} size={14} />}
+                title="Copy the board link"
               >
-                {copied ? "✅ Copied" : "Copy"}
-              </button>
+                {copied ? "Copied" : "Copy"}
+              </Button>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="mt-1.5 text-[11px] leading-snug text-ink-muted">
               Anyone with this link who is logged in and has access can view and edit.
             </p>
           </div>
@@ -114,73 +130,91 @@ export default function ShareModal({ open, onClose }: ShareModalProps) {
           {/* Add collaborator */}
           {isOwner && (
             <form onSubmit={handleAdd}>
-              <label className="text-sm font-medium text-slate-600 block mb-1.5">
+              <label htmlFor="share-email" className="mb-1.5 block label-caps text-ink-muted">
                 Add people by email
               </label>
               <div className="flex gap-2">
                 <input
+                  id="share-email"
                   ref={inputRef}
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="email@example.com"
-                  className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
+                  className={FIELD + " h-8 min-w-0 flex-1"}
                 />
-                <button
+                <Button
                   type="submit"
-                  className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 transition whitespace-nowrap"
+                  variant="primary"
+                  icon={<Icon name="plus" size={14} />}
+                  title="Share this board with that email"
                 >
                   Add
-                </button>
+                </Button>
               </div>
             </form>
           )}
 
           {/* Collaborator list */}
           <div>
-            <label className="text-sm font-medium text-slate-600 block mb-1.5">
-              People with access
-            </label>
-            <div className="border border-slate-200 rounded-lg overflow-hidden divide-y divide-slate-100">
+            <div className="mb-1.5 flex items-baseline justify-between gap-2">
+              <span className="label-caps text-ink-muted">People with access</span>
+              <span className="data-mono text-ink-muted">{collaborators.length + 1}</span>
+            </div>
+            <div className="border-t border-rule">
               {/* Owner */}
-              <div className="flex items-center justify-between px-4 py-2.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-slate-700 text-white text-xs font-bold flex items-center justify-center">
+              <div className="flex items-center justify-between gap-3 border-b border-rule py-2.5">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span
+                    aria-hidden
+                    className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-sm border border-pine bg-pine text-[11px] font-semibold tracking-[0.02em] text-cream"
+                  >
                     {(user?.email || "U").slice(0, 2).toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-slate-700">
+                  </span>
+                  <div className="min-w-0">
+                    <div className="truncate font-mono text-[11.5px] text-ink">
                       {user?.email || "You"}
                     </div>
-                    <div className="text-xs text-slate-400">Owner</div>
+                    <div className="label-caps mt-0.5 text-ink-muted">Owner</div>
                   </div>
                 </div>
               </div>
               {/* Collaborators */}
               {collaborators.map((emailAddr) => (
-                <div key={emailAddr} className="flex items-center justify-between px-4 py-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-full bg-slate-400 text-white text-xs font-bold flex items-center justify-center">
+                <div
+                  key={emailAddr}
+                  className="flex items-center justify-between gap-3 border-b border-rule py-2.5"
+                >
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span
+                      aria-hidden
+                      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-sm border border-rule bg-paper-raised text-[11px] font-semibold tracking-[0.02em] text-ink-soft"
+                    >
                       {emailAddr.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-slate-700">{emailAddr}</div>
-                      <div className="text-xs text-slate-400">Collaborator</div>
+                    </span>
+                    <div className="min-w-0">
+                      <div className="truncate font-mono text-[11.5px] text-ink">
+                        {emailAddr}
+                      </div>
+                      <div className="label-caps mt-0.5 text-ink-muted">Collaborator</div>
                     </div>
                   </div>
                   {isOwner && (
-                    <button
+                    <Button
+                      variant="danger"
+                      size="xs"
                       onClick={() => handleRemove(emailAddr)}
-                      className="text-xs text-slate-400 hover:text-red-500 transition px-2 py-1 rounded hover:bg-red-50"
+                      title={`Remove ${emailAddr} from this board`}
                     >
                       Remove
-                    </button>
+                    </Button>
                   )}
                 </div>
               ))}
               {collaborators.length === 0 && (
-                <div className="px-4 py-3 text-xs text-slate-400">
-                  No collaborators yet. Add people by email above.
+                <div className="flex items-center gap-2 border-b border-rule py-3 text-[11.5px] leading-snug text-ink-muted">
+                  <Icon name="users" size={14} />
+                  No collaborators yet — add people by email above.
                 </div>
               )}
             </div>
@@ -188,13 +222,10 @@ export default function ShareModal({ open, onClose }: ShareModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-100 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-5 py-2 rounded-lg text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 transition"
-          >
+        <div className="flex items-center justify-end gap-2 border-t border-rule bg-paper-raised px-6 py-3">
+          <Button variant="primary" onClick={onClose}>
             Done
-          </button>
+          </Button>
         </div>
       </div>
     </div>

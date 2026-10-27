@@ -2,19 +2,39 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- Tablet/kiosk: viewport-fit for notched devices, pinch-zoom locked (the
-         canvas handles its own pinch), web-app metas so "Add to Home Screen"
-         runs chrome-less fullscreen. -->
+    <!-- Tablet/kiosk: viewport-fit for notched devices, web-app metas so
+         "Add to Home Screen" runs chrome-less fullscreen. Browser zoom stays
+         available (WCAG 1.4.4); the canvas owns pinch on its own surface. -->
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="AI Canva" />
-    <meta name="theme-color" content="#f8fafc" />
-    <title>AI Canva</title>
+    <meta name="theme-color" content="#123229" />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      crossorigin
+      href="/src/assets/fonts/archivo-latin.woff2"
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <meta
+      name="description"
+      content="AI Canva is a collaborative whiteboard where every AI step is a box on one printed route — idea, research, PRD, slides, code and UI, with provenance kept."
+    />
+    <meta property="og:title" content="AI Canva — Build AI pipelines" />
+    <meta
+      property="og:description"
+      content="Visual AI pipelines on one shared board: every step a box, every connection a printed line."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <title>AI Canva — Build AI pipelines</title>
   </head>
   <body class="bg-canvas">
     <div id="root"></div>

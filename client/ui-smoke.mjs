@@ -9,7 +9,7 @@
  */
 import { chromium } from "playwright-core";
 
-const APP = "http://localhost:5173";
+const APP = process.env.APP_URL || "http://localhost:5173";
 const results = [];
 const check = (name, ok, detail = "") => {
   results.push({ name, ok, detail });

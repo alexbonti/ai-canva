@@ -1,7 +1,10 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import CodeEditor from "./CodeEditor.js";
-import { wrapCodeInHtml, wrapUIInHtml } from "../lib/code.js";
+import { wrapCodeInHtml } from "../lib/code.js";
+import { toUiPreviewHtml } from "../lib/uidesign.js";
+import { Button } from "./ui/Button.js";
+import { Icon } from "./ui/Icon.js";
 import type { BoxType } from "../types.js";
 
 // Sandpack is heavy; lazy-load it so it only loads when a Code box is maximised.
@@ -17,13 +20,49 @@ interface CodeModalProps {
   title: string;
 }
 
+/** Small-caps pane caption on the card stock strip. */
+function PaneCaption({ icon, children }: { icon: "code" | "eye"; children: string }) {
+  return (
+    <div className="flex flex-shrink-0 items-center gap-1.5 border-b border-rule bg-paper-raised px-3 py-1.5 text-ink-muted">
+      <Icon name={icon} size={12} />
+      <span className="label-caps">{children}</span>
+    </div>
+  );
+}
+
+/** The shared paper loading state (no spinner emoji). */
+function PreviewLoading() {
+  return (
+    <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-card/95 text-[12px] text-ink-muted">
+      <Icon name="loader" size={16} className="animate-spin" />
+      <span>Loading preview…</span>
+    </div>
+  );
+}
+
 /**
  * Full-screen split view for a code box: editable code on the left, live
  * preview on the right. Rendered via a portal to document.body so it escapes
  * React Flow's transformed node container.
+ *
+ * Chrome is a pine header strip (box title + a cream Close control) over a
+ * warm paper split, divided by a single hairline.
  */
 export default function CodeModal({ onClose, boxType, code, onChange, title }: CodeModalProps) {
   const [previewLoading, setPreviewLoading] = useState(true);
+
+  // Escape closes the split view — except while the code editor has focus,
+  // where Escape belongs to CodeMirror (it dismisses the autocomplete popup).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      const target = e.target as HTMLElement | null;
+      if (target && target.closest(".cm-editor")) return;
+      onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   // Debounce the code fed to the preview: every keystroke changes `code`, and
   // rebuilding the Sandpack project (or the iframe srcDoc) per keystroke
@@ -36,61 +75,51 @@ export default function CodeModal({ onClose, boxType, code, onChange, title }: C
   }, [code]);
 
   const isStitch = boxType === "stitch";
-  const srcDoc = isStitch ? previewCode : (boxType === "ui" ? wrapUIInHtml : wrapCodeInHtml)(previewCode);
+  const srcDoc = isStitch
+    ? previewCode
+    : boxType === "ui"
+    ? toUiPreviewHtml(previewCode)
+    : wrapCodeInHtml(previewCode);
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-slate-950/95 backdrop-blur-sm">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-white/10 bg-slate-900 px-5 py-3">
-        <div className="flex items-center gap-2 text-sm font-semibold text-white">
-          <span>⛶</span>
-          <span>{title}</span>
+    <div className="fixed inset-0 z-50 flex flex-col bg-paper">
+      {/* Pine header strip */}
+      <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-pine-line bg-pine px-4 py-2">
+        <div className="flex min-w-0 items-center gap-2 text-cream">
+          <Icon name="panel" size={14} className="text-cream/70" />
+          <span className="truncate text-[13px] font-semibold tracking-[-0.01em]">{title}</span>
         </div>
-        <button
+        <Button
+          variant="bar"
           onClick={onClose}
-          className="rounded-lg bg-white/10 px-3.5 py-1.5 text-sm font-medium text-white transition hover:bg-white/20"
+          icon={<Icon name="x" size={14} />}
+          title="Close the split view"
         >
-          ✕ Close
-        </button>
+          Close
+        </Button>
       </div>
 
       {/* Split view */}
       <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-2">
         {/* Code pane */}
-        <div className="flex min-h-0 flex-col border-b border-white/10 md:border-b-0 md:border-r">
-          <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-            📝 Code
-          </div>
-          <div className="min-h-0 flex-1 px-3 pb-3">
+        <div className="flex min-h-0 flex-col border-b border-rule md:border-b-0 md:border-r">
+          <PaneCaption icon="code">Code</PaneCaption>
+          <div className="min-h-0 flex-1 p-2">
             <CodeEditor value={code} onChange={onChange} height="100%" />
           </div>
         </div>
 
         {/* Preview pane */}
         <div className="flex min-h-0 flex-col">
-          <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-            👁 Preview
-          </div>
-          <div className="relative m-3 min-h-0 flex-1 overflow-hidden rounded-lg bg-white">
+          <PaneCaption icon="eye">Preview</PaneCaption>
+          <div className="relative m-2 min-h-0 flex-1 overflow-hidden rounded-sm border border-rule bg-card">
             {boxType === "code" ? (
-              <Suspense
-                fallback={
-                  <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-white text-sm text-slate-400">
-                    <span className="animate-spin text-2xl">⚙️</span>
-                    <span>Loading preview…</span>
-                  </div>
-                }
-              >
+              <Suspense fallback={<PreviewLoading />}>
                 <SandpackPreview code={previewCode} height="100%" />
               </Suspense>
             ) : (
               <>
-                {previewLoading && (
-                  <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-white text-sm text-slate-400">
-                    <span className="animate-spin text-2xl">⚙️</span>
-                    <span>Loading preview…</span>
-                  </div>
-                )}
+                {previewLoading && <PreviewLoading />}
                 <iframe
                   srcDoc={srcDoc}
                   onLoad={() => setPreviewLoading(false)}

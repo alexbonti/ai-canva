@@ -1,0 +1,22 @@
+import { chromium } from "/Users/alessiobonti/dev/ai-canva/client/node_modules/playwright-core/index.mjs";
+const browser = await chromium.launch({ executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless: true });
+const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+await ctx.addInitScript(() => { try { localStorage.clear(); } catch {} });
+const page = await ctx.newPage();
+await page.goto("http://127.0.0.1:5183", { waitUntil: "load" });
+await page.waitForFunction(() => !!window.__dsh && window.__dsh.useAuthStore.getState().loading === false, null, { timeout: 20000 });
+await page.evaluate(() => window.__dsh.useAuthStore.setState({ user: { uid: "a", email: "a@b.c", displayName: "A", photoURL: "" }, loading: false }));
+await page.waitForFunction(() => !!document.querySelector(".app-bar"), null, { timeout: 15000 });
+await page.waitForTimeout(2000);
+await page.evaluate(() => { const b = Array.from(document.querySelectorAll("button")).find((y) => y.textContent.trim().endsWith("Chatbot")); b?.click(); });
+await page.waitForTimeout(800);
+const out = await page.evaluate(() => {
+  const b = document.querySelector(".chatbot-bubble");
+  const n = document.querySelector(".chatbot-node");
+  if (!b) return { none: true };
+  const r = b.getBoundingClientRect();
+  const cs = getComputedStyle(b);
+  return { rect: { w: r.width, h: r.height }, maxW: cs.maxWidth, maxH: cs.maxHeight, fs: cs.fontSize, node: n.getBoundingClientRect().width };
+});
+console.log(JSON.stringify(out, null, 1));
+await browser.close();

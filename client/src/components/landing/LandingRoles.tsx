@@ -1,83 +1,116 @@
-import Reveal from "./Reveal.js";
+import { BOX_TYPES } from "../../types.js";
+import type { BoxRole, BoxType } from "../../types.js";
+import { LINE_COLORS } from "../../lib/lines.js";
 
-const ROLES = [
+type FilterRole = Exclude<BoxRole, "everyone">;
+
+interface RoleColumn {
+  role: FilterRole;
+  title: string;
+  body: string;
+  /** The boxes this view surfaces beyond the shared set. */
+  boxes: BoxType[];
+  /** Real worker tools this role also gets, summarised quietly. */
+  extra?: BoxType[];
+}
+
+const ROLE_COLUMNS: RoleColumn[] = [
   {
-    icon: "🎨",
-    title: "For designers",
-    color: "#f472b6",
-    points: [
-      "Generate polished UIs with Tailwind or Google Stitch",
-      "Turn research into visual screens and prototypes",
-      "A palette tuned to design boxes",
-    ],
+    role: "designer",
+    title: "Designer",
+    body: "Screens, images and decks. Draft a UI, generate a screen or turn the research into a deck — previewed in the box.",
+    boxes: ["image", "ui", "stitch", "slides", "cartoon"],
   },
   {
-    icon: "💻",
-    title: "For developers",
-    color: "#22d3ee",
-    points: [
-      "Go from PRD to a working React prototype",
-      "Preview code live in a sandboxed iframe",
-      "Track token usage per run",
-    ],
+    role: "developer",
+    title: "Developer",
+    body: "From plan to patch. Generate a prototype, map an unfamiliar repo, or turn a change request into a reviewable diff.",
+    boxes: ["code", "devplan", "codemap", "codeedit"],
   },
   {
-    icon: "📊",
-    title: "For product & PMs",
-    color: "#fb923c",
-    points: [
-      "Draft PRDs and pitch decks from research",
-      "Align requirements before a line of code",
-      "Share one board across the whole team",
-    ],
+    role: "product",
+    title: "Product",
+    body: "The written artifact. Draft the PRD and the deck from the research behind them, with every source still on the board.",
+    boxes: ["prd", "slides"],
   },
   {
-    icon: "🔁",
-    title: "For SDLC teams",
-    color: "#4f46e5",
-    points: [
-      "Intent → spec → plan → implementation → review → merge, gated",
-      "Approve, send back or edit every artifact — versions are never lost",
-      "Export the whole chain as one audit document",
+    role: "sdlc",
+    title: "SDLC",
+    body: "The gated route. Six stages, one artifact each, with a gate before the next stage runs.",
+    boxes: [
+      "sdlc-intent",
+      "sdlc-spec",
+      "sdlc-plan",
+      "sdlc-implement",
+      "sdlc-review",
+      "sdlc-merge",
     ],
+    extra: ["codemap", "codeedit"],
   },
 ];
 
+const BUILT_INS = (
+  Object.entries(BOX_TYPES) as [BoxType, (typeof BOX_TYPES)[BoxType]][]
+).filter(([type]) => type !== "custom");
+
+const SHARED = BUILT_INS.filter(([, meta]) => meta.roles.includes("everyone"));
+
+function visibleCount(role: FilterRole): number {
+  return BUILT_INS.filter(
+    ([, meta]) => meta.roles.includes("everyone") || meta.roles.includes(role)
+  ).length;
+}
+
 export default function LandingRoles() {
   return (
-    <section id="for-teams" className="border-t border-white/5 py-20">
-      <div className="mx-auto max-w-6xl px-5">
-        <Reveal className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-            Built for the whole team
-          </h2>
-          <p className="mt-3 text-slate-400">
-            One shared canvas, with a palette that adapts to how each role works.
+    <section id="for-teams" className="lp-section">
+      <div className="lp-shell">
+        <div className="lp-section-head">
+          <h2 className="lp-section-title">One board, four ways in.</h2>
+          <p className="lp-section-lede">
+            The palette adapts; the board does not. Pick a view and Add Box
+            narrows to the stops that role reaches for. Nobody loses access to
+            anything.
           </p>
-        </Reveal>
+        </div>
 
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {ROLES.map((role, i) => (
-            <Reveal key={role.title} delay={i * 120}>
-              <div className="h-full rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:border-white/20 hover:bg-white/[0.07]">
-                <div
-                  className="flex h-11 w-11 items-center justify-center rounded-xl text-2xl"
-                  style={{ backgroundColor: role.color + "1f" }}
-                >
-                  {role.icon}
-                </div>
-                <h3 className="mt-4 text-lg font-semibold text-white">{role.title}</h3>
-                <ul className="mt-3 space-y-2">
-                  {role.points.map((p) => (
-                    <li key={p} className="flex items-start gap-2 text-sm text-slate-400">
-                      <span className="mt-0.5 text-emerald-400">✓</span>
-                      <span>{p}</span>
-                    </li>
-                  ))}
-                </ul>
+        <div className="lp-roles">
+          {ROLE_COLUMNS.map((column) => (
+            <div key={column.role} className="lp-role">
+              <div className="lp-role-head">
+                <h3>{column.title}</h3>
+                <span className="data-mono">{visibleCount(column.role)} in view</span>
               </div>
-            </Reveal>
+              <p>{column.body}</p>
+
+              <ul className="lp-role-list">
+                {column.boxes.map((type) => (
+                  <li key={type}>
+                    <span
+                      className="lp-line-dot"
+                      style={{ backgroundColor: LINE_COLORS[BOX_TYPES[type].category] }}
+                      aria-hidden
+                    />
+                    <span>{BOX_TYPES[type].label}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {column.extra && (
+                <p className="lp-role-extra">
+                  + {column.extra.map((type) => BOX_TYPES[type].label).join(" · ")}
+                </p>
+              )}
+            </div>
           ))}
+        </div>
+
+        <div className="lp-role-note">
+          <span className="label-caps">Discovery filters, never permissions</span>
+          <p>
+            Every view keeps the same {SHARED.length} shared boxes:{" "}
+            {SHARED.map(([, meta]) => meta.label).join(", ")}.
+          </p>
         </div>
       </div>
     </section>
