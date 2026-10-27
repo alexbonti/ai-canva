@@ -32,6 +32,26 @@ current state).
 - **Left uncommitted:** the full working tree incl. this entry — nothing committed or pushed; commit
   it (and record the deploy commit) before the next session.
 
+## 2026-10-27 — Redesign shipped to production (carbondocs)
+
+- **Merged + pushed:** `da8c6b7` on `main` (218 files, +15,678 / −3,040) — the "Printed
+  Line" redesign, the quality pass, the demo workflow guides and `client/demo-scripts.mjs`.
+  `origin/main` is now at `da8c6b7` (it also carries the earlier unpushed deploy-record commit
+  `c1b1465`).
+- **Gates before deploy:** 380 unit tests (75 server + 305 client), `client/ui-smoke.mjs`
+  84/84, `client/demo-scripts.mjs` 40/40, client build + clean functions build OK.
+- **Deployed:** `bash scripts/deploy.sh` → hosting (26 files) released on carbondocs;
+  firestore + storage rules re-released; `functions[api]` and `processStitchJob` **skipped —
+  no changes detected** (the backend already matched production).
+- **Verified live:** `https://carbondocs.web.app/` → 200 with the new bundle
+  (`/assets/index-CM4vDpN-.js`, self-hosted Archivo + IBM Plex Mono, new landing, 0 console
+  errors in headless Chrome); `/api/health` ok with ollama/fal/stitch keys;
+  `POST /api/generate` answered via `deepseek-v4.1-flash:1017` (62 tok);
+  `POST /api/repo-digest` read `octocat/Hello-World` from the cloud function.
+- **Next:** build the seven demo boards as facilitator **template boards** in the live project
+  (the procedure is in `docs/DEMOS.md` → *Re-use the boards without code*); the Deploy finale in
+  demos 1/3 has not been exercised against the live hosting yet.
+
 ## 2026-10-26 — Demo guides, implemented
 
 - **Done:** the guides are now backed by code in two ways.
